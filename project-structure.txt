@@ -1,0 +1,85 @@
+.
+├── .gitignore
+├── README.md
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── physics
+│   ├── Cargo.lock
+│   ├── Cargo.toml
+│   └── src
+│       ├── collision
+│       │   ├── collider.rs
+│       │   ├── geometry.rs
+│       │   ├── mod.rs
+│       │   └── spatial_hash.rs
+│       ├── constraints
+│       │   ├── bending.rs
+│       │   ├── distance.rs
+│       │   ├── mod.rs
+│       │   └── tether.rs
+│       ├── dynamics
+│       │   ├── forces.rs
+│       │   ├── mod.rs
+│       │   └── solver.rs
+│       ├── engine
+│       │   ├── mod.rs
+│       │   ├── simulation.rs
+│       │   └── state.rs
+│       ├── lib.rs
+│       └── utils
+│           ├── math.rs
+│           └── mod.rs
+├── project-structure.txt
+├── public
+│   ├── models
+│   │   ├── mannequin.glb
+│   │   └── shirt.glb
+│   ├── textures
+│   └── vite.svg
+├── src
+│   ├── App.css
+│   ├── App.tsx
+│   ├── adapters
+│   │   ├── MockAdapter.ts
+│   │   ├── WasmAdapter.ts
+│   │   └── types.ts
+│   ├── app
+│   │   ├── App.tsx
+│   │   └── store
+│   │       └── simulationStore.ts
+│   ├── assets
+│   │   └── react.svg
+│   ├── components
+│   │   ├── canvas
+│   │   ├── debug
+│   │   └── ui
+│   ├── domain
+│   │   ├── garment
+│   │   ├── index.ts
+│   │   ├── mannequin
+│   │   ├── services
+│   │   │   ├── AssetLoader.ts
+│   │   │   └── GeometryProcessor.ts
+│   │   └── types.ts
+│   ├── index.css
+│   ├── main.tsx
+│   ├── physics-pkg
+│   │   ├── .gitignore
+│   │   ├── garment_physics.d.ts
+│   │   ├── garment_physics.js
+│   │   ├── garment_physics_bg.wasm
+│   │   ├── garment_physics_bg.wasm.d.ts
+│   │   └── package.json
+│   ├── rendering
+│   │   ├── GarmentMesh.tsx
+│   │   ├── MannequinMesh.tsx
+│   │   └── Scene.tsx
+│   └── utils
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+27 directories, 56 files
