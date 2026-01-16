@@ -2,6 +2,9 @@
 use crate::engine::state::PhysicsState;
 use crate::constraints::distance::DistanceConstraint;
 use crate::constraints::bending::BendingConstraint;
+// Import Collider and Resolver
+use crate::collision::MeshCollider;
+use crate::collision::CollisionResolver;
 
 pub struct Solver {
     distance_constraint: DistanceConstraint,
@@ -17,18 +20,29 @@ impl Solver {
         Self {
             distance_constraint,
             bending_constraint,
-            // INCREASED: 10 iterations makes the constraints 2.5x stiffer than 4
-            // This is much cheaper than increasing substeps.
-            iterations: 10,
+            iterations: 10, // Keep high iterations for stiffness
         }
     }
 
-    pub fn solve(&self, state: &mut PhysicsState, dt: f32) {
+    // UPDATED SIGNATURE
+    pub fn solve(
+        &self,
+        state: &mut PhysicsState,
+        collider: &MeshCollider,
+        resolver: &CollisionResolver,
+        dt: f32
+    ) {
         for _ in 0..self.iterations {
+            // 1. Solve Cloth Stiffness
             self.distance_constraint.solve(state, dt);
-            // Bending is soft, so we can run it less frequently to save CPU
-            // Running it every other iteration is a common optimization
+
+            // 2. Solve Bending (Optional: Run every other step for perf)
             self.bending_constraint.solve(state, dt);
+
+            // 3. Solve Collision (INTERLEAVED)
+            // The cloth tries to shrink, the body pushes back.
+            // Doing this in the loop finds the equilibrium.
+            resolver.resolve_position(state, collider, dt);
         }
     }
 }
