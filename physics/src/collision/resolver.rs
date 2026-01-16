@@ -3,20 +3,17 @@ use glam::Vec3;
 use crate::engine::state::PhysicsState;
 use super::collider::MeshCollider;
 
-// Helper struct to store collision data
 #[derive(Clone, Copy)]
 pub struct Contact {
     pub particle_index: usize,
     pub normal: Vec3,
-    pub surface_point: Vec3, // Store point to calculate depth dynamically
+    pub surface_point: Vec3,
 }
 
 pub struct CollisionResolver {
     thickness: f32,
     search_radius: f32,
-    // Reusable buffer for contacts
     contacts: Vec<Contact>,
-    // Reusable buffer for query indices
     query_buffer: Vec<usize>,
 }
 
@@ -30,24 +27,25 @@ impl CollisionResolver {
         }
     }
 
-    /// PHASE 1: Find Contacts & Velocity Clamp (The "Airbag")
-    /// Run this ONCE per substep.
     pub fn pre_solve(&mut self, state: &mut PhysicsState, collider: &MeshCollider, dt: f32) {
         self.contacts.clear();
 
         let max_v_per_step = self.thickness * 0.9;
         let max_v = max_v_per_step / dt;
 
+        // Reusable buffer is already allocated in struct
+
         for i in 0..state.count {
             if state.inv_mass[i] == 0.0 { continue; }
 
             let pos = state.positions[i];
 
-            // Optimization: Only check particles near the mesh
-            // We use the reusable query buffer
+            // Optimization: Only check if moving or near body
+            // (We skip the dist_sq check here to ensure we catch resting contacts)
+
             if let Some((surface_point, normal, _)) = collider.query_closest(pos, self.search_radius, &mut self.query_buffer) {
 
-                // 1. Velocity Clamping (Anti-Tunneling)
+                // 1. Velocity Clamping (The "Airbag")
                 let prev = state.prev_positions[i];
                 let velocity = (pos - prev) / dt;
                 let v_normal = velocity.dot(normal);
@@ -59,9 +57,6 @@ impl CollisionResolver {
                     state.prev_positions[i] = pos - new_velocity * dt;
                 }
 
-                // 2. Cache the Contact
-                // We store it if it's within search radius.
-                // We will check exact depth inside the inner loop.
                 self.contacts.push(Contact {
                     particle_index: i,
                     normal,
@@ -71,9 +66,6 @@ impl CollisionResolver {
         }
     }
 
-    /// PHASE 2: Position Projection
-    /// Run this INSIDE the solver loop (10x).
-    /// It iterates the CACHED contacts, avoiding expensive spatial lookups.
     pub fn resolve_contacts(&self, state: &mut PhysicsState) {
         for contact in &self.contacts {
             let i = contact.particle_index;
@@ -81,17 +73,44 @@ impl CollisionResolver {
             let normal = contact.normal;
             let surface_point = contact.surface_point;
 
-            // Re-calculate depth dynamically as the particle moves during iterations
             let vec = pos - surface_point;
             let projection = vec.dot(normal);
 
+            // Check if we are interacting (Inside or Touching)
             if projection < self.thickness {
-                // A. Position Correction
+
+                // --- PHASE 4: BACK-FACE RECOVERY ---
+                // If we are actually INSIDE (negative projection)
+                if projection < 0.0 {
+                    let prev = state.prev_positions[i];
+                    let velocity = state.positions[i] - prev;
+
+                    // Check if moving deeper into the body
+                    if velocity.dot(normal) < 0.0 {
+                        // HARD STOP: Kill all motion to prevent further tunneling.
+                        // We reset prev_pos to current pos, effectively setting velocity to 0.
+                        // The projection step below will then push it out safely.
+                        state.prev_positions[i] = state.positions[i];
+                    }
+
+                    // Deep Penetration Rescue
+                    // If we are deeper than 2x thickness, the springs might be pulling us in too hard.
+                    // We perform a "Hard Snap" to the surface.
+                    if projection < -self.thickness * 2.0 {
+                        let snap_correction = normal * (self.thickness - projection);
+                        state.positions[i] += snap_correction;
+                        // Continue to next contact, we are done here.
+                        continue;
+                    }
+                }
+                // -----------------------------------
+
+                // Standard Projection (The "Contact")
                 let penetration = self.thickness - projection;
                 let correction = normal * penetration;
                 state.positions[i] += correction;
 
-                // B. Friction
+                // Friction
                 let prev = state.prev_positions[i];
                 let velocity = state.positions[i] - prev;
 
@@ -103,6 +122,7 @@ impl CollisionResolver {
                 let friction = if is_horizontal { 1.0 } else { 0.1 };
 
                 let new_vt = vt * (1.0 - friction);
+                // Only kill normal velocity if moving in (standard bounce handling)
                 let new_vn = if vn_mag < 0.0 { Vec3::ZERO } else { vn };
 
                 state.prev_positions[i] = state.positions[i] - (new_vn + new_vt);
