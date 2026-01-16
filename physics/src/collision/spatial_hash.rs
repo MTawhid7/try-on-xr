@@ -2,9 +2,9 @@
 use glam::Vec3;
 use std::collections::HashMap;
 
-/// A sparse grid that maps 3D cells to lists of triangle indices.
 pub struct SpatialHash {
     cell_size: f32,
+    // Map cell coordinate -> List of entity indices
     grid: HashMap<(i32, i32, i32), Vec<usize>>,
 }
 
@@ -17,7 +17,10 @@ impl SpatialHash {
     }
 
     pub fn clear(&mut self) {
-        self.grid.clear();
+        // Clear the map but keep allocated memory for vectors where possible
+        for (_, list) in self.grid.iter_mut() {
+            list.clear();
+        }
     }
 
     fn get_cell(&self, p: Vec3) -> (i32, i32, i32) {
@@ -28,7 +31,8 @@ impl SpatialHash {
         )
     }
 
-    pub fn insert(&mut self, triangle_idx: usize, min: Vec3, max: Vec3) {
+    // Existing method for Triangles (AABB)
+    pub fn insert_aabb(&mut self, id: usize, min: Vec3, max: Vec3) {
         let (min_x, min_y, min_z) = self.get_cell(min);
         let (max_x, max_y, max_z) = self.get_cell(max);
 
@@ -38,14 +42,21 @@ impl SpatialHash {
                     self.grid
                         .entry((x, y, z))
                         .or_insert_with(Vec::new)
-                        .push(triangle_idx);
+                        .push(id);
                 }
             }
         }
     }
 
-    /// Returns a list of potential triangle indices for a query point.
-    /// Includes the cell the point is in, plus neighbors to handle boundary cases.
+    // NEW: Method for single Points (Particles)
+    pub fn insert_point(&mut self, id: usize, p: Vec3) {
+        let cell = self.get_cell(p);
+        self.grid
+            .entry(cell)
+            .or_insert_with(Vec::new)
+            .push(id);
+    }
+
     pub fn query(&self, p: Vec3, radius: f32) -> Vec<usize> {
         let mut candidates = Vec::new();
 
@@ -65,7 +76,8 @@ impl SpatialHash {
             }
         }
 
-        // Remove duplicates (a triangle might span multiple cells)
+        // Note: For self-collision, we might want to avoid sorting/dedupping
+        // inside the tight loop if possible, but for safety we keep it.
         candidates.sort_unstable();
         candidates.dedup();
         candidates

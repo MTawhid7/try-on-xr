@@ -1,6 +1,7 @@
 // physics/src/engine/simulation.rs
 use glam::Vec3;
 use crate::collision::MeshCollider;
+use crate::collision::self_collision::SelfCollision; // Import
 use crate::dynamics::solver::Solver;
 use crate::dynamics::forces::ForceUniform;
 use crate::constraints::mouse::MouseConstraint;
@@ -9,6 +10,7 @@ use super::state::PhysicsState;
 pub struct SimulationLoop {
     pub state: PhysicsState,
     pub collider: MeshCollider,
+    pub self_collision: SelfCollision, // Add field
     pub solver: Solver,
     pub forces: ForceUniform,
     pub mouse: MouseConstraint,
@@ -24,6 +26,11 @@ impl SimulationLoop {
     ) -> Self {
         let state = PhysicsState::new(garment_pos, garment_indices);
         let collider = MeshCollider::new(collider_pos, collider_normals, collider_indices);
+
+        // Self Collision Thickness: 1.5cm (0.015)
+        // This keeps folds from flattening completely
+        let self_collision = SelfCollision::new(&state, 0.015);
+
         let solver = Solver::new(&state);
         let forces = ForceUniform::new();
         let mouse = MouseConstraint::new();
@@ -31,6 +38,7 @@ impl SimulationLoop {
         SimulationLoop {
             state,
             collider,
+            self_collision, // Init
             solver,
             forces,
             mouse,
@@ -41,14 +49,17 @@ impl SimulationLoop {
         let substeps = 10;
         let sdt = dt / substeps as f32;
 
-        for _ in 0..substeps {
+        for step_i in 0..substeps {
             self.forces.apply(&mut self.state, sdt);
-
-            // Solve Mouse Constraint FIRST so the user has control
             self.mouse.solve(&mut self.state, sdt);
-
             self.solver.solve(&mut self.state, sdt);
             self.resolve_collisions();
+
+            // Run Self-Collision less frequently to save CPU.
+            // Running it every 5th substep (2 times per frame) is a good balance.
+            if step_i % 5 == 0 {
+                self.self_collision.solve(&mut self.state);
+            }
         }
     }
 

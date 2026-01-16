@@ -52,7 +52,9 @@ impl MeshCollider {
             let (min, max) = tri.aabb();
 
             self.triangles.push(tri);
-            self.spatial_hash.insert(i, min, max);
+
+            // UPDATE: Call insert_aabb instead of insert
+            self.spatial_hash.insert_aabb(i, min, max);
         }
     }
 
