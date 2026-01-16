@@ -11,6 +11,7 @@ interface SimulationState {
     isLoading: boolean;
     isReady: boolean;
     isRunning: boolean;
+    isInteracting: boolean; // NEW: Track interaction state
     error: string | null;
 
     loadAndInitialize: () => Promise<void>;
@@ -18,6 +19,7 @@ interface SimulationState {
     step: (dt: number) => void;
 
     // Interaction
+    setInteracting: (active: boolean) => void; // NEW: Action
     grabParticle: (index: number, pos: [number, number, number]) => void;
     moveParticle: (pos: [number, number, number]) => void;
     releaseParticle: () => void;
@@ -29,6 +31,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     isLoading: false,
     isReady: false,
     isRunning: false,
+    isInteracting: false, // Default false
     error: null,
 
     loadAndInitialize: async () => {
@@ -75,6 +78,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     },
 
     // Interaction Implementation
+    setInteracting: (active) => set({ isInteracting: active }), // NEW
+
     grabParticle: (index, [x, y, z]) => {
         get().engine?.startInteraction(index, x, y, z);
     },

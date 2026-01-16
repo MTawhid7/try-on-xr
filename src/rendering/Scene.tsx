@@ -7,7 +7,8 @@ import { GarmentMesh } from './GarmentMesh';
 import { MannequinMesh } from './MannequinMesh';
 
 export const Scene = () => {
-    const { loadAndInitialize, isReady, isLoading, error } = useSimulationStore();
+    // Destructure isInteracting
+    const { loadAndInitialize, isReady, isLoading, error, isInteracting } = useSimulationStore();
 
     useEffect(() => {
         loadAndInitialize();
@@ -20,9 +21,16 @@ export const Scene = () => {
         <Canvas shadows camera={{ position: [0, 1.5, 2], fov: 50 }}>
             <color attach="background" args={['#1a1a1a']} />
 
-            <OrbitControls target={[0, 1.0, 0]} makeDefault />
+            {/*
+                OrbitControls Logic:
+                enabled={!isInteracting} -> Disabled when dragging cloth
+            */}
+            <OrbitControls
+                target={[0, 1.0, 0]}
+                makeDefault
+                enabled={!isInteracting}
+            />
 
-            {/* Lighting */}
             <ambientLight intensity={0.5} />
             <directionalLight
                 position={[5, 10, 5]}
@@ -32,7 +40,6 @@ export const Scene = () => {
             />
             <Environment preset="city" />
 
-            {/* Simulation Content */}
             {isReady && (
                 <group>
                     <MannequinMesh />
