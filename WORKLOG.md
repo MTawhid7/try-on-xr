@@ -13,6 +13,7 @@ Use it to track what works, what doesn’t, and what to do next.
 
 - [x] **Self Collision:** Implemented a basic self-collision system using a spatial hash and adjacency list to ignore connected neighbors.
 - [x] **Interaction Isolation** Implemented `OrbitControls` toggle. When the user grabs the cloth, camera rotation should lock.
+- [x] **Anisotropic Bending** Real fabric bends easily along the weft/warp lines but resists diagonal bending. We upgraded the Bending Constraint to respect the UV directions of the mesh.
 
 ### 2. Not Working / Issues [2026-01-16]
 

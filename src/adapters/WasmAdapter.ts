@@ -11,20 +11,18 @@ export class WasmAdapter implements ISimulationEngine {
     async init(
         garmentVerts: Float32Array,
         garmentIndices: Uint32Array,
+        garmentUVs: Float32Array, // NEW
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
         colliderIndices: Uint32Array
     ): Promise<void> {
-        // 1. Initialize WASM Module
         const wasm: InitOutput = await init();
         this.wasmMemory = wasm.memory;
 
-        // 2. Create the Physics Engine Instance
-        // Rust expects standard Arrays or TypedArrays.
-        // wasm-bindgen handles the conversion automatically.
         this.engine = new PhysicsEngine(
             garmentVerts,
             garmentIndices,
+            garmentUVs, // Pass
             colliderVerts,
             colliderNormals,
             colliderIndices

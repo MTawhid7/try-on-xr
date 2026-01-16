@@ -20,17 +20,16 @@ impl SimulationLoop {
     pub fn new(
         garment_pos: Vec<f32>,
         garment_indices: Vec<u32>,
+        garment_uvs: Vec<f32>, // NEW
         collider_pos: Vec<f32>,
         collider_normals: Vec<f32>,
         collider_indices: Vec<u32>
     ) -> Self {
-        let state = PhysicsState::new(garment_pos, garment_indices);
+        // Pass UVs to State
+        let state = PhysicsState::new(garment_pos, garment_indices, garment_uvs);
+
         let collider = MeshCollider::new(collider_pos, collider_normals, collider_indices);
-
-        // Self Collision Thickness: 1.5cm (0.015)
-        // This keeps folds from flattening completely
         let self_collision = SelfCollision::new(&state, 0.015);
-
         let solver = Solver::new(&state);
         let forces = ForceUniform::new();
         let mouse = MouseConstraint::new();
@@ -38,7 +37,7 @@ impl SimulationLoop {
         SimulationLoop {
             state,
             collider,
-            self_collision, // Init
+            self_collision,
             solver,
             forces,
             mouse,

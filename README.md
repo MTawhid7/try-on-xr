@@ -101,7 +101,7 @@ We pivoted to the industry-standard approach used in high-end games (e.g., *The 
 2. **Build WASM Core:**
 
     ```bash
-    npm run build:wasm
+    cd physics && wasm-pack build --target web --out-dir ../src/physics-pkg && cd ..
     ```
 
 3. **Run Development Server:**

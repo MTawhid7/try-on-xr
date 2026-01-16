@@ -1,16 +1,9 @@
 // src/adapters/types.ts
 export interface ISimulationEngine {
-    /**
-     * Initialize the physics engine with mesh data.
-     * @param garmentVerts Flat array of garment vertex positions [x, y, z, ...]
-     * @param garmentIndices Flat array of garment triangle indices [i0, i1, i2, ...]
-     * @param colliderVerts Flat array of mannequin vertex positions
-     * @param colliderNormals Flat array of mannequin vertex normals (for smooth collision)
-     * @param colliderIndices Flat array of mannequin triangle indices
-     */
     init(
         garmentVerts: Float32Array,
         garmentIndices: Uint32Array,
+        garmentUVs: Float32Array, // NEW
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
         colliderIndices: Uint32Array

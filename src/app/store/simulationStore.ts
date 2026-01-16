@@ -46,6 +46,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
             await adapter.init(
                 assets.garment.vertices,
                 assets.garment.indices,
+                assets.garment.uvs, // Pass
                 assets.collider.vertices,
                 assets.collider.normals,
                 assets.collider.indices

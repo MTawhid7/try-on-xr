@@ -19,6 +19,7 @@ impl PhysicsEngine {
     pub fn new(
         garment_pos: Vec<f32>,
         garment_indices: Vec<u32>,
+        garment_uvs: Vec<f32>, // NEW
         collider_pos: Vec<f32>,
         collider_normals: Vec<f32>,
         collider_indices: Vec<u32>
@@ -29,6 +30,7 @@ impl PhysicsEngine {
             sim: SimulationLoop::new(
                 garment_pos,
                 garment_indices,
+                garment_uvs, // Pass
                 collider_pos,
                 collider_normals,
                 collider_indices
