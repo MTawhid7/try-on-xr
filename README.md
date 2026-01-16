@@ -62,14 +62,14 @@ We pivoted to the industry-standard approach used in high-end games (e.g., *The 
 
 * **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs). These are rendered with **0.0 compliance (Rigid)**, while the body remains flexible, simulating reinforced seams.
 * **Zero-Jitter Resting:** The combination of XPBD and smoothed collisions allows the cloth to come to a complete rest without micro-vibrations.
-* **Interactive Physics:** Users can grab and pull the fabric. The solver prioritizes user interaction, allowing for tactile testing of material properties.
+* **Interactive Physics:** Users can grab and pull the fabric. The solver prioritizes user interaction (with camera controls disabled during interaction), allowing for tactile testing of material properties.
 * **Robust Collision:** "Inside/Outside" logic detects if a particle spawns inside the body and aggressively projects it out, preventing initial entanglements.
+* **Self-Collision:** A dedicated Spatial Hash Grid prevents the cloth from passing through itself, enabling realistic folding and multi-layer interactions.
 
 ---
 
 ## ⚠️ Known Limitations
 
-* **Interaction Camera Conflict:** Currently, clicking to drag the cloth also triggers the OrbitControls, causing the camera to rotate while pulling.
 * **Lateral Bias:** In some resting states, the shirt may exhibit a slight lateral drift due to asymmetric triangulation in the low-poly proxy.
 * **Extreme Force Detachment:** If the cloth is pulled with excessive force (beyond realistic human strength), it may clip through the collision body. This is an intentional trade-off to maintain performance; we prioritize stability under normal conditions over absolute impermeability under extreme stress.
 
@@ -77,9 +77,8 @@ We pivoted to the industry-standard approach used in high-end games (e.g., *The 
 
 ## 🔮 Future Roadmap
 
-1. **Self-Collision:** Implement a Spatial Hash for the garment itself to prevent sleeves from passing through the torso.
-2. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL. This will unlock the ability to simulate high-density meshes (>10,000 vertices) by parallelizing constraint solving.
-3. **Fitting Pipeline:** Re-introduce the "Hulk" growth strategy (animating body scale from 0.8 to 1.0) to allow tight garments to settle naturally without initial intersection.
+1. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL. This will unlock the ability to simulate high-density meshes (>10,000 vertices) by parallelizing constraint solving.
+2. **Fitting Pipeline:** Re-introduce the "Hulk" growth strategy (animating body scale from 0.8 to 1.0) to allow tight garments to settle naturally without initial intersection.
 
 ---
 
