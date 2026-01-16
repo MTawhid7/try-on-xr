@@ -2,9 +2,7 @@
 use crate::engine::state::PhysicsState;
 use crate::constraints::distance::DistanceConstraint;
 use crate::constraints::bending::BendingConstraint;
-// Import Collider and Resolver
-use crate::collision::MeshCollider;
-use crate::collision::CollisionResolver;
+use crate::collision::CollisionResolver; // Updated Import
 
 pub struct Solver {
     distance_constraint: DistanceConstraint,
@@ -20,29 +18,22 @@ impl Solver {
         Self {
             distance_constraint,
             bending_constraint,
-            iterations: 10, // Keep high iterations for stiffness
+            iterations: 10, // High iterations for stiffness
         }
     }
 
-    // UPDATED SIGNATURE
     pub fn solve(
         &self,
         state: &mut PhysicsState,
-        collider: &MeshCollider,
-        resolver: &CollisionResolver,
+        resolver: &CollisionResolver, // Use Resolver, not Collider
         dt: f32
     ) {
         for _ in 0..self.iterations {
-            // 1. Solve Cloth Stiffness
             self.distance_constraint.solve(state, dt);
-
-            // 2. Solve Bending (Optional: Run every other step for perf)
             self.bending_constraint.solve(state, dt);
 
-            // 3. Solve Collision (INTERLEAVED)
-            // The cloth tries to shrink, the body pushes back.
-            // Doing this in the loop finds the equilibrium.
-            resolver.resolve_position(state, collider, dt);
+            // Solve using CACHED contacts (Fast)
+            resolver.resolve_contacts(state);
         }
     }
 }

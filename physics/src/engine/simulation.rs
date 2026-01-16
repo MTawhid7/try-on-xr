@@ -46,31 +46,26 @@ impl SimulationLoop {
     }
 
     pub fn step(&mut self, dt: f32) {
+        // RESTORED: 10 substeps for high quality
         let substeps = 10;
         let sdt = dt / substeps as f32;
 
         for step_i in 0..substeps {
-            // 1. Apply Forces
             self.forces.apply(&mut self.state, sdt);
-
-            // 2. Mouse Interaction
             self.mouse.solve(&mut self.state, sdt);
 
-            // 3. Pre-Solve Collisions (Velocity Clamping / "Airbag")
-            // Runs once per substep to prevent high-speed tunneling
+            // 1. Find Contacts (Expensive, runs once)
             self.resolver.pre_solve(&mut self.state, &self.collider, sdt);
 
-            // 4. Solve Constraints & Collisions (Interleaved)
-            // This runs 10x internally
+            // 2. Solve Constraints & Contacts (Cheap, runs 10x)
             self.solver.solve(
                 &mut self.state,
-                &self.collider,
-                &self.resolver,
+                &self.resolver, // Pass resolver with cached contacts
                 sdt
             );
 
-            // 5. Self Collision (Low Frequency)
-            if step_i % 5 == 0 {
+            // 3. Self Collision (Run once per frame)
+            if step_i == 0 {
                 self.self_collision.solve(&mut self.state);
             }
         }

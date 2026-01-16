@@ -57,8 +57,9 @@ impl SpatialHash {
             .push(id);
     }
 
-    pub fn query(&self, p: Vec3, radius: f32) -> Vec<usize> {
-        let mut candidates = Vec::new();
+    // CHANGED: Now accepts a mutable buffer to avoid allocation
+    pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
+        buffer.clear(); // Reset buffer, keep capacity
 
         let min = p - Vec3::splat(radius);
         let max = p + Vec3::splat(radius);
@@ -70,16 +71,13 @@ impl SpatialHash {
             for y in min_y..=max_y {
                 for z in min_z..=max_z {
                     if let Some(indices) = self.grid.get(&(x, y, z)) {
-                        candidates.extend_from_slice(indices);
+                        buffer.extend_from_slice(indices);
                     }
                 }
             }
         }
 
-        // Note: For self-collision, we might want to avoid sorting/dedupping
-        // inside the tight loop if possible, but for safety we keep it.
-        candidates.sort_unstable();
-        candidates.dedup();
-        candidates
+        buffer.sort_unstable();
+        buffer.dedup();
     }
 }

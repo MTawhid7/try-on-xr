@@ -6,14 +6,14 @@ pub struct SelfCollision {
     hash: SpatialHash,
     thickness: f32,
     // Adjacency list to ignore connected neighbors
-    // We use a simple Vec<Vec<usize>> where index i contains neighbors of i
     neighbors: Vec<Vec<usize>>,
+    // Optimization: Reusable buffer for queries
+    query_buffer: Vec<usize>,
 }
 
 impl SelfCollision {
     pub fn new(state: &PhysicsState, thickness: f32) -> Self {
         // 1. Build Adjacency Map
-        // We need to know which particles are directly connected so we don't collide them.
         let mut neighbors = vec![Vec::new(); state.count];
         let num_triangles = state.indices.len() / 3;
 
@@ -22,19 +22,18 @@ impl SelfCollision {
             let idx1 = state.indices[i * 3 + 1] as usize;
             let idx2 = state.indices[i * 3 + 2] as usize;
 
-            // Add connections (undirected)
             Self::add_neighbor(&mut neighbors, idx0, idx1);
             Self::add_neighbor(&mut neighbors, idx0, idx2);
             Self::add_neighbor(&mut neighbors, idx1, idx2);
         }
 
-        // Cell size should be roughly 2x the thickness
         let hash = SpatialHash::new(thickness * 2.0);
 
         Self {
             hash,
             thickness,
             neighbors,
+            query_buffer: Vec::with_capacity(64), // Initialize buffer
         }
     }
 
@@ -51,31 +50,30 @@ impl SelfCollision {
         }
 
         // 2. Iterate and Solve
-        let repulsion_stiffness = 0.5; // Soft repulsion to avoid jitter
+        let repulsion_stiffness = 0.5;
 
         for i in 0..state.count {
             let p_i = state.positions[i];
 
-            // Query nearby particles
-            let candidates = self.hash.query(p_i, self.thickness);
+            // FIX: Pass the reusable buffer to the query
+            self.hash.query(p_i, self.thickness, &mut self.query_buffer);
 
-            for &j in &candidates {
+            // FIX: Iterate over the buffer
+            for &j in self.query_buffer.iter() {
                 if i == j { continue; }
 
-                // Ignore directly connected neighbors (structural edges)
                 if self.neighbors[i].contains(&j) { continue; }
 
                 let p_j = state.positions[j];
                 let delta = p_i - p_j;
                 let dist_sq = delta.length_squared();
 
-                let min_dist = self.thickness; // Minimum separation
+                let min_dist = self.thickness;
 
                 if dist_sq < min_dist * min_dist && dist_sq > 1e-9 {
                     let dist = dist_sq.sqrt();
                     let overlap = min_dist - dist;
 
-                    // Simple Position Correction
                     let normal = delta / dist;
                     let correction = normal * overlap * repulsion_stiffness;
 

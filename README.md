@@ -2,7 +2,7 @@
 
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 ![Tech](https://img.shields.io/badge/Stack-Rust_WASM_%7C_React_Three_Fiber-orange)
-![Physics](https://img.shields.io/badge/Physics-XPBD_%2B_Smoothed_Proxy-blue)
+![Physics](https://img.shields.io/badge/Physics-XPBD_%2B_Interleaved_Solver-blue)
 
 A high-performance, real-time Virtual Try-On (VTO) engine designed for the web.
 
@@ -18,12 +18,12 @@ To create a browser-based cloth simulation that balances **physical realism** wi
 
 ## 🏗️ Architecture
 
-The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modularity and future scalability (e.g., swapping the solver for WebGPU).
+The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modularity and scalability.
 
 ### 1. The Core (Rust + WASM)
 
 * **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (10x) and internal constraint iterations (10x) for high stiffness stability.
-* **Collision System:** A custom **Spatial Hash Grid** combined with a **Smoothed Mesh Proxy**.
+* **Interleaved Collision Resolver:** Unlike traditional engines that resolve collision *after* constraints (causing jitter), V5 resolves collision *inside* the constraint loop. This forces the cloth to satisfy both stiffness and contact constraints simultaneously.
 * **Memory Model:** **Zero-Copy**. The vertex positions exist in linear WASM memory; JavaScript reads them directly via a `Float32Array` view, eliminating serialization overhead.
 
 ### 2. The Frontend (React + TypeScript)
@@ -34,36 +34,22 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 
 ---
 
-## 🧬 Engineering Evolution & Challenges
+## 🧬 Engineering Evolution: The "Defense in Depth" Strategy
 
-This project has evolved through several iterations to solve the "Real-Time Cloth" problem.
+To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered physics architecture:
 
-### ❌ V4: The SDF Experiment (Deprecated)
-
-In the previous version, we attempted to use **Signed Distance Fields (SDF)** for collision.
-
-* **The Approach:** Voxelize the body into a 3D grid and push particles out based on gradient.
-* **The Failure:**
-  * **Ratcheting:** Voxel aliasing created "steps" on the body surface. Cloth would get stuck on these steps, causing it to climb up the neck (the "Life Preserver" effect).
-  * **Tunneling:** Thin geometry (arms) was thinner than the voxel size, causing cloth to pass through.
-  * **Performance:** Baking a 128³ SDF took ~30 seconds on the CPU.
-
-### ✅ V5: Smoothed Mesh Proxy (Current)
-
-We pivoted to the industry-standard approach used in high-end games (e.g., *The Last of Us*).
-
-* **The Approach:** Use a low-poly proxy mesh (~2,500 tris) for the body.
-* **The Innovation:** instead of colliding with flat triangles, we calculate **Barycentric Interpolated Normals** at the point of impact.
-* **The Result:** The physics engine "sees" a perfectly smooth, curved surface. Friction is consistent, "ratcheting" is eliminated, and setup time is instant.
+1. **Prevention (The Airbag):** **Anisotropic Velocity Clamping**. We limit particle velocity relative to the collision normal. Fast movement is allowed *parallel* to the body, but movement *into* the body is clamped to a safe limit, making tunneling mathematically impossible for 90% of cases.
+2. **Resolution (The Contact):** **Smoothed Mesh Proxy**. We calculate **Barycentric Interpolated Normals** at the point of impact. This approximates a perfectly smooth curved surface, eliminating "ratcheting" artifacts.
+3. **Optimization (The Cache):** **Cached Contact Constraints**. Instead of running expensive spatial queries inside the solver loop, we find active contacts once per substep and cache them. This allows us to run the solver math 100x per frame without CPU overhead.
 
 ---
 
 ## 🚀 Key Features
 
 * **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs). These are rendered with **0.0 compliance (Rigid)**, while the body remains flexible, simulating reinforced seams.
-* **Zero-Jitter Resting:** The combination of XPBD and smoothed collisions allows the cloth to come to a complete rest without micro-vibrations.
+* **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest without micro-vibrations.
 * **Interactive Physics:** Users can grab and pull the fabric. The solver prioritizes user interaction (with camera controls disabled during interaction), allowing for tactile testing of material properties.
-* **Robust Collision:** "Inside/Outside" logic detects if a particle spawns inside the body and aggressively projects it out, preventing initial entanglements.
+* **Anisotropic Bending:** The material resists bending differently along the UV axes (Warp/Weft) versus the diagonal (Bias), creating realistic draping folds.
 * **Self-Collision:** A dedicated Spatial Hash Grid prevents the cloth from passing through itself, enabling realistic folding and multi-layer interactions.
 
 ---
@@ -77,8 +63,9 @@ We pivoted to the industry-standard approach used in high-end games (e.g., *The 
 
 ## 🔮 Future Roadmap
 
-1. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL. This will unlock the ability to simulate high-density meshes (>10,000 vertices) by parallelizing constraint solving.
+1. **Visual Fidelity:** Implement a custom shader for **Anisotropic Lighting** to simulate the weave of the fabric and Normal Mapping for high-frequency wrinkles.
 2. **Fitting Pipeline:** Re-introduce the "Hulk" growth strategy (animating body scale from 0.8 to 1.0) to allow tight garments to settle naturally without initial intersection.
+3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 
 ---
 

@@ -58,15 +58,16 @@ impl MeshCollider {
         }
     }
 
-    /// Queries the collider for the closest point.
-    /// Returns (closest_point, smoothed_normal, distance)
-    pub fn query_closest(&self, p: Vec3, max_dist: f32) -> Option<(Vec3, Vec3, f32)> {
-        let candidates = self.spatial_hash.query(p, max_dist);
+    // CHANGED: Accepts buffer
+    pub fn query_closest(&self, p: Vec3, max_dist: f32, buffer: &mut Vec<usize>) -> Option<(Vec3, Vec3, f32)> {
+        // Pass buffer to spatial hash
+        self.spatial_hash.query(p, max_dist, buffer);
 
         let mut best_dist_sq = max_dist * max_dist;
         let mut best_result = None;
 
-        for &tri_idx in &candidates {
+        // Iterate over the buffer
+        for &tri_idx in buffer.iter() {
             let tri = &self.triangles[tri_idx];
             let (closest, bary) = tri.closest_point(p);
             let dist_sq = closest.distance_squared(p);
@@ -74,8 +75,6 @@ impl MeshCollider {
             if dist_sq < best_dist_sq {
                 best_dist_sq = dist_sq;
 
-                // --- THE SECRET SAUCE: Interpolated Normals ---
-                // Instead of the flat triangle normal, we blend the vertex normals.
                 let idx0 = self.indices[tri_idx * 3] as usize;
                 let idx1 = self.indices[tri_idx * 3 + 1] as usize;
                 let idx2 = self.indices[tri_idx * 3 + 2] as usize;
@@ -84,7 +83,6 @@ impl MeshCollider {
                 let n1 = self.normals[idx1];
                 let n2 = self.normals[idx2];
 
-                // bary = [u, v, w] corresponding to v0, v1, v2
                 let smooth_normal = (n0 * bary[0] + n1 * bary[1] + n2 * bary[2]).normalize();
 
                 best_result = Some((closest, smooth_normal, dist_sq.sqrt()));
