@@ -25,15 +25,15 @@ impl Solver {
     pub fn solve(
         &self,
         state: &mut PhysicsState,
-        resolver: &CollisionResolver, // Use Resolver, not Collider
+        resolver: &CollisionResolver,
         dt: f32
     ) {
         for _ in 0..self.iterations {
             self.distance_constraint.solve(state, dt);
             self.bending_constraint.solve(state, dt);
 
-            // Solve using CACHED contacts (Fast)
-            resolver.resolve_contacts(state);
+            // CHANGED: Pass dt
+            resolver.resolve_contacts(state, dt);
         }
     }
 }
