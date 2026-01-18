@@ -5,6 +5,32 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-16] Garment Grading & Sizing
+
+**Branch / Feature:** `feature/sizing`
+
+### 1. Current State (Garment Grading & Sizing)
+
+- [x] **Garment Grading:** Implemented a robust sizing system supporting sizes from **XXS to XXL**.
+  - **Pivot Logic:** Solved the "floating shirt" issue by implementing a custom pivot strategy. Width scales from the center, but Height scales from the **Top (Neck)**. This ensures the collar always rests on the mannequin's shoulders, regardless of whether the shirt is tiny or huge.
+  - **Stability:** Fixed the "disappearing shirt" bug by ensuring the physics engine is fully disposed and re-initialized when switching sizes.
+- [x] **UI Controls:** Added a responsive UI to switch sizes in real-time.
+- [x] **Visual Verification:** Confirmed that "L" matches the original Blender export, "XXS" is visibly tighter, and "XXL" is looser and longer.
+
+### 2. Not Working / Issues (Garment Grading & Sizing)
+
+- [ ] **Tight Fit Initialization:** Selecting "XXS" on the current mannequin causes the shirt to spawn *inside* the body. The physics engine resolves this via the "Airbag" (Velocity Clamp), but it can look violent for a split second. This confirms the need for the "Ghost Collider" fitting pipeline in the future.
+
+### 3. Observations / Notes (Garment Grading & Sizing)
+
+- **Pivot Importance:** Standard uniform scaling `mesh.scale.set(s,s,s)` is insufficient for clothing because it moves the collar up/down. Mathematical vertex scaling relative to a specific anchor (Neck Y-Plane) is mandatory.
+- **State Management:** When hot-swapping physics geometry, it is safer to destroy and recreate the entire WASM instance rather than trying to update buffers in place. This avoids stale state bugs.
+
+### 4. Next Steps / Plan (Garment Grading & Sizing)
+
+- [ ] **Fit Visualization:** Implement the Strain Heatmap to objectively measure "Tightness."
+- [ ] **Fitting Pipeline:** Implement the "Ghost Collider" (growing physics body) to allow XXS shirts to be put on gently.
+
 ## [2026-01-16] Advanced Physics & Realism
 
 **Branch / Feature:** `feature/advanced-physics`
