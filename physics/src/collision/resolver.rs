@@ -15,21 +15,27 @@ pub struct CollisionResolver {
     search_radius: f32,
     contacts: Vec<Contact>,
     query_buffer: Vec<usize>,
-    // NEW: Friction Coefficients
     pub static_friction: f32,
     pub dynamic_friction: f32,
+    // NEW: Stiffness of the collision response (0.0 to 1.0)
+    pub collision_stiffness: f32,
 }
 
 impl CollisionResolver {
     pub fn new() -> Self {
         Self {
-            thickness: 0.008,
+            // INCREASED: 8mm -> 12mm.
+            // This creates a thicker "buffer zone" to smooth out geometry.
+            thickness: 0.012,
             search_radius: 0.05,
             contacts: Vec::with_capacity(3000),
             query_buffer: Vec::with_capacity(32),
-            // Cotton on Skin approx values
-            static_friction: 0.6,
+            // Increased Static Friction slightly to help resist drift
+            static_friction: 0.7,
             dynamic_friction: 0.4,
+            // NEW: Soft Collision (0.8).
+            // Allows cloth to sink 20% into the buffer, averaging out the jagged mesh.
+            collision_stiffness: 0.8,
         }
     }
 
@@ -46,7 +52,6 @@ impl CollisionResolver {
 
             if let Some((surface_point, normal, _)) = collider.query_closest(pos, self.search_radius, &mut self.query_buffer) {
 
-                // 1. Velocity Clamping (The "Airbag")
                 let prev = state.prev_positions[i];
                 let velocity = (pos - prev) / dt;
                 let v_normal = velocity.dot(normal);
@@ -67,7 +72,6 @@ impl CollisionResolver {
         }
     }
 
-    // CHANGED: Added 'dt' parameter
     pub fn resolve_contacts(&self, state: &mut PhysicsState, _dt: f32) {
         for contact in &self.contacts {
             let i = contact.particle_index;
@@ -80,7 +84,7 @@ impl CollisionResolver {
 
             if projection < self.thickness {
 
-                // --- Back-Face Recovery (Safety Net) ---
+                // Back-Face Recovery
                 if projection < 0.0 {
                     let prev = state.prev_positions[i];
                     let velocity = state.positions[i] - prev;
@@ -93,52 +97,41 @@ impl CollisionResolver {
                         continue;
                     }
                 }
-                // ---------------------------------------
 
-                // A. Position Correction (Normal Force)
+                // A. Soft Position Correction
                 let penetration = self.thickness - projection;
-                let correction = normal * penetration;
+
+                // APPLY STIFFNESS:
+                // Instead of pushing out 100% (penetration), we push out 80%.
+                // This allows the particle to rest slightly "inside" the virtual thickness.
+                // Deep penetrations (negative projection) get harder push to prevent tunneling.
+                let stiffness = if projection < 0.0 { 1.0 } else { self.collision_stiffness };
+
+                let correction = normal * penetration * stiffness;
                 state.positions[i] += correction;
 
                 // B. Coulomb Friction
-                // We calculate the velocity implied by the move
                 let prev = state.prev_positions[i];
-                let velocity = state.positions[i] - prev; // This is actually displacement (v * dt)
+                let velocity = state.positions[i] - prev;
 
                 let vn_mag = velocity.dot(normal);
                 let vn = normal * vn_mag;
-                let vt = velocity - vn; // Tangential displacement
+                let vt = velocity - vn;
                 let vt_len = vt.length();
-
-                // Friction Impulse Limit = Normal Impulse * Mu
-                // Here, 'penetration' is the Normal Impulse (distance pushed out)
-                // 'vt_len' is the Tangential Impulse (distance trying to slide)
 
                 let mut friction_factor = 0.0;
 
                 if vt_len > 1e-9 {
-                    // Static Friction Check
-                    // If trying to move less than the Static Limit, we Stick.
                     if vt_len < penetration * self.static_friction {
-                        friction_factor = 1.0; // Stop completely
+                        friction_factor = 1.0;
                     } else {
-                        // Kinetic Friction
-                        // We reduce the sliding by the Kinetic Limit
-                        // Sliding = Current - (Normal * Mu_k)
                         let max_slide = penetration * self.dynamic_friction;
-                        // Factor to reduce vt by max_slide
-                        // new_vt = vt * (1 - max_slide / vt_len)
-                        // friction_factor = max_slide / vt_len
                         friction_factor = max_slide / vt_len;
-
-                        // Clamp factor to max 1.0 (shouldn't happen due to if/else, but safety)
                         if friction_factor > 1.0 { friction_factor = 1.0; }
                     }
                 }
 
                 let new_vt = vt * (1.0 - friction_factor);
-
-                // Kill normal velocity if moving in (Bounce = 0)
                 let new_vn = if vn_mag < 0.0 { Vec3::ZERO } else { vn };
 
                 state.prev_positions[i] = state.positions[i] - (new_vn + new_vt);

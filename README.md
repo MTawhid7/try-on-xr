@@ -46,6 +46,9 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## 🚀 Key Features
 
+* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance relative to the surface angle, creating realistic flutter and sway during movement.
+* **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding), allowing garments to grip the body naturally without artificial constraints.
+* **Asymmetric Proxy Bias:** A "Virtual Foam" layer (Soft Offset) dampens geometric noise from the low-poly collider, preventing lateral drift and creating a stable, heavy drape.
 * **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs). These are rendered with **0.0 compliance (Rigid)**, while the body remains flexible, simulating reinforced seams.
 * **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest without micro-vibrations.
 * **Interactive Physics:** Users can grab and pull the fabric. The solver prioritizes user interaction (with camera controls disabled during interaction), allowing for tactile testing of material properties.
@@ -56,16 +59,16 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## ⚠️ Known Limitations
 
-* **Lateral Bias:** In some resting states, the shirt may exhibit a slight lateral drift due to asymmetric triangulation in the low-poly proxy.
+* **Fitting Pipeline:** The shirt currently spawns in its final position. If the garment is significantly smaller than the body, it may explode or stretch violently on the first frame. A "Growth" or "Sewing" phase is required for tight-fitting garments.
 * **Extreme Force Detachment:** If the cloth is pulled with excessive force (beyond realistic human strength), it may clip through the collision body. This is an intentional trade-off to maintain performance; we prioritize stability under normal conditions over absolute impermeability under extreme stress.
 
 ---
 
 ## 🔮 Future Roadmap
 
-1. **Visual Fidelity:** Implement a custom shader for **Anisotropic Lighting** to simulate the weave of the fabric and Normal Mapping for high-frequency wrinkles.
-2. **Fitting Pipeline:** Re-introduce the "Hulk" growth strategy (animating body scale from 0.8 to 1.0) to allow tight garments to settle naturally without initial intersection.
-3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
+1. **Fitting Pipeline:** Re-introduce the "Hulk" growth strategy (animating body scale from 0.8 to 1.0) to allow tight garments to settle naturally without initial intersection.
+2. **Visual Fidelity:** Implement a custom shader for **Anisotropic Lighting** to simulate the weave of the fabric and Normal Mapping for high-frequency wrinkles.
+3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL. This will unlock the ability to simulate high-density meshes (>10,000 vertices) by parallelizing constraint solving.
 
 ---
 
@@ -88,7 +91,7 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 2. **Build WASM Core:**
 
     ```bash
-    cd physics && wasm-pack build --target web --out-dir ../src/physics-pkg && cd ..
+    npm run build:wasm
     ```
 
 3. **Run Development Server:**

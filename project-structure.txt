@@ -1,6 +1,7 @@
 .
 ├── .gitignore
 ├── README.md
+├── WORKLOG.md
 ├── eslint.config.js
 ├── index.html
 ├── package-lock.json
@@ -13,11 +14,14 @@
 │       │   ├── collider.rs
 │       │   ├── geometry.rs
 │       │   ├── mod.rs
+│       │   ├── resolver.rs
+│       │   ├── self_collision.rs
 │       │   └── spatial_hash.rs
 │       ├── constraints
 │       │   ├── bending.rs
 │       │   ├── distance.rs
 │       │   ├── mod.rs
+│       │   ├── mouse.rs
 │       │   └── tether.rs
 │       ├── dynamics
 │       │   ├── forces.rs
@@ -39,8 +43,6 @@
 │   ├── textures
 │   └── vite.svg
 ├── src
-│   ├── App.css
-│   ├── App.tsx
 │   ├── adapters
 │   │   ├── MockAdapter.ts
 │   │   ├── WasmAdapter.ts
@@ -63,6 +65,9 @@
 │   │   │   ├── AssetLoader.ts
 │   │   │   └── GeometryProcessor.ts
 │   │   └── types.ts
+│   ├── features
+│   │   └── interaction
+│   │       └── useGarmentInteraction.ts
 │   ├── index.css
 │   ├── main.tsx
 │   ├── physics-pkg
@@ -82,4 +87,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-27 directories, 56 files
+29 directories, 59 files

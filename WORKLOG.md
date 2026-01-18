@@ -5,6 +5,31 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-16] Advanced Physics & Realism
+
+**Branch / Feature:** `feature/advanced-physics`
+
+### 1. Current State (Advanced Physics & Realism)
+
+- [x] **Aerodynamics:** Implemented a triangle-based Lift/Drag model. The cloth now flutters naturally when moved, rather than feeling like it is submerged in liquid.
+- [x] **Coulomb Friction:** Replaced the "Sticky Shoulder" hack with a true Static/Kinetic friction model. The shirt stays on due to normal force and tension, not artificial locks.
+- [x] **Asymmetric Proxy Bias:** Implemented a "Virtual Foam" layer (12mm soft offset) to smooth out the jagged low-poly collider. This eliminated the "Lateral Lean" drift where the shirt would slide sideways on its own.
+- [x] **Stability:** The simulation remains rock-solid at 60 FPS. The combination of Interleaved Solving and Cached Contacts has proven to be the correct architecture for web-based physics.
+
+### 2. Not Working / Issues (Advanced Physics & Realism)
+
+- [ ] **Fitting:** We still lack a proper fitting phase. Tight garments rely on the "Airbag" (Velocity Clamp) to push them out, which works for t-shirts but might fail for skinny jeans or leggings.
+
+### 3. Observations / Notes (Advanced Physics & Realism)
+
+- **Friction Tuning:** We found that a high Static Friction (0.7) combined with a moderate Kinetic Friction (0.4) gives the best "Cotton" feel. Lower values make it feel like Silk.
+- **Visual Offset:** The 12mm collision offset creates a visible gap between the cloth and body. This is necessary for physics stability but should be visually hidden by scaling the visual mesh or using a displacement shader in the future.
+
+### 4. Next Steps / Plan (Advanced Physics & Realism)
+
+- [ ] **Fitting Pipeline:** Implement the "Hulk" growth strategy to support tight-fitting garments.
+- [ ] **WebGPU:** Begin research into porting the solver to Compute Shaders for next-gen density.
+
 ## [2026-01-16] Penetration Resolution & Performance Optimization
 
 **Branch / Feature:** `feature/penetration`
