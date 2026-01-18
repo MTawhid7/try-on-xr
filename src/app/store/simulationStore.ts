@@ -3,23 +3,26 @@ import { create } from 'zustand';
 import type { ISimulationEngine } from '../../adapters/types';
 import { WasmAdapter } from '../../adapters/WasmAdapter';
 import { AssetLoader } from '../../domain/services/AssetLoader';
-import type { SimulationAssets } from '../../domain/types';
+import { GarmentGrading } from '../../domain/services/GarmentGrading';
+import type { SimulationAssets, ShirtSize } from '../../domain/types';
 
 interface SimulationState {
     engine: ISimulationEngine | null;
     assets: SimulationAssets | null;
+
+    shirtSize: ShirtSize;
     isLoading: boolean;
     isReady: boolean;
     isRunning: boolean;
-    isInteracting: boolean; // NEW: Track interaction state
+    isInteracting: boolean;
     error: string | null;
 
     loadAndInitialize: () => Promise<void>;
+    setShirtSize: (size: ShirtSize) => void;
     toggleSimulation: () => void;
     step: (dt: number) => void;
 
-    // Interaction
-    setInteracting: (active: boolean) => void; // NEW: Action
+    setInteracting: (active: boolean) => void;
     grabParticle: (index: number, pos: [number, number, number]) => void;
     moveParticle: (pos: [number, number, number]) => void;
     releaseParticle: () => void;
@@ -28,25 +31,43 @@ interface SimulationState {
 export const useSimulationStore = create<SimulationState>((set, get) => ({
     engine: null,
     assets: null,
+    shirtSize: 'L', // UPDATED: Default to L (Base Mesh)
     isLoading: false,
     isReady: false,
     isRunning: false,
-    isInteracting: false, // Default false
+    isInteracting: false,
     error: null,
 
     loadAndInitialize: async () => {
-        if (get().isReady || get().isLoading) return;
+        if (get().isLoading) return;
         set({ isLoading: true, error: null });
 
         try {
-            const loader = new AssetLoader();
-            const assets = await loader.loadSceneAssets();
+            let assets = get().assets;
+            if (!assets) {
+                const loader = new AssetLoader();
+                assets = await loader.loadSceneAssets();
+                set({ assets });
+            }
+
+            const currentSize = get().shirtSize;
+            console.log(`[Store] Applying Grading: ${currentSize}`);
+
+            const scaledGarmentVerts = GarmentGrading.applyGrading(
+                assets.garment.vertices,
+                currentSize
+            );
+
+            const oldEngine = get().engine;
+            if (oldEngine) {
+                oldEngine.dispose();
+            }
 
             const adapter = new WasmAdapter();
             await adapter.init(
-                assets.garment.vertices,
+                scaledGarmentVerts,
                 assets.garment.indices,
-                assets.garment.uvs, // Pass
+                assets.garment.uvs,
                 assets.collider.vertices,
                 assets.collider.normals,
                 assets.collider.indices
@@ -54,16 +75,27 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
             set({
                 engine: adapter,
-                assets: assets,
                 isReady: true,
                 isLoading: false
             });
-            console.log("[Store] Simulation Initialized & Ready.");
+            console.log("[Store] Simulation Initialized.");
 
         } catch (err) {
             console.error(err);
             set({ error: (err as Error).message, isLoading: false });
         }
+    },
+
+    setShirtSize: (size: ShirtSize) => {
+        const current = get().shirtSize;
+        if (current === size) return;
+
+        // FIX: pause simulation and mark not ready
+        set({ shirtSize: size, isReady: false, isRunning: false });
+
+        setTimeout(() => {
+            get().loadAndInitialize();
+        }, 10);
     },
 
     toggleSimulation: () => {
@@ -78,8 +110,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         }
     },
 
-    // Interaction Implementation
-    setInteracting: (active) => set({ isInteracting: active }), // NEW
+    setInteracting: (active) => set({ isInteracting: active }),
 
     grabParticle: (index, [x, y, z]) => {
         get().engine?.startInteraction(index, x, y, z);

@@ -1,9 +1,11 @@
 // src/domain/types.ts
+export type ShirtSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
+
 export interface ProcessedMesh {
     vertices: Float32Array;
     indices: Uint32Array;
     normals: Float32Array;
-    uvs: Float32Array; // NEW
+    uvs: Float32Array;
 }
 
 export interface SimulationAssets {
