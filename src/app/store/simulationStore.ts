@@ -10,6 +10,9 @@ interface SimulationState {
     engine: ISimulationEngine | null;
     assets: SimulationAssets | null;
 
+    // NEW: Store the clean, scaled T-Pose separately from the raw assets
+    scaledVertices: Float32Array | null;
+
     shirtSize: ShirtSize;
     isLoading: boolean;
     isReady: boolean;
@@ -31,7 +34,8 @@ interface SimulationState {
 export const useSimulationStore = create<SimulationState>((set, get) => ({
     engine: null,
     assets: null,
-    shirtSize: 'L', // UPDATED: Default to L (Base Mesh)
+    scaledVertices: null, // Init
+    shirtSize: 'L',
     isLoading: false,
     isReady: false,
     isRunning: false,
@@ -53,10 +57,15 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
             const currentSize = get().shirtSize;
             console.log(`[Store] Applying Grading: ${currentSize}`);
 
+            // Generate the scaled vertices from the ORIGINAL assets
+            // This creates a new array, leaving assets.garment.vertices untouched.
             const scaledGarmentVerts = GarmentGrading.applyGrading(
                 assets.garment.vertices,
                 currentSize
             );
+
+            // Save this "Clean T-Pose" to the store for the Visual Mesh to use
+            set({ scaledVertices: scaledGarmentVerts });
 
             const oldEngine = get().engine;
             if (oldEngine) {
@@ -90,7 +99,6 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         const current = get().shirtSize;
         if (current === size) return;
 
-        // FIX: pause simulation and mark not ready
         set({ shirtSize: size, isReady: false, isRunning: false });
 
         setTimeout(() => {
