@@ -5,6 +5,34 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-19] Asset Pipeline Automation
+
+**Branch / Feature:** `feature/auto-alignment`
+
+### 1. Current State (Asset Pipeline Automation)
+
+- [x] **Automatic Alignment:** Implemented `AutoAligner` service.
+  - **Body Normalization:** Automatically detects the feet (min Y) and centers the body on the floor at (0,0,0).
+  - **Garment Snapping:** Automatically detects the shirt collar height and aligns it to the mannequin's neck (approx 88% height). This works even for imported meshes with arbitrary offsets.
+- [x] **Transform Fixes:** Updated `AssetLoader` to respect GLTF scene graph transforms (Rotation/Scale). This fixed the issue where some exported avatars appeared upside down or rotated 90 degrees.
+- [x] **State Stability:** Refactored the `simulationStore` to use **Immutable Assets**.
+  - Fixed the "Shrinking Shirt" bug where switching sizes repeatedly would compound the scaling on already-scaled vertices.
+  - The store now maintains a pristine copy of the T-Pose geometry and generates a fresh scaled copy for every size change.
+
+### 2. Not Working / Issues (Asset Pipeline Automation)
+
+- [ ] **Tight Fit Initialization:** While sizing works, selecting a size smaller than the body (e.g., XXS on a large mannequin) still causes initial intersection. The physics engine resolves this, but it can be visually jarring.
+
+### 3. Observations / Notes (Asset Pipeline Automation)
+
+- **Pipeline Robustness:** By moving the alignment logic from Blender to Code, we have significantly reduced the "Technical Artist" workload. We can now drop in raw GLB files from different sources, and the engine standardizes them automatically.
+- **TypeScript Safety:** Fixed a critical Control Flow Analysis bug in the loader where TypeScript incorrectly assumed the mesh variable was null inside a callback.
+
+### 4. Next Steps / Plan (Asset Pipeline Automation)
+
+- [ ] **Template Morphing:** Begin research on the "Shrink-Wrap" pipeline to fit our clean mannequin onto user-uploaded body scans.
+- [ ] **Fit Visualization:** Implement the Strain Heatmap.
+
 ## [2026-01-16] Garment Grading & Sizing
 
 **Branch / Feature:** `feature/sizing`

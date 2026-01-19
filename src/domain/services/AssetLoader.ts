@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { GeometryProcessor } from './GeometryProcessor';
+import { AutoAligner } from './AutoAligner'; // NEW
 import type { SimulationAssets } from '../types';
 
 export class AssetLoader {
@@ -19,16 +20,19 @@ export class AssetLoader {
             this.loadMesh('/models/mannequin.glb', 'Mannequin')
         ]);
 
+        console.log("[AssetLoader] Auto-Aligning meshes...");
+
+        // 1. Align Body First (Establishes the coordinate system)
+        const bodyBox = AutoAligner.alignBody(mannequinMesh.geometry);
+
+        // 2. Align Shirt to Body
+        AutoAligner.alignGarmentToBody(shirtMesh.geometry, bodyBox);
+
         console.log("[AssetLoader] Processing geometries...");
 
-        // FIX: Increase weld threshold from 0.001 (1mm) to 0.02 (2cm).
-        // This ensures that separate mesh islands (like cuffs/collars)
-        // that are modeled close to the body are snapped together.
+        // 3. Process (Weld & Extract)
+        // Note: We process the ALIGNED geometries now.
         const garmentProcessed = GeometryProcessor.process(shirtMesh, 0.02);
-
-        // Process Collider (Needs accurate normals for smooth collision)
-        // We use a slightly larger threshold or 0 to keep it crisp,
-        // but 0.001 is usually safe to fix micro-gaps.
         const colliderProcessed = GeometryProcessor.process(mannequinMesh, 0.001);
 
         console.log(`[AssetLoader] Assets Ready.
@@ -46,19 +50,21 @@ export class AssetLoader {
             this.loader.load(
                 url,
                 (gltf) => {
-                    // Find the first Mesh in the scene
-                    let foundMesh: THREE.Mesh | null = null;
-
-                    gltf.scene.traverse((child) => {
-                        if (!foundMesh && (child as THREE.Mesh).isMesh) {
-                            foundMesh = child as THREE.Mesh;
-                        }
-                    });
+                    const foundMesh = gltf.scene.getObjectByProperty('isMesh', true) as THREE.Mesh | undefined;
 
                     if (foundMesh) {
-                        // Detach from scene and apply world transforms if needed
-                        // For now, we assume the GLB is exported with correct transforms (0,0,0)
-                        resolve(foundMesh);
+                        // FIX: Ensure the scene graph transforms are up to date
+                        gltf.scene.updateMatrixWorld(true);
+
+                        // Clone geometry
+                        const geometry = foundMesh.geometry.clone();
+
+                        // FIX: Bake the transform (Rotation/Scale/Position) into the vertices
+                        // This ensures that if the GLB has a "Fix Rotation" node, we respect it.
+                        geometry.applyMatrix4(foundMesh.matrixWorld);
+
+                        const cleanMesh = new THREE.Mesh(geometry);
+                        resolve(cleanMesh);
                     } else {
                         reject(new Error(`No mesh found in ${name} (${url})`));
                     }

@@ -46,6 +46,7 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## 🚀 Key Features
 
+* **Automatic Asset Alignment:** A programmatic pipeline that normalizes body orientation (feet on floor) and aligns the garment collar to the body neck. This eliminates the need for manual alignment in external 3D tools.
 * **Garment Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL). The system uses a "Top-Down, Center-Out" pivot strategy to ensure the collar remains correctly positioned on the neck regardless of size.
 * **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance relative to the surface angle, creating realistic flutter and sway during movement.
 * **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding), allowing garments to grip the body naturally without artificial constraints.
@@ -67,8 +68,8 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## 🔮 Future Roadmap
 
-1. **Fit Visualization:** Implement a Strain Heatmap shader to visualize tight/loose areas in real-time.
-2. **Fitting Pipeline:** Re-introduce the "Hulk" growth strategy (animating body scale from 0.8 to 1.0) to allow tight garments to settle naturally without initial intersection.
+1. **Template Morphing:** Implement a non-rigid registration pipeline to morph the clean low-poly mannequin onto noisy, high-poly body scans (e.g., from SAM3D).
+2. **Fit Visualization:** Implement a Strain Heatmap shader to visualize tight/loose areas in real-time.
 3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 
 ---
