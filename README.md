@@ -32,6 +32,12 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 * **State Management:** `Zustand` handles the simulation loop and transient updates outside the React render cycle.
 * **Asset Pipeline:** Custom loaders process GLB files, welding vertices to repair topology and extracting normal data for the physics engine.
 
+### 3. Procedural Collider Pipeline
+
+* **Decimation:** High-poly body scans (~100k triangles) are reduced to ~5,000 triangles using `meshoptimizer` (Quadric Error Metrics) in WASM.
+* **Laplacian Smoothing:** The decimated mesh undergoes 3 passes of Laplacian Smoothing in Rust to remove jagged artifacts ("spikes") that cause cloth snagging.
+* **Compaction:** Vertex buffers are aggressively compacted to minimize memory footprint before entering the physics engine.
+
 ---
 
 ## 🧬 Engineering Evolution: The "Defense in Depth" Strategy
@@ -46,8 +52,8 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## 🚀 Key Features
 
-* **Automatic Asset Alignment:** A programmatic pipeline that normalizes body orientation (feet on floor) and aligns the garment collar to the body neck. This eliminates the need for manual alignment in external 3D tools.
-* **Garment Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL). The system uses a "Top-Down, Center-Out" pivot strategy to ensure the collar remains correctly positioned on the neck regardless of size.
+* **Anatomical Anchoring (The Slicer):** A geometric analysis algorithm that "slices" the body mesh to find the true Spine Axis and Neck Height. This ensures garments align correctly on plus-size or asymmetric bodies, ignoring belly protrusion during initial placement.
+* **Procedural Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL). The system uses a "Top-Down, Center-Out" pivot strategy to ensure the collar remains correctly positioned on the neck regardless of size.
 * **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance relative to the surface angle, creating realistic flutter and sway during movement.
 * **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding), allowing garments to grip the body naturally without artificial constraints.
 * **Asymmetric Proxy Bias:** A "Virtual Foam" layer (Soft Offset) dampens geometric noise from the low-poly collider, preventing lateral drift and creating a stable, heavy drape.
@@ -68,7 +74,7 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## 🔮 Future Roadmap
 
-1. **Template Morphing:** Implement a non-rigid registration pipeline to morph the clean low-poly mannequin onto noisy, high-poly body scans (e.g., from SAM3D).
+1. **Static Spatial Optimization:** Split the collision grid into Static (Body) and Dynamic (Cloth) to eliminate redundant rebuilds per frame.
 2. **Fit Visualization:** Implement a Strain Heatmap shader to visualize tight/loose areas in real-time.
 3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 

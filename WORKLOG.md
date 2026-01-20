@@ -5,6 +5,37 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-20] Anatomical Alignment & Collider Pipeline
+
+**Branch / Feature:** `feature/optimization-and-alignment`
+
+### 1. Current State (Anatomical Alignment & Collider Pipeline)
+
+- [x] **Anatomical Slicer:** Replaced the fragile AABB-based alignment with a robust "Slicer" algorithm (`MeshAnalyzer`).
+  - **Spine Detection:** Accurately identifies the spine axis by analyzing the chest slice (Neck - 15%), ignoring belly protrusion.
+  - **Neck Anchor:** Detects the true neck height based on mesh topology rather than bounding box max height.
+  - **Result:** Fixed the "Sleeve Miss" issue on plus-size bodies; garments now spawn correctly centered on the torso.
+- [x] **Procedural Collider Generation:** Implemented a "Decimate + Smooth" pipeline.
+  - **Meshoptimizer:** Used WASM-based Quadric Error Metrics to reduce 100k-poly scans to ~5k-poly proxies.
+  - **Laplacian Smoothing:** Implemented a 3-pass smoothing filter in Rust to remove decimation spikes.
+  - **Compaction:** Added vertex buffer compaction to ensure zero wasted memory in the physics engine.
+
+### 2. Not Working / Issues (Anatomical Alignment & Collider Pipeline)
+
+- [ ] **Performance Bottleneck:** The simulation runs at ~20-30 FPS on the decimated mesh. Profiling indicates the bottleneck is the **Spatial Hash Rebuild**. We are currently rebuilding the static body's hash grid every single frame, which is $O(N)$ redundant work.
+
+### 3. Observations / Notes (Anatomical Alignment & Collider Pipeline)
+
+- **Alignment Strategy:** Geometric centers are not anatomical centers. The "Slicer" approach is far more robust for VTO than Bounding Boxes because it respects the skeletal structure of the user.
+- **Optimization Strategy:** We are choosing *not* to lower the solver quality (Substeps/Iterations) to fix the lag. Instead, we will attack the architectural inefficiency (redundant hash rebuilding). This preserves the "High Fidelity" fabric feel while solving the frame rate issue.
+
+### 4. Next Steps / Plan (Anatomical Alignment & Collider Pipeline)
+
+- [ ] **Static Spatial Hash:** Split the collision detection into two phases:
+    1. **Static Hash:** Built once at startup for the Body.
+    2. **Dynamic Hash:** Rebuilt every frame for the Cloth.
+- [ ] **AABB Pruning:** Implement a broad-phase check to skip narrow-phase collision logic for particles outside the body's bounding box.
+
 ## [2026-01-19] Asset Pipeline Automation
 
 **Branch / Feature:** `feature/auto-alignment`
