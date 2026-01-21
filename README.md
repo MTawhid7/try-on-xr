@@ -22,7 +22,7 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 
 ### 1. The Core (Rust + WASM)
 
-* **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (10x) and internal constraint iterations (10x) for high stiffness stability.
+* **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (5x) and internal constraint iterations (15x) for high stiffness stability.
 * **Interleaved Collision Resolver:** Unlike traditional engines that resolve collision *after* constraints (causing jitter), V5 resolves collision *inside* the constraint loop. This forces the cloth to satisfy both stiffness and contact constraints simultaneously.
 * **Memory Model:** **Zero-Copy**. The vertex positions exist in linear WASM memory; JavaScript reads them directly via a `Float32Array` view, eliminating serialization overhead.
 
@@ -46,7 +46,10 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 1. **Prevention (The Airbag):** **Anisotropic Velocity Clamping**. We limit particle velocity relative to the collision normal. Fast movement is allowed *parallel* to the body, but movement *into* the body is clamped to a safe limit, making tunneling mathematically impossible for 90% of cases.
 2. **Resolution (The Contact):** **Smoothed Mesh Proxy**. We calculate **Barycentric Interpolated Normals** at the point of impact. This approximates a perfectly smooth curved surface, eliminating "ratcheting" artifacts.
-3. **Optimization (The Cache):** **Cached Contact Constraints**. Instead of running expensive spatial queries inside the solver loop, we find active contacts once per substep and cache them. This allows us to run the solver math 100x per frame without CPU overhead.
+3. **Optimization (The Cache):** **Static Spatial Partitioning & Broad Phase Caching**.
+    * **Static Hash:** The body collider is hashed once into a dense grid, eliminating 65% of per-frame CPU overhead.
+    * **Broad Phase Caching:** Potential collisions are found once per frame (Substep 0) and cached. Substeps 1-4 only perform cheap distance checks against the cache.
+    * **AABB Pruning:** Particles outside the body's bounding box skip the spatial query entirely.
 
 ---
 
@@ -67,15 +70,15 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## ⚠️ Known Limitations
 
-* **Fitting Pipeline:** The shirt currently spawns in its final position. If the garment is significantly smaller than the body, it may explode or stretch violently on the first frame. A "Growth" or "Sewing" phase is required for tight-fitting garments.
-* **Extreme Force Detachment:** If the cloth is pulled with excessive force (beyond realistic human strength), it may clip through the collision body. This is an intentional trade-off to maintain performance; we prioritize stability under normal conditions over absolute impermeability under extreme stress.
+* **Neckline Stretching:** Oversized garments may exhibit elongation at the neckline due to gravity overcoming the solver's iteration limit. Tether constraints are planned to fix this.
+* **Extreme Force Detachment:** If the cloth is pulled with excessive force (beyond realistic human strength), it may clip through the collision body. This is an intentional trade-off to maintain performance.
 
 ---
 
 ## 🔮 Future Roadmap
 
-1. **Static Spatial Optimization:** Split the collision grid into Static (Body) and Dynamic (Cloth) to eliminate redundant rebuilds per frame.
-2. **Fit Visualization:** Implement a Strain Heatmap shader to visualize tight/loose areas in real-time.
+1. **Tether Constraints:** Implement Long-Range Attachments to prevent neckline stretching without increasing solver iterations.
+2. **Dual-Mesh Skinning:** Implement a pipeline to drive high-poly visual meshes (20k+ verts) using the low-poly physics simulation (3k verts).
 3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 
 ---

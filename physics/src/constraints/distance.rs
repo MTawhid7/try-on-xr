@@ -31,7 +31,7 @@ impl DistanceConstraint {
             *edge_counts.entry(e3).or_insert(0) += 1;
         }
 
-        for ((i1, i2), count) in edge_counts {
+        for ((i1, i2), _count) in edge_counts {
             let p1 = state.positions[i1];
             let p2 = state.positions[i2];
             let dist = p1.distance(p2);
@@ -39,16 +39,9 @@ impl DistanceConstraint {
             constraints.push([i1, i2]);
             rest_lengths.push(dist);
 
-            // LOGIC UPDATE:
-            // Count == 1: Boundary (Collar, Hem, Sleeve Cuff) -> RIGID
-            // Count == 2: Internal Fabric -> STIFF COTTON
-            if count == 1 {
-                compliances.push(0.0); // Rigid "Bone" structure
-            } else {
-                // 0.00001 allows just enough give to look like fabric,
-                // but is stiff enough to not look like rubber.
-                compliances.push(1e-5);
-            }
+            // FIX: Set compliance to 0.0 (Rigid) for ALL edges.
+            // This forces the solver to minimize stretching as much as possible.
+            compliances.push(0.0);
         }
 
         Self {

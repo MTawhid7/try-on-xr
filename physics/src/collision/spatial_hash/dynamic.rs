@@ -7,6 +7,7 @@ pub struct SpatialHash {
     grid: HashMap<(i32, i32, i32), Vec<usize>>,
 }
 
+#[allow(dead_code)]
 impl SpatialHash {
     pub fn new(cell_size: f32) -> Self {
         Self {
@@ -37,8 +38,6 @@ impl SpatialHash {
             .push(id);
     }
 
-    // Used if we ever need dynamic AABB insertion (e.g. for debris)
-    #[allow(dead_code)]
     pub fn insert_aabb(&mut self, id: usize, min: Vec3, max: Vec3) {
         let (min_x, min_y, min_z) = self.get_cell(min);
         let (max_x, max_y, max_z) = self.get_cell(max);

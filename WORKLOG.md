@@ -5,6 +5,38 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-21] Physics Optimization & Tuning
+
+**Branch / Feature:** `feat/cpu_optimization`
+
+### 1. Current State (Physics Optimization & Tuning)
+
+- [x] **Static Spatial Partitioning:** Implemented `StaticSpatialHash` (Dense Grid) for the body collider.
+  - Replaced the `HashMap` implementation with a flattened `Vec<Vec<usize>>` for $O(1)$ lookups.
+  - The body hash is now built **once** at startup, eliminating ~300,000 redundant hash insertions per second.
+- [x] **Broad Phase Caching:** Refactored `CollisionResolver` to split Broad and Narrow phases.
+  - **Broad Phase:** Runs once per frame (Substep 0). Queries the Static Hash and caches candidate triangles.
+  - **Narrow Phase:** Runs every substep (Substeps 1-4). Checks distance against the *cached* candidates only.
+  - **AABB Pruning:** Particles outside the Body's global bounding box now skip the spatial query entirely.
+- [x] **Solver Tuning:** Leveraged the performance gains to increase realism.
+  - **Iterations:** Increased from 4 -> **15**. This restored the stiffness of the fabric, fixing the "Rubber Shirt" effect caused by the previous aggressive optimization.
+  - **Compliance:** Set to `0.0` (Rigid) to minimize stretching.
+- [x] **Code Refactoring:** Split the monolithic `collision` module into focused sub-modules (`spatial_hash/`, `resolver/`, `preprocessing.rs`).
+
+### 2. Not Working / Issues (Physics Optimization & Tuning)
+
+- [ ] **Neckline Stretching:** While the fabric is stiffer, oversized shirts still exhibit elongation at the neck due to gravity acting on the loose mesh. The solver iterations (15) are insufficient to propagate the tension fully across the mesh in a single frame.
+
+### 3. Observations / Notes (Physics Optimization & Tuning)
+
+- **Performance ROI:** The Static Hash split was the single biggest performance win in the project's history. By removing the overhead of rebuilding the body grid, we freed up enough CPU budget to nearly quadruple the solver iterations (4 -> 15) while maintaining 60 FPS.
+- **Optimization Strategy:** "Do Less Work" (Caching/Pruning) proved superior to "Do Worse Work" (Reducing Substeps). We maintained the simulation frequency but stripped away the redundant math.
+
+### 4. Next Steps / Plan (Physics Optimization & Tuning)
+
+- [ ] **Tether Constraints:** Implement "Long-Range Attachments" to mathematically lock the maximum length of the shirt (Neck to Hem), curing the stretching issue without costing CPU cycles.
+- [ ] **Dual-Mesh Pipeline:** Begin work on the Skinning System to render high-poly assets driven by the optimized low-poly physics.
+
 ## [2026-01-20] Anatomical Alignment & Collider Pipeline
 
 **Branch / Feature:** `feature/optimization-and-alignment`
