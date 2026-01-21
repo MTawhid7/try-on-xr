@@ -17,24 +17,18 @@ pub struct CollisionResolver {
     query_buffer: Vec<usize>,
     pub static_friction: f32,
     pub dynamic_friction: f32,
-    // NEW: Stiffness of the collision response (0.0 to 1.0)
     pub collision_stiffness: f32,
 }
 
 impl CollisionResolver {
     pub fn new() -> Self {
         Self {
-            // INCREASED: 8mm -> 12mm.
-            // This creates a thicker "buffer zone" to smooth out geometry.
             thickness: 0.012,
             search_radius: 0.05,
             contacts: Vec::with_capacity(3000),
-            query_buffer: Vec::with_capacity(32),
-            // Increased Static Friction slightly to help resist drift
+            query_buffer: Vec::with_capacity(64), // Reusable buffer
             static_friction: 0.7,
             dynamic_friction: 0.4,
-            // NEW: Soft Collision (0.8).
-            // Allows cloth to sink 20% into the buffer, averaging out the jagged mesh.
             collision_stiffness: 0.8,
         }
     }
@@ -45,17 +39,30 @@ impl CollisionResolver {
         let max_v_per_step = self.thickness * 0.9;
         let max_v = max_v_per_step / dt;
 
+        // Optimization: Pre-calculate the effective search margin
+        // We need to check slightly further than search_radius to account for velocity
+        let margin = self.search_radius + 0.05;
+
         for i in 0..state.count {
             if state.inv_mass[i] == 0.0 { continue; }
 
             let pos = state.positions[i];
 
+            // PHASE 2 OPTIMIZATION: AABB Pruning
+            // If the particle is outside the global bounding box of the body,
+            // we skip the expensive Spatial Hash query entirely.
+            if !collider.contains_point(pos, margin) {
+                continue;
+            }
+
+            // If inside AABB, proceed to Narrow Phase
             if let Some((surface_point, normal, _)) = collider.query_closest(pos, self.search_radius, &mut self.query_buffer) {
 
                 let prev = state.prev_positions[i];
                 let velocity = (pos - prev) / dt;
                 let v_normal = velocity.dot(normal);
 
+                // Velocity Clamping (The Airbag)
                 if v_normal < -max_v {
                     let v_tangent = velocity - normal * v_normal;
                     let v_clamped = normal * -max_v;
@@ -83,7 +90,6 @@ impl CollisionResolver {
             let projection = vec.dot(normal);
 
             if projection < self.thickness {
-
                 // Back-Face Recovery
                 if projection < 0.0 {
                     let prev = state.prev_positions[i];
@@ -98,19 +104,13 @@ impl CollisionResolver {
                     }
                 }
 
-                // A. Soft Position Correction
+                // Soft Position Correction
                 let penetration = self.thickness - projection;
-
-                // APPLY STIFFNESS:
-                // Instead of pushing out 100% (penetration), we push out 80%.
-                // This allows the particle to rest slightly "inside" the virtual thickness.
-                // Deep penetrations (negative projection) get harder push to prevent tunneling.
                 let stiffness = if projection < 0.0 { 1.0 } else { self.collision_stiffness };
-
                 let correction = normal * penetration * stiffness;
                 state.positions[i] += correction;
 
-                // B. Coulomb Friction
+                // Friction
                 let prev = state.prev_positions[i];
                 let velocity = state.positions[i] - prev;
 

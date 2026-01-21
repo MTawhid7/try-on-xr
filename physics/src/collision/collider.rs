@@ -5,22 +5,23 @@ use super::spatial_hash::StaticSpatialHash;
 use super::preprocessing;
 
 pub struct MeshCollider {
-    // FIX: Suppress warning. We keep vertices for debug/future use,
-    // even though the solver currently uses the 'triangles' list.
     #[allow(dead_code)]
     pub vertices: Vec<Vec3>,
     pub normals: Vec<Vec3>,
     pub indices: Vec<u32>,
     pub triangles: Vec<Triangle>,
     pub spatial_hash: StaticSpatialHash,
+    // NEW: Global Bounds for fast culling
+    pub aabb_min: Vec3,
+    pub aabb_max: Vec3,
 }
 
 impl MeshCollider {
     pub fn new(raw_vertices: Vec<f32>, _raw_normals: Vec<f32>, indices: Vec<u32>) -> Self {
-        // 1. Preprocess (Smooth & Calculate Normals)
+        // 1. Preprocess
         let processed = preprocessing::process_mesh(&raw_vertices, &indices);
 
-        // 2. Calculate Bounds for Static Hash
+        // 2. Calculate Bounds
         let mut min_bound = Vec3::splat(f32::MAX);
         let mut max_bound = Vec3::splat(f32::MIN);
 
@@ -30,11 +31,10 @@ impl MeshCollider {
         }
 
         // 3. Initialize Static Hash
-        // We use 10cm cells.
         let mut spatial_hash = StaticSpatialHash::new(min_bound, max_bound, 0.1);
         let mut triangles = Vec::new();
 
-        // 4. Build Triangles & Populate Hash
+        // 4. Build Triangles
         let num_triangles = indices.len() / 3;
         for i in 0..num_triangles {
             let idx0 = indices[i * 3] as usize;
@@ -58,10 +58,24 @@ impl MeshCollider {
             indices,
             triangles,
             spatial_hash,
+            // Store bounds
+            aabb_min: min_bound,
+            aabb_max: max_bound,
         }
     }
 
+    /// Fast AABB check to skip particles far from the mesh
+    #[inline]
+    pub fn contains_point(&self, p: Vec3, margin: f32) -> bool {
+        p.x >= self.aabb_min.x - margin && p.x <= self.aabb_max.x + margin &&
+        p.y >= self.aabb_min.y - margin && p.y <= self.aabb_max.y + margin &&
+        p.z >= self.aabb_min.z - margin && p.z <= self.aabb_max.z + margin
+    }
+
     pub fn query_closest(&self, p: Vec3, max_dist: f32, buffer: &mut Vec<usize>) -> Option<(Vec3, Vec3, f32)> {
+        // Optimization: The caller (CollisionResolver) should call contains_point first.
+        // But we keep the hash query logic here.
+
         self.spatial_hash.query(p, max_dist, buffer);
 
         let mut best_dist_sq = max_dist * max_dist;
