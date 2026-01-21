@@ -1,127 +1,63 @@
 // physics/src/collision/collider.rs
 use glam::Vec3;
 use super::geometry::Triangle;
-use super::spatial_hash::SpatialHash;
+use super::spatial_hash::StaticSpatialHash;
+use super::preprocessing;
 
 pub struct MeshCollider {
+    // FIX: Suppress warning. We keep vertices for debug/future use,
+    // even though the solver currently uses the 'triangles' list.
+    #[allow(dead_code)]
     pub vertices: Vec<Vec3>,
     pub normals: Vec<Vec3>,
     pub indices: Vec<u32>,
     pub triangles: Vec<Triangle>,
-    pub spatial_hash: SpatialHash,
+    pub spatial_hash: StaticSpatialHash,
 }
 
 impl MeshCollider {
-    // FIX: Removed 'mut' from raw_vertices as it is not mutated
     pub fn new(raw_vertices: Vec<f32>, _raw_normals: Vec<f32>, indices: Vec<u32>) -> Self {
-        let num_verts = raw_vertices.len() / 3;
+        // 1. Preprocess (Smooth & Calculate Normals)
+        let processed = preprocessing::process_mesh(&raw_vertices, &indices);
 
-        // 1. Convert to Vec3
-        let mut vertices = Vec::with_capacity(num_verts);
-        for i in 0..num_verts {
-            vertices.push(Vec3::new(
-                raw_vertices[i * 3],
-                raw_vertices[i * 3 + 1],
-                raw_vertices[i * 3 + 2],
-            ));
+        // 2. Calculate Bounds for Static Hash
+        let mut min_bound = Vec3::splat(f32::MAX);
+        let mut max_bound = Vec3::splat(f32::MIN);
+
+        for &v in &processed.vertices {
+            min_bound = min_bound.min(v);
+            max_bound = max_bound.max(v);
         }
 
-        // 2. Build Adjacency Map
-        let mut adj = vec![Vec::new(); num_verts];
+        // 3. Initialize Static Hash
+        // We use 10cm cells.
+        let mut spatial_hash = StaticSpatialHash::new(min_bound, max_bound, 0.1);
+        let mut triangles = Vec::new();
+
+        // 4. Build Triangles & Populate Hash
         let num_triangles = indices.len() / 3;
-
         for i in 0..num_triangles {
             let idx0 = indices[i * 3] as usize;
             let idx1 = indices[i * 3 + 1] as usize;
             let idx2 = indices[i * 3 + 2] as usize;
 
-            Self::add_neighbor(&mut adj, idx0, idx1);
-            Self::add_neighbor(&mut adj, idx0, idx2);
-            Self::add_neighbor(&mut adj, idx1, idx2);
-        }
-
-        // 3. Laplacian Smoothing (3 Iterations)
-        let iterations = 3;
-        let lambda = 0.5;
-
-        for _ in 0..iterations {
-            let old_verts = vertices.clone();
-
-            for i in 0..num_verts {
-                let neighbors = &adj[i];
-                if neighbors.is_empty() { continue; }
-
-                let mut sum = Vec3::ZERO;
-                for &n_idx in neighbors {
-                    sum += old_verts[n_idx];
-                }
-
-                let avg = sum / (neighbors.len() as f32);
-                vertices[i] = old_verts[i].lerp(avg, lambda);
-            }
-        }
-
-        // 4. Re-Calculate Normals
-        let mut normals = vec![Vec3::ZERO; num_verts];
-
-        for i in 0..num_triangles {
-            let idx0 = indices[i * 3] as usize;
-            let idx1 = indices[i * 3 + 1] as usize;
-            let idx2 = indices[i * 3 + 2] as usize;
-
-            let v0 = vertices[idx0];
-            let v1 = vertices[idx1];
-            let v2 = vertices[idx2];
-
-            let edge1 = v1 - v0;
-            let edge2 = v2 - v0;
-            let face_normal = edge1.cross(edge2); // Weighted by area
-
-            normals[idx0] += face_normal;
-            normals[idx1] += face_normal;
-            normals[idx2] += face_normal;
-        }
-
-        for n in &mut normals {
-            *n = n.normalize_or_zero();
-        }
-
-        let mut collider = MeshCollider {
-            vertices,
-            normals,
-            indices,
-            triangles: Vec::new(),
-            spatial_hash: SpatialHash::new(0.1),
-        };
-
-        collider.rebuild_bvh();
-        collider
-    }
-
-    fn add_neighbor(adj: &mut Vec<Vec<usize>>, a: usize, b: usize) {
-        if !adj[a].contains(&b) { adj[a].push(b); }
-        if !adj[b].contains(&a) { adj[b].push(a); }
-    }
-
-    pub fn rebuild_bvh(&mut self) {
-        self.triangles.clear();
-        self.spatial_hash.clear();
-
-        let num_triangles = self.indices.len() / 3;
-        for i in 0..num_triangles {
-            let idx0 = self.indices[i * 3] as usize;
-            let idx1 = self.indices[i * 3 + 1] as usize;
-            let idx2 = self.indices[i * 3 + 2] as usize;
-
-            let v0 = self.vertices[idx0];
-            let v1 = self.vertices[idx1];
-            let v2 = self.vertices[idx2];
+            let v0 = processed.vertices[idx0];
+            let v1 = processed.vertices[idx1];
+            let v2 = processed.vertices[idx2];
 
             let tri = Triangle::new(v0, v1, v2, i);
             let (min, max) = tri.aabb();
 
-            self.triangles.push(tri);
-            self.spatial_hash.insert_aabb(i, min, max);
+            triangles.push(tri);
+            spatial_hash.insert_aabb(i, min, max);
+        }
+
+        MeshCollider {
+            vertices: processed.vertices,
+            normals: processed.normals,
+            indices,
+            triangles,
+            spatial_hash,
         }
     }
 

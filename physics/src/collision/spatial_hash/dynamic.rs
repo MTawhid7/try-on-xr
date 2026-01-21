@@ -1,10 +1,9 @@
-// physics/src/collision/spatial_hash.rs
+// physics/src/collision/spatial_hash/dynamic.rs
 use glam::Vec3;
 use std::collections::HashMap;
 
 pub struct SpatialHash {
     cell_size: f32,
-    // Map cell coordinate -> List of entity indices
     grid: HashMap<(i32, i32, i32), Vec<usize>>,
 }
 
@@ -17,7 +16,6 @@ impl SpatialHash {
     }
 
     pub fn clear(&mut self) {
-        // Clear the map but keep allocated memory for vectors where possible
         for (_, list) in self.grid.iter_mut() {
             list.clear();
         }
@@ -31,7 +29,16 @@ impl SpatialHash {
         )
     }
 
-    // Existing method for Triangles (AABB)
+    pub fn insert_point(&mut self, id: usize, p: Vec3) {
+        let cell = self.get_cell(p);
+        self.grid
+            .entry(cell)
+            .or_insert_with(Vec::new)
+            .push(id);
+    }
+
+    // Used if we ever need dynamic AABB insertion (e.g. for debris)
+    #[allow(dead_code)]
     pub fn insert_aabb(&mut self, id: usize, min: Vec3, max: Vec3) {
         let (min_x, min_y, min_z) = self.get_cell(min);
         let (max_x, max_y, max_z) = self.get_cell(max);
@@ -48,19 +55,8 @@ impl SpatialHash {
         }
     }
 
-    // NEW: Method for single Points (Particles)
-    pub fn insert_point(&mut self, id: usize, p: Vec3) {
-        let cell = self.get_cell(p);
-        self.grid
-            .entry(cell)
-            .or_insert_with(Vec::new)
-            .push(id);
-    }
-
-    // CHANGED: Now accepts a mutable buffer to avoid allocation
     pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
-        buffer.clear(); // Reset buffer, keep capacity
-
+        buffer.clear();
         let min = p - Vec3::splat(radius);
         let max = p + Vec3::splat(radius);
 
@@ -76,7 +72,6 @@ impl SpatialHash {
                 }
             }
         }
-
         buffer.sort_unstable();
         buffer.dedup();
     }
