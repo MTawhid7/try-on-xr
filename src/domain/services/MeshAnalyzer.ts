@@ -3,15 +3,15 @@ import * as THREE from 'three';
 
 export interface AnatomicalAnchors {
     neckY: number;
-    neckCenter: THREE.Vector2;   // Top Anchor (Base of Neck)
-    pelvisCenter: THREE.Vector2; // Bottom Anchor (Pelvis/Hips)
-    spineCenter: THREE.Vector2;  // Middle Anchor (Chest - used for Shirt X/Z alignment)
+    neckCenter: THREE.Vector2;   // Top of the regression line
+    spineCenter: THREE.Vector2;  // Bottom of the regression line (Chest/Waist)
+    pelvisCenter: THREE.Vector2; // Extrapolated pelvis position
 }
 
 export class MeshAnalyzer {
     /**
-     * Analyzes the body geometry to find stable anatomical landmarks.
-     * Uses "Robust Median" logic to ignore outliers like arms and hands.
+     * Calculates the body's orientation using Statistical Regression on the Ribcage.
+     * This is the most robust method for finding the "True Spine" of a noisy mesh.
      */
     static analyzeBody(geometry: THREE.BufferGeometry): AnatomicalAnchors {
         geometry.computeBoundingBox();
@@ -21,87 +21,109 @@ export class MeshAnalyzer {
         const positionAttr = geometry.attributes.position;
         const vertexCount = positionAttr.count;
 
-        // --- DEFINING SLICES (Relative to Height) ---
+        // --- ROI: THE RIBCAGE (60% to 85%) ---
+        // We focus strictly on the upper torso.
+        // This avoids the arms (too low/wide), the hips (asymmetric), and the butt (backward bias).
+        const startY = box.min.y + (height * 0.60);
+        const endY = box.min.y + (height * 0.85);
 
-        // 1. Pelvis: 48% to 52%
-        // Center of mass, generally stable, avoids legs splitting.
-        const pelvisMinY = box.min.y + (height * 0.48);
-        const pelvisMaxY = box.min.y + (height * 0.52);
+        const sliceCount = 20;
+        const sliceHeight = (endY - startY) / sliceCount;
 
-        // 2. Chest (Spine): 68% to 72%
-        // Used for centering the shirt. More stable than neck for X/Z.
-        const chestMinY = box.min.y + (height * 0.68);
-        const chestMaxY = box.min.y + (height * 0.72);
+        // Buckets for slice data
+        const slices: { x: number[], z: number[] }[] = Array(sliceCount).fill(0).map(() => ({ x: [], z: [] }));
 
-        // 3. Neck: 85% to 88%
-        // Base of neck. Used for vertical alignment and tilt calculation.
-        const neckMinY = box.min.y + (height * 0.85);
-        const neckMaxY = box.min.y + (height * 0.88);
-
-        // Collectors
-        const pelvisX: number[] = [];
-        const pelvisZ: number[] = [];
-        const chestX: number[] = [];
-        const chestZ: number[] = [];
-        const neckX: number[] = [];
-        const neckZ: number[] = [];
-
-        // Single pass through vertices
         for (let i = 0; i < vertexCount; i++) {
-            const x = positionAttr.getX(i);
             const y = positionAttr.getY(i);
-            const z = positionAttr.getZ(i);
 
-            if (y >= pelvisMinY && y <= pelvisMaxY) {
-                pelvisX.push(x);
-                pelvisZ.push(z);
-            } else if (y >= chestMinY && y <= chestMaxY) {
-                chestX.push(x);
-                chestZ.push(z);
-            } else if (y >= neckMinY && y <= neckMaxY) {
-                neckX.push(x);
-                neckZ.push(z);
+            if (y >= startY && y < endY) {
+                const sliceIndex = Math.floor((y - startY) / sliceHeight);
+                if (sliceIndex >= 0 && sliceIndex < sliceCount) {
+                    slices[sliceIndex].x.push(positionAttr.getX(i));
+                    slices[sliceIndex].z.push(positionAttr.getZ(i));
+                }
             }
         }
 
-        // --- ROBUST MEDIAN LOGIC ---
-        // We sort coordinates and pick the middle value.
-        // This filters out arms (which are X-outliers) without complex logic.
-        const getMedian = (values: number[]): number => {
-            if (values.length === 0) return 0;
-            values.sort((a, b) => a - b);
-            const mid = Math.floor(values.length / 2);
-            return values[mid];
-        };
+        // --- ROBUST MEDIAN EXTRACTION ---
+        // For each slice, find the Median X and Median Z.
+        // This mathematically deletes arms/hands if they appear in the slice.
+        const points: THREE.Vector3[] = [];
 
-        const pelvisCenter = new THREE.Vector2(
-            getMedian(pelvisX),
-            getMedian(pelvisZ)
+        for (let i = 0; i < sliceCount; i++) {
+            const slice = slices[i];
+            if (slice.x.length < 10) continue; // Skip empty/sparse slices
+
+            slice.x.sort((a, b) => a - b);
+            slice.z.sort((a, b) => a - b);
+
+            const medianX = slice.x[Math.floor(slice.x.length / 2)];
+            const medianZ = slice.z[Math.floor(slice.z.length / 2)];
+            const centerY = startY + (i * sliceHeight) + (sliceHeight / 2);
+
+            points.push(new THREE.Vector3(medianX, centerY, medianZ));
+        }
+
+        // --- LINEAR REGRESSION (Line of Best Fit) ---
+        // We fit a line through the median points of the ribcage.
+        // X = slopeX * Y + offsetX
+        // Z = slopeZ * Y + offsetZ
+
+        let sumY = 0, sumX = 0, sumZ = 0;
+        let sumY2 = 0, sumXY = 0, sumYZ = 0;
+        const N = points.length;
+
+        if (N < 5) {
+            // Fallback: Not enough data, return Box Center
+            const cx = (box.min.x + box.max.x) / 2;
+            const cz = (box.min.z + box.max.z) / 2;
+            return {
+                neckY: box.max.y,
+                neckCenter: new THREE.Vector2(cx, cz),
+                spineCenter: new THREE.Vector2(cx, cz),
+                pelvisCenter: new THREE.Vector2(cx, cz)
+            };
+        }
+
+        for (const p of points) {
+            sumY += p.y;
+            sumX += p.x;
+            sumZ += p.z;
+            sumY2 += p.y * p.y;
+            sumXY += p.x * p.y;
+            sumYZ += p.y * p.z;
+        }
+
+        const denominator = (N * sumY2 - sumY * sumY);
+        let slopeX = 0;
+        let slopeZ = 0;
+        let offsetX = 0;
+        let offsetZ = 0;
+
+        if (Math.abs(denominator) > 1e-6) {
+            slopeX = (N * sumXY - sumX * sumY) / denominator;
+            slopeZ = (N * sumYZ - sumZ * sumY) / denominator;
+            offsetX = (sumX - slopeX * sumY) / N;
+            offsetZ = (sumZ - slopeZ * sumY) / N;
+        }
+
+        // --- EXTRAPOLATE ANCHORS ---
+        // Now we use the "Ideal Spine Line" to find our anchors.
+
+        const getPointOnLine = (y: number) => new THREE.Vector2(
+            slopeX * y + offsetX,
+            slopeZ * y + offsetZ
         );
 
-        const spineCenter = new THREE.Vector2(
-            getMedian(chestX),
-            getMedian(chestZ)
-        );
-
-        const neckCenter = new THREE.Vector2(
-            getMedian(neckX),
-            getMedian(neckZ)
-        );
-
-        // Fallbacks if slices are empty (e.g. broken mesh or wrong scale)
-        const boxCenterX = (box.min.x + box.max.x) / 2;
-        const boxCenterZ = (box.min.z + box.max.z) / 2;
-
-        if (pelvisX.length === 0) pelvisCenter.set(boxCenterX, boxCenterZ);
-        if (chestX.length === 0) spineCenter.set(boxCenterX, boxCenterZ);
-        if (neckX.length === 0) neckCenter.set(boxCenterX, boxCenterZ);
+        const neckY = box.min.y + (height * 0.87);
+        const spineY = box.min.y + (height * 0.70);
+        const pelvisY = box.min.y + (height * 0.50);
 
         return {
-            neckY: neckMaxY, // Return the top of the neck slice for clearance
-            neckCenter,
-            pelvisCenter,
-            spineCenter
+            neckY: neckY,
+            neckCenter: getPointOnLine(neckY),
+            spineCenter: getPointOnLine(spineY),
+            pelvisCenter: getPointOnLine(pelvisY)
         };
     }
 }

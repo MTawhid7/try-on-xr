@@ -5,6 +5,34 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-22] Asset Pipeline & Pose Normalization
+
+**Branch / Feature:** `feat/asset_preparation`
+
+### 1. Current State (Asset Pipeline & Pose Normalization)
+
+- [x] **Modular Asset Loader:** Refactored the monolithic `AssetLoader` into a scalable service architecture (`asset_loader/` directory).
+  - `MeshLoader`: Handles GLTF loading and World Transform baking (fixing "Flipped" meshes).
+  - `ProxyGenerator`: Encapsulates `meshoptimizer` logic for generating physics colliders.
+  - `PoseNormalizer`: New service for correcting mesh orientation.
+- [x] **Statistical Pose Correction:** Implemented a robust strategy to straighten leaning avatars without skeletal rigging.
+  - **Robust Median Analysis:** Replaced bounding box centers with median coordinate filtering. This allows the engine to find the true torso center while mathematically ignoring asymmetric arms or hands.
+  - **Symmetry Optimization:** Implemented a "Mirror Test" algorithm that iteratively rotates the mesh to find the angle of maximum bilateral symmetry, fixing lateral lean.
+- [x] **Neck-Based Alignment:** Updated `AutoAligner` to anchor garments specifically to the **Neck**, rather than the Chest or Waist. This ensures the collar always sits correctly, even if the body leans.
+
+### 2. Not Working / Issues (Asset Pipeline & Pose Normalization)
+
+- [ ] **Sleeve Intersection:** While the torso alignment is now perfect, the arms of the SAM3D mesh (A-Pose) often intersect the torso of the Shirt mesh (T-Pose) during initialization. Because the arm starts *inside* the shirt body, the physics engine pushes the cloth outward, leaving the sleeve empty.
+
+### 3. Observations / Notes (Asset Pipeline & Pose Normalization)
+
+- **Geometric vs. Skeletal:** We confirmed that SAM3D meshes do not export a usable `SkinnedMesh` skeleton for web use. Therefore, all pose correction must be done via **Geometric Analysis** (analyzing vertex clouds) rather than FK/IK.
+- **The "Ghost" Necessity:** Static alignment has reached its limit. We cannot mathematically align a $30^\circ$ arm into a $90^\circ$ sleeve without deforming the mesh. The solution must be dynamic: starting the simulation with a thinner body ("Ghost") and inflating it.
+
+### 4. Next Steps / Plan (Asset Pipeline & Pose Normalization)
+
+- [ ] **Ghost Collider Strategy:** Implement a pre-simulation phase where the collider is initialized at `scale=0.8` and linearly interpolated to `scale=1.0` over 60 frames. This will allow the shirt to fall *over* the arms before they expand to fill the sleeves.
+
 ## [2026-01-21] Physics Optimization & Tuning
 
 **Branch / Feature:** `feat/cpu_optimization`

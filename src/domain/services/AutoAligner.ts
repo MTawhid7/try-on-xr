@@ -4,13 +4,19 @@ import { MeshAnalyzer } from './MeshAnalyzer';
 
 export class AutoAligner {
     static alignBody(geometry: THREE.BufferGeometry): THREE.Box3 {
-        // PoseNormalizer already centered it on the floor.
-        // We just ensure it's exactly at Y=0.
+        // 1. Analyze (Regression)
+        const anchors = MeshAnalyzer.analyzeBody(geometry);
+
+        // 2. Center the PELVIS on (0,0,0)
+        // This ensures the body's mass is centered on the stage.
+        const offsetX = -anchors.pelvisCenter.x;
+        const offsetZ = -anchors.pelvisCenter.y;
+
         geometry.computeBoundingBox();
         const box = geometry.boundingBox!;
         const offsetY = -box.min.y;
 
-        geometry.translate(0, offsetY, 0);
+        geometry.translate(offsetX, offsetY, offsetZ);
         geometry.computeBoundingBox();
         return geometry.boundingBox!;
     }
@@ -25,11 +31,11 @@ export class AutoAligner {
         const shirtCenterX = (gBox.min.x + gBox.max.x) / 2;
         const shirtCenterZ = (gBox.min.z + gBox.max.z) / 2;
 
-        // X/Z: Align to Neck Center (Most stable point after normalization)
+        // X/Z: Align Shirt Center to Body NECK Center (Regression)
         const moveX = anchors.neckCenter.x - shirtCenterX;
         const moveZ = anchors.neckCenter.y - shirtCenterZ;
 
-        // Y: Align to Neck Y
+        // Y: Align Shirt Top to Body Neck (+2cm)
         const moveY = (anchors.neckY - shirtTopY) + 0.02;
 
         garmentGeo.translate(moveX, moveY, moveZ);

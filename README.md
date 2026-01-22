@@ -30,13 +30,13 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 
 * **Rendering:** React Three Fiber (R3F) renders the visual mesh.
 * **State Management:** `Zustand` handles the simulation loop and transient updates outside the React render cycle.
-* **Asset Pipeline:** Custom loaders process GLB files, welding vertices to repair topology and extracting normal data for the physics engine.
+* **Asset Pipeline:** Modular services (`asset_loader/`) handle loading, inspection, normalization, and optimization of raw GLB assets before they reach the physics engine.
 
 ### 3. Procedural Collider Pipeline
 
 * **Decimation:** High-poly body scans (~100k triangles) are reduced to ~5,000 triangles using `meshoptimizer` (Quadric Error Metrics) in WASM.
 * **Laplacian Smoothing:** The decimated mesh undergoes 3 passes of Laplacian Smoothing in Rust to remove jagged artifacts ("spikes") that cause cloth snagging.
-* **Compaction:** Vertex buffers are aggressively compacted to minimize memory footprint before entering the physics engine.
+* **Pose Normalization:** Raw meshes are statistically analyzed to correct global tilt (Pitch/Roll) and enforce an upright orientation.
 
 ---
 
@@ -55,29 +55,29 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## 🚀 Key Features
 
-* **Anatomical Anchoring (The Slicer):** A geometric analysis algorithm that "slices" the body mesh to find the true Spine Axis and Neck Height. This ensures garments align correctly on plus-size or asymmetric bodies, ignoring belly protrusion during initial placement.
-* **Procedural Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL). The system uses a "Top-Down, Center-Out" pivot strategy to ensure the collar remains correctly positioned on the neck regardless of size.
-* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance relative to the surface angle, creating realistic flutter and sway during movement.
-* **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding), allowing garments to grip the body naturally without artificial constraints.
-* **Asymmetric Proxy Bias:** A "Virtual Foam" layer (Soft Offset) dampens geometric noise from the low-poly collider, preventing lateral drift and creating a stable, heavy drape.
-* **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs). These are rendered with **0.0 compliance (Rigid)**, while the body remains flexible, simulating reinforced seams.
-* **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest without micro-vibrations.
-* **Interactive Physics:** Users can grab and pull the fabric. The solver prioritizes user interaction (with camera controls disabled during interaction), allowing for tactile testing of material properties.
-* **Anisotropic Bending:** The material resists bending differently along the UV axes (Warp/Weft) versus the diagonal (Bias), creating realistic draping folds.
-* **Self-Collision:** A dedicated Spatial Hash Grid prevents the cloth from passing through itself, enabling realistic folding and multi-layer interactions.
+* **Statistical Pose Normalization:** A robust pipeline that corrects leaning avatars.
+  * **Robust Median Analysis:** Filters out arms and hands to find the true anatomical center of the torso.
+  * **Symmetry Optimization:** Rotates the mesh to maximize bilateral symmetry, correcting lateral lean without skeletal rigging.
+* **Anatomical Anchoring:** Automatically aligns the shirt collar to the body's neck, ignoring belly protrusion or asymmetric stances.
+* **Procedural Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL).
+* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance relative to the surface angle.
+* **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding).
+* **Asymmetric Proxy Bias:** A "Virtual Foam" layer (Soft Offset) dampens geometric noise from the low-poly collider.
+* **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs) rendered with **0.0 compliance (Rigid)**.
+* **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest.
 
 ---
 
 ## ⚠️ Known Limitations
 
-* **Neckline Stretching:** Oversized garments may exhibit elongation at the neckline due to gravity overcoming the solver's iteration limit. Tether constraints are planned to fix this.
-* **Extreme Force Detachment:** If the cloth is pulled with excessive force (beyond realistic human strength), it may clip through the collision body. This is an intentional trade-off to maintain performance.
+* **Sleeve Alignment:** If the user's arm pose differs significantly from the garment's modeled pose (e.g., A-Pose vs T-Pose), the arm may clip through the sleeve during initialization.
+* **Extreme Force Detachment:** If the cloth is pulled with excessive force, it may clip through the collision body. This is an intentional trade-off to maintain performance.
 
 ---
 
 ## 🔮 Future Roadmap
 
-1. **Tether Constraints:** Implement Long-Range Attachments to prevent neckline stretching without increasing solver iterations.
+1. **Ghost Collider (Inflation):** Implement a "Growth" phase where the body collider starts small (fitting inside the shirt) and expands to full size, naturally resolving sleeve clipping issues.
 2. **Dual-Mesh Skinning:** Implement a pipeline to drive high-poly visual meshes (20k+ verts) using the low-poly physics simulation (3k verts).
 3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 
