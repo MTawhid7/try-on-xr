@@ -17,6 +17,7 @@ impl DistanceConstraint {
         let mut edge_counts = HashMap::new();
         let num_triangles = state.indices.len() / 3;
 
+        // 1. Count Edge Occurrences to find Boundaries
         for i in 0..num_triangles {
             let idx0 = state.indices[i * 3] as usize;
             let idx1 = state.indices[i * 3 + 1] as usize;
@@ -31,16 +32,40 @@ impl DistanceConstraint {
             *edge_counts.entry(e3).or_insert(0) += 1;
         }
 
-        for ((i1, i2), _count) in edge_counts {
+        // 2. Determine Height Threshold for Collar
+        // We assume the top 10% of the mesh is the collar area.
+        let mut max_y = f32::MIN;
+        let mut min_y = f32::MAX;
+        for p in &state.positions {
+            if p.y > max_y { max_y = p.y; }
+            if p.y < min_y { min_y = p.y; }
+        }
+        let height = max_y - min_y;
+        let collar_threshold = max_y - (height * 0.10);
+
+        // 3. Build Constraints
+        for ((i1, i2), count) in edge_counts {
             let p1 = state.positions[i1];
             let p2 = state.positions[i2];
             let dist = p1.distance(p2);
 
             constraints.push([i1, i2]);
-            rest_lengths.push(dist);
 
-            // FIX: Set compliance to 0.0 (Rigid) for ALL edges.
-            // This forces the solver to minimize stretching as much as possible.
+            // LOGIC: Collar Cinch
+            // If it's a Boundary Edge (count == 1) AND it's high up (Y > threshold),
+            // it is likely the neckline.
+            // We shrink its rest length to 80% to cinch it tight.
+            let is_boundary = count == 1;
+            let is_high = p1.y > collar_threshold && p2.y > collar_threshold;
+
+            if is_boundary && is_high {
+                // "Elastic Collar" effect
+                rest_lengths.push(dist * 0.80);
+            } else {
+                rest_lengths.push(dist);
+            }
+
+            // Compliance: 0.0 (Rigid)
             compliances.push(0.0);
         }
 

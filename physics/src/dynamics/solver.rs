@@ -2,26 +2,27 @@
 use crate::engine::state::PhysicsState;
 use crate::constraints::distance::DistanceConstraint;
 use crate::constraints::bending::BendingConstraint;
+use crate::constraints::tether::TetherConstraint; // Import
 use crate::collision::CollisionResolver;
 
 pub struct Solver {
     distance_constraint: DistanceConstraint,
     bending_constraint: BendingConstraint,
+    tether_constraint: TetherConstraint, // Field
     iterations: usize,
 }
 
 impl Solver {
     pub fn new(state: &PhysicsState) -> Self {
         let distance_constraint = DistanceConstraint::new(state);
-        // Bending: 0.5 is good for cotton. Lower = Silk, Higher = Leather.
         let bending_constraint = BendingConstraint::new(state, 0.5);
+        // Initialize Tethers
+        let tether_constraint = TetherConstraint::new(state);
 
         Self {
             distance_constraint,
             bending_constraint,
-            // FIX: Increase iterations to cure "Rubber" effect.
-            // 4 was too low. 15 gives us high stiffness.
-            // Since we optimized the collision broad phase, we can afford this.
+            tether_constraint,
             iterations: 20,
         }
     }
@@ -35,6 +36,12 @@ impl Solver {
         for _ in 0..self.iterations {
             self.distance_constraint.solve(state, dt);
             self.bending_constraint.solve(state, dt);
+
+            // Solve Tethers
+            // They act like "Limiters", so running them inside the loop
+            // ensures they work cooperatively with collision.
+            self.tether_constraint.solve(state, dt);
+
             resolver.resolve_contacts(state, dt);
         }
     }

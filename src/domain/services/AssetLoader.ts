@@ -39,7 +39,7 @@ export class AssetLoader {
 
         // 4. Process Garment (Weld)
         // Welding merges duplicate vertices to create a connected cloth mesh
-        const garmentProcessed = GeometryProcessor.process(shirtMesh, 0.01);
+        const garmentProcessed = GeometryProcessor.process(shirtMesh, 0.02);
 
         // 5. Generate Physics Proxy (Decimate + Compact)
         // We reduce the high-poly scan to ~5000 triangles for the physics engine
