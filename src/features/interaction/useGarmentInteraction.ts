@@ -2,11 +2,11 @@
 import { useRef, useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useSimulationStore } from '../../app/store/simulationStore';
+// FIX: Update import path
+import { useSimulationStore } from '../../app/store/simulation/useSimulationStore';
 
 export function useGarmentInteraction(meshRef: React.RefObject<THREE.Mesh | null>) {
     const { camera, raycaster, gl } = useThree();
-    // Destructure setInteracting
     const { grabParticle, moveParticle, releaseParticle, isRunning, setInteracting } = useSimulationStore();
 
     const isDragging = useRef(false);
@@ -45,9 +45,8 @@ export function useGarmentInteraction(meshRef: React.RefObject<THREE.Mesh | null
                     if (dB < dA && dB < dC) closestIdx = b;
                     if (dC < dA && dC < dB) closestIdx = c;
 
-                    // START DRAG
                     isDragging.current = true;
-                    setInteracting(true); // <--- DISABLE ORBIT CONTROLS
+                    setInteracting(true);
 
                     const normal = new THREE.Vector3();
                     camera.getWorldDirection(normal);
@@ -78,9 +77,8 @@ export function useGarmentInteraction(meshRef: React.RefObject<THREE.Mesh | null
 
         const handleUp = () => {
             if (isDragging.current) {
-                // STOP DRAG
                 isDragging.current = false;
-                setInteracting(false); // <--- RE-ENABLE ORBIT CONTROLS
+                setInteracting(false);
 
                 releaseParticle();
                 if ((gl.domElement as any).style) {
@@ -92,7 +90,6 @@ export function useGarmentInteraction(meshRef: React.RefObject<THREE.Mesh | null
         canvas.addEventListener('pointerdown', handleDown);
         window.addEventListener('pointermove', handleMove);
         window.addEventListener('pointerup', handleUp);
-        // Handle case where mouse leaves window while dragging
         canvas.addEventListener('pointerleave', handleUp);
 
         return () => {

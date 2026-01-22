@@ -1,7 +1,8 @@
 // src/rendering/MannequinMesh.tsx
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { useSimulationStore } from '../app/store/simulationStore';
+// FIX: Update import path
+import { useSimulationStore } from '../app/store/simulation/useSimulationStore';
 
 export const MannequinMesh = () => {
     const { assets } = useSimulationStore();
@@ -9,12 +10,10 @@ export const MannequinMesh = () => {
     const geometry = useMemo(() => {
         if (!assets) return null;
         const geo = new THREE.BufferGeometry();
-        // Use the collider data from the store (which came from AssetLoader -> Rust)
+        // Use the collider data from the store
         geo.setAttribute('position', new THREE.BufferAttribute(assets.collider.vertices, 3));
 
-        // Note: In Phase 1, these normals are placeholders from AssetLoader.
-        // If we want to visualize the Rust-smoothed normals, we'd need to pull them back from WASM.
-        // For now, simple flat shading or re-computing in JS is enough to see topology.
+        // Compute normals for visualization since we don't pull them from Rust yet
         geo.computeVertexNormals();
 
         geo.setIndex(new THREE.BufferAttribute(assets.collider.indices, 1));
@@ -25,7 +24,7 @@ export const MannequinMesh = () => {
 
     return (
         <mesh geometry={geometry} receiveShadow>
-            {/* Use Wireframe to inspect the decimation quality */}
+            {/* Wireframe to visualize the physics proxy */}
             <meshStandardMaterial
                 color="#aaaaaa"
                 roughness={0.8}

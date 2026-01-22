@@ -1,12 +1,12 @@
 // src/app/App.tsx
 import { Scene } from '../rendering/Scene';
-import { useSimulationStore } from './store/simulationStore';
+// FIX: Update import path to the new slice location
+import { useSimulationStore } from './store/simulation/useSimulationStore';
 import type { ShirtSize } from '../domain/types';
 
 function App() {
     const { isReady, isRunning, toggleSimulation, shirtSize, setShirtSize } = useSimulationStore();
 
-    // UPDATED: Added XXS
     const sizes: ShirtSize[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
     return (

@@ -2,14 +2,16 @@
 import * as THREE from 'three';
 
 export interface AnatomicalAnchors {
-    neckY: number;      // The vertical height of the collar bone/neck
-    spineCenter: THREE.Vector2; // The X/Z center of the upper torso (ignoring belly)
+    neckY: number;
+    neckCenter: THREE.Vector2;   // Top Anchor (Base of Neck)
+    pelvisCenter: THREE.Vector2; // Bottom Anchor (Pelvis/Hips)
+    spineCenter: THREE.Vector2;  // Middle Anchor (Chest - used for Shirt X/Z alignment)
 }
 
 export class MeshAnalyzer {
     /**
-     * Analyzes a human body mesh to find anatomical anchors.
-     * It "slices" the mesh horizontally to find the neck and the true spine axis.
+     * Analyzes the body geometry to find stable anatomical landmarks.
+     * Uses "Robust Median" logic to ignore outliers like arms and hands.
      */
     static analyzeBody(geometry: THREE.BufferGeometry): AnatomicalAnchors {
         geometry.computeBoundingBox();
@@ -19,65 +21,87 @@ export class MeshAnalyzer {
         const positionAttr = geometry.attributes.position;
         const vertexCount = positionAttr.count;
 
-        // 1. Bucket vertices by Height (Y)
-        // We divide the body into 100 vertical slices
-        const slices = 100;
-        const sliceHeight = height / slices;
+        // --- DEFINING SLICES (Relative to Height) ---
 
-        // We store the bounds of each slice: [minX, maxX, minZ, maxZ, count]
-        const sliceBounds: number[][] = Array(slices).fill(0).map(() => [Infinity, -Infinity, Infinity, -Infinity, 0]);
+        // 1. Pelvis: 48% to 52%
+        // Center of mass, generally stable, avoids legs splitting.
+        const pelvisMinY = box.min.y + (height * 0.48);
+        const pelvisMaxY = box.min.y + (height * 0.52);
 
+        // 2. Chest (Spine): 68% to 72%
+        // Used for centering the shirt. More stable than neck for X/Z.
+        const chestMinY = box.min.y + (height * 0.68);
+        const chestMaxY = box.min.y + (height * 0.72);
+
+        // 3. Neck: 85% to 88%
+        // Base of neck. Used for vertical alignment and tilt calculation.
+        const neckMinY = box.min.y + (height * 0.85);
+        const neckMaxY = box.min.y + (height * 0.88);
+
+        // Collectors
+        const pelvisX: number[] = [];
+        const pelvisZ: number[] = [];
+        const chestX: number[] = [];
+        const chestZ: number[] = [];
+        const neckX: number[] = [];
+        const neckZ: number[] = [];
+
+        // Single pass through vertices
         for (let i = 0; i < vertexCount; i++) {
             const x = positionAttr.getX(i);
             const y = positionAttr.getY(i);
             const z = positionAttr.getZ(i);
 
-            // Determine which slice this vertex belongs to
-            // Clamp to 0..99
-            const sliceIndex = Math.min(
-                Math.floor((y - box.min.y) / sliceHeight),
-                slices - 1
-            );
-
-            const bounds = sliceBounds[sliceIndex];
-            if (x < bounds[0]) bounds[0] = x;
-            if (x > bounds[1]) bounds[1] = x;
-            if (z < bounds[2]) bounds[2] = z;
-            if (z > bounds[3]) bounds[3] = z;
-            bounds[4]++; // Increment count
+            if (y >= pelvisMinY && y <= pelvisMaxY) {
+                pelvisX.push(x);
+                pelvisZ.push(z);
+            } else if (y >= chestMinY && y <= chestMaxY) {
+                chestX.push(x);
+                chestZ.push(z);
+            } else if (y >= neckMinY && y <= neckMaxY) {
+                neckX.push(x);
+                neckZ.push(z);
+            }
         }
 
-        // 2. Find Neck Y (Vertical Anchor)
-        // Heuristic: The neck is the narrowest point in the upper 20% of the body
-        // before the head widens or the shoulders widen.
-        // For simplicity in V1: We take the point at ~87% height.
-        const neckSliceIndex = Math.floor(slices * 0.87);
-        const neckY = box.min.y + (neckSliceIndex * sliceHeight);
+        // --- ROBUST MEDIAN LOGIC ---
+        // We sort coordinates and pick the middle value.
+        // This filters out arms (which are X-outliers) without complex logic.
+        const getMedian = (values: number[]): number => {
+            if (values.length === 0) return 0;
+            values.sort((a, b) => a - b);
+            const mid = Math.floor(values.length / 2);
+            return values[mid];
+        };
 
-        // 3. Find Spine Center (Horizontal Anchor)
-        // We look at the "Chest Slice" (roughly 15% below the neck).
-        // This is the most stable part of the torso, unaffected by belly protrusion.
-        const chestSliceIndex = Math.floor(slices * 0.70);
-        const chestBounds = sliceBounds[chestSliceIndex];
+        const pelvisCenter = new THREE.Vector2(
+            getMedian(pelvisX),
+            getMedian(pelvisZ)
+        );
 
-        // If the slice is empty (rare), fallback to box center
-        if (chestBounds[4] === 0) {
-            return {
-                neckY: neckY,
-                spineCenter: new THREE.Vector2(
-                    (box.min.x + box.max.x) / 2,
-                    (box.min.z + box.max.z) / 2
-                )
-            };
-        }
+        const spineCenter = new THREE.Vector2(
+            getMedian(chestX),
+            getMedian(chestZ)
+        );
 
-        // Calculate Center of the Chest Slice
-        const spineX = (chestBounds[0] + chestBounds[1]) / 2;
-        const spineZ = (chestBounds[2] + chestBounds[3]) / 2;
+        const neckCenter = new THREE.Vector2(
+            getMedian(neckX),
+            getMedian(neckZ)
+        );
+
+        // Fallbacks if slices are empty (e.g. broken mesh or wrong scale)
+        const boxCenterX = (box.min.x + box.max.x) / 2;
+        const boxCenterZ = (box.min.z + box.max.z) / 2;
+
+        if (pelvisX.length === 0) pelvisCenter.set(boxCenterX, boxCenterZ);
+        if (chestX.length === 0) spineCenter.set(boxCenterX, boxCenterZ);
+        if (neckX.length === 0) neckCenter.set(boxCenterX, boxCenterZ);
 
         return {
-            neckY: neckY,
-            spineCenter: new THREE.Vector2(spineX, spineZ)
+            neckY: neckMaxY, // Return the top of the neck slice for clearance
+            neckCenter,
+            pelvisCenter,
+            spineCenter
         };
     }
 }

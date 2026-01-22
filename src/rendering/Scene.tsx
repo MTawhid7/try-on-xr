@@ -2,12 +2,12 @@
 import { useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Grid } from '@react-three/drei';
-import { useSimulationStore } from '../app/store/simulationStore';
+// FIX: Update import path
+import { useSimulationStore } from '../app/store/simulation/useSimulationStore';
 import { GarmentMesh } from './GarmentMesh';
 import { MannequinMesh } from './MannequinMesh';
 
 export const Scene = () => {
-    // Destructure isInteracting
     const { loadAndInitialize, isReady, isLoading, error, isInteracting } = useSimulationStore();
 
     useEffect(() => {
@@ -21,10 +21,6 @@ export const Scene = () => {
         <Canvas shadows camera={{ position: [0, 1.5, 2], fov: 50 }}>
             <color attach="background" args={['#1a1a1a']} />
 
-            {/*
-                OrbitControls Logic:
-                enabled={!isInteracting} -> Disabled when dragging cloth
-            */}
             <OrbitControls
                 target={[0, 1.0, 0]}
                 makeDefault
