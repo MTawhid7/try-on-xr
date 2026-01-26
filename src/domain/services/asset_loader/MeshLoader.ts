@@ -14,20 +14,30 @@ export class MeshLoader {
             this.loader.load(
                 url,
                 (gltf) => {
-                    const scene = gltf.scene.clone(true);
+                    // Fix: Use an array to collect candidates.
+                    // This avoids TypeScript losing track of assignments inside the traverse callback.
+                    const candidates: { mesh: THREE.Mesh, count: number }[] = [];
 
-                    const skinnedMesh = scene.getObjectByProperty('isSkinnedMesh', true);
-                    const staticMesh = scene.getObjectByProperty('isMesh', true);
-                    const foundMesh = (skinnedMesh || staticMesh) as THREE.Mesh | undefined;
+                    gltf.scene.traverse((child) => {
+                        if ((child as THREE.Mesh).isMesh) {
+                            const mesh = child as THREE.Mesh;
+                            const geometry = mesh.geometry;
+                            const count = geometry.attributes.position.count;
+                            candidates.push({ mesh, count });
+                        }
+                    });
 
-                    if (foundMesh) {
-                        console.log(`[MeshLoader] Loaded '${name}': ${foundMesh.type}`);
+                    // Sort by vertex count (descending) to find the main body
+                    candidates.sort((a, b) => b.count - a.count);
+                    const bestEntry = candidates[0];
 
-                        // Ensure matrices are up to date
-                        scene.updateMatrixWorld(true);
+                    if (bestEntry) {
+                        const bestMesh = bestEntry.mesh;
+                        console.log(`[MeshLoader] Loaded '${name}': ${bestMesh.name} (${bestEntry.count} verts)`);
 
-                        // We return the mesh attached to the scene graph so we can inspect hierarchy if needed
-                        resolve(foundMesh);
+                        // Detach from original scene to ensure clean transform baking
+                        const cleanMesh = bestMesh.clone();
+                        resolve(cleanMesh);
                     } else {
                         reject(new Error(`No mesh found in ${name} (${url})`));
                     }
@@ -38,20 +48,14 @@ export class MeshLoader {
         });
     }
 
-    /**
-     * Applies the Object3D's world transform (Position/Rotation/Scale)
-     * directly into the BufferGeometry vertices.
-     */
     public bakeTransform(mesh: THREE.Mesh) {
         mesh.updateMatrixWorld(true);
         const geometry = mesh.geometry;
 
-        // Clone to avoid mutating shared resources if any
         const bakedGeometry = geometry.clone();
         bakedGeometry.applyMatrix4(mesh.matrixWorld);
         mesh.geometry = bakedGeometry;
 
-        // Reset transform since it's now baked into the vertices
         mesh.position.set(0, 0, 0);
         mesh.quaternion.set(0, 0, 0, 1);
         mesh.scale.set(1, 1, 1);

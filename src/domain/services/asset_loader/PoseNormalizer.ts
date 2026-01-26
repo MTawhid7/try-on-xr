@@ -6,11 +6,20 @@ export class PoseNormalizer {
     static normalize(mesh: THREE.Mesh) {
         const geometry = mesh.geometry;
 
-        // 1. Analyze (Regression)
+        // 1. Analyze
         const anchors = MeshAnalyzer.analyzeBody(geometry);
 
-        // 2. Construct Spine Vector (Pelvis -> Neck)
-        // This vector comes from the "Line of Best Fit" through the ribcage.
+        // 2. Fix Upside Down
+        if (anchors.isUpsideDown) {
+            console.log("[PoseNormalizer] Flipping Upside Down Mesh...");
+            geometry.rotateZ(Math.PI); // Flip 180
+            geometry.computeBoundingBox();
+            // Re-analyze after flip
+            const newAnchors = MeshAnalyzer.analyzeBody(geometry);
+            Object.assign(anchors, newAnchors);
+        }
+
+        // 3. Construct Spine Vector (Pelvis -> Neck)
         const currentSpineVector = new THREE.Vector3(
             anchors.neckCenter.x - anchors.pelvisCenter.x,
             anchors.neckY - (geometry.boundingBox!.min.y + (geometry.boundingBox!.max.y - geometry.boundingBox!.min.y) * 0.50),
@@ -18,13 +27,9 @@ export class PoseNormalizer {
         ).normalize();
 
         const targetVector = new THREE.Vector3(0, 1, 0);
-
-        // 3. Calculate Rotation
         const quaternion = new THREE.Quaternion();
         quaternion.setFromUnitVectors(currentSpineVector, targetVector);
 
-        // 4. Apply Rotation around the SPINE CENTER (Chest)
-        // Rotating around the chest keeps the shirt area stable.
         geometry.computeBoundingBox();
         const height = geometry.boundingBox!.max.y - geometry.boundingBox!.min.y;
         const pivotY = geometry.boundingBox!.min.y + (height * 0.70);
@@ -36,8 +41,5 @@ export class PoseNormalizer {
 
         geometry.computeBoundingBox();
         geometry.computeBoundingSphere();
-
-        const angleDeg = THREE.MathUtils.radToDeg(currentSpineVector.angleTo(targetVector));
-        console.log(`[PoseNormalizer] Corrected Lean: ${angleDeg.toFixed(2)}°`);
     }
 }

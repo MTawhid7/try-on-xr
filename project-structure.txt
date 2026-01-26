@@ -14,15 +14,25 @@
 │       │   ├── collider.rs
 │       │   ├── geometry.rs
 │       │   ├── mod.rs
-│       │   ├── resolver.rs
+│       │   ├── preprocessing.rs
+│       │   ├── resolver
+│       │   │   ├── broad.rs
+│       │   │   ├── mod.rs
+│       │   │   └── narrow.rs
 │       │   ├── self_collision.rs
-│       │   └── spatial_hash.rs
+│       │   └── spatial_hash
+│       │       ├── dynamic.rs
+│       │       ├── mod.rs
+│       │       └── static_grid.rs
 │       ├── constraints
 │       │   ├── bending.rs
 │       │   ├── distance.rs
 │       │   ├── mod.rs
 │       │   ├── mouse.rs
-│       │   └── tether.rs
+│       │   └── tether
+│       │       ├── horizontal.rs
+│       │       ├── mod.rs
+│       │       └── vertical.rs
 │       ├── dynamics
 │       │   ├── forces.rs
 │       │   ├── mod.rs
@@ -33,37 +43,45 @@
 │       │   └── state.rs
 │       ├── lib.rs
 │       └── utils
-│           ├── math.rs
 │           └── mod.rs
 ├── project-structure.txt
 ├── public
 │   ├── models
 │   │   ├── mannequin.glb
+│   │   ├── mannequin_.glb
+│   │   ├── mannequinb.glb
+│   │   ├── mannequinl.glb
 │   │   └── shirt.glb
 │   ├── textures
 │   └── vite.svg
 ├── src
 │   ├── adapters
-│   │   ├── MockAdapter.ts
 │   │   ├── WasmAdapter.ts
 │   │   └── types.ts
 │   ├── app
 │   │   ├── App.tsx
 │   │   └── store
-│   │       └── simulationStore.ts
+│   │       └── simulation
+│   │           ├── interactionSlice.ts
+│   │           ├── lifecycleSlice.ts
+│   │           ├── simulationSlice.ts
+│   │           ├── types.ts
+│   │           └── useSimulationStore.ts
 │   ├── assets
 │   │   └── react.svg
-│   ├── components
-│   │   ├── canvas
-│   │   ├── debug
-│   │   └── ui
 │   ├── domain
-│   │   ├── garment
 │   │   ├── index.ts
-│   │   ├── mannequin
 │   │   ├── services
-│   │   │   ├── AssetLoader.ts
-│   │   │   └── GeometryProcessor.ts
+│   │   │   ├── AutoAligner.ts
+│   │   │   ├── GarmentGrading.ts
+│   │   │   ├── GeometryProcessor.ts
+│   │   │   ├── MeshAnalyzer.ts
+│   │   │   └── asset_loader
+│   │   │       ├── AssetLoader.ts
+│   │   │       ├── MeshLoader.ts
+│   │   │       ├── PoseNormalizer.ts
+│   │   │       ├── ProxyGenerator.ts
+│   │   │       └── index.ts
 │   │   └── types.ts
 │   ├── features
 │   │   └── interaction
@@ -77,14 +95,13 @@
 │   │   ├── garment_physics_bg.wasm
 │   │   ├── garment_physics_bg.wasm.d.ts
 │   │   └── package.json
-│   ├── rendering
-│   │   ├── GarmentMesh.tsx
-│   │   ├── MannequinMesh.tsx
-│   │   └── Scene.tsx
-│   └── utils
+│   └── rendering
+│       ├── GarmentMesh.tsx
+│       ├── MannequinMesh.tsx
+│       └── Scene.tsx
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-29 directories, 59 files
+27 directories, 78 files
