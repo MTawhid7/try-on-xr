@@ -1,7 +1,6 @@
 // src/rendering/MannequinMesh.tsx
 import { useMemo } from 'react';
 import * as THREE from 'three';
-// FIX: Update import path
 import { useSimulationStore } from '../app/store/simulation/useSimulationStore';
 
 export const MannequinMesh = () => {
@@ -10,10 +9,12 @@ export const MannequinMesh = () => {
     const geometry = useMemo(() => {
         if (!assets) return null;
         const geo = new THREE.BufferGeometry();
+
         // Use the collider data from the store
         geo.setAttribute('position', new THREE.BufferAttribute(assets.collider.vertices, 3));
 
-        // Compute normals for visualization since we don't pull them from Rust yet
+        // Compute smooth normals for visualization
+        // (The physics proxy is indexed, so this produces smooth shading)
         geo.computeVertexNormals();
 
         geo.setIndex(new THREE.BufferAttribute(assets.collider.indices, 1));
@@ -23,12 +24,12 @@ export const MannequinMesh = () => {
     if (!geometry) return null;
 
     return (
-        <mesh geometry={geometry} receiveShadow>
-            {/* Wireframe to visualize the physics proxy */}
+        <mesh geometry={geometry} receiveShadow castShadow>
             <meshStandardMaterial
-                color="#aaaaaa"
-                roughness={0.8}
-                wireframe={true}
+                color="#999999"  // Neutral grey
+                roughness={0.7}  // Matte finish (Clay-like)
+                metalness={0.1}  // Slight specular highlight
+                side={THREE.FrontSide}
             />
         </mesh>
     );

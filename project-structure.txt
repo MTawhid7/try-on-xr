@@ -48,9 +48,9 @@
 ├── public
 │   ├── models
 │   │   ├── mannequin.glb
-│   │   ├── mannequin_.glb
 │   │   ├── mannequinb.glb
 │   │   ├── mannequinl.glb
+│   │   ├── mannequinp.glb
 │   │   └── shirt.glb
 │   ├── textures
 │   └── vite.svg
@@ -76,12 +76,32 @@
 │   │   │   ├── GarmentGrading.ts
 │   │   │   ├── GeometryProcessor.ts
 │   │   │   ├── MeshAnalyzer.ts
-│   │   │   └── asset_loader
-│   │   │       ├── AssetLoader.ts
-│   │   │       ├── MeshLoader.ts
-│   │   │       ├── PoseNormalizer.ts
-│   │   │       ├── ProxyGenerator.ts
-│   │   │       └── index.ts
+│   │   │   ├── asset_loader
+│   │   │   │   ├── AssetLoader.ts
+│   │   │   │   ├── MeshLoader.ts
+│   │   │   │   ├── MeshScaler.ts
+│   │   │   │   ├── ProxyGenerator.ts
+│   │   │   │   └── index.ts
+│   │   │   └── mesh_analysis
+│   │   │       ├── OrientationDetector.ts
+│   │   │       ├── SliceAnalyzer.ts
+│   │   │       ├── SpineRegressor.ts
+│   │   │       ├── index.ts
+│   │   │       ├── orientation
+│   │   │       │   ├── OrientationOptimizer.ts
+│   │   │       │   ├── PCASolver.ts
+│   │   │       │   ├── TopologyValidator.ts
+│   │   │       │   ├── ValidationUtils.ts
+│   │   │       │   └── validators
+│   │   │       │       ├── ForwardValidator.ts
+│   │   │       │       ├── VerticalValidator.ts
+│   │   │       │       └── voters
+│   │   │       │           ├── ChestVoter.ts
+│   │   │       │           ├── FeetVoter.ts
+│   │   │       │           └── HeadVoter.ts
+│   │   │       └── slice
+│   │   │           ├── ClusterEngine.ts
+│   │   │           └── SliceAnalyzer.ts
 │   │   └── types.ts
 │   ├── features
 │   │   └── interaction
@@ -104,4 +124,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-27 directories, 78 files
+32 directories, 93 files

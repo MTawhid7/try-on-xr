@@ -13,12 +13,17 @@ export class SliceAnalyzer {
     /**
      * Extracts distinct "islands" of geometry within a vertical slice.
      * Uses Grid-Based Connected Components (Union-Find) for robust O(N) clustering.
+     *
+     * @param geometry The mesh geometry
+     * @param minY Bottom of the slice
+     * @param maxY Top of the slice
+     * @param stride Optimization: check every Nth vertex (default 2)
      */
     static getIslandsInSlice(
         geometry: THREE.BufferGeometry,
         minY: number,
         maxY: number,
-        stride: number = 2 // Check every 2nd vertex (High fidelity)
+        stride: number = 2
     ): Cluster[] {
         const pos = geometry.attributes.position;
         const points: THREE.Vector3[] = [];
@@ -129,5 +134,39 @@ export class SliceAnalyzer {
         }
 
         return result;
+    }
+
+    /**
+     * Calculates the bounding width (Max X - Min X) of the geometry in a specific Y-slice.
+     * Used for orientation heuristics (Shoulders are wider than Ankles).
+     *
+     * @param geometry The mesh geometry
+     * @param minY Bottom of the slice
+     * @param maxY Top of the slice
+     * @param stride Optimization stride
+     */
+    static getSliceWidth(
+        geometry: THREE.BufferGeometry,
+        minY: number,
+        maxY: number,
+        stride: number = 5
+    ): number {
+        const pos = geometry.attributes.position;
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let found = false;
+
+        for (let i = 0; i < pos.count; i += stride) {
+            const y = pos.getY(i);
+            if (y >= minY && y <= maxY) {
+                const x = pos.getX(i);
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                found = true;
+            }
+        }
+
+        if (!found) return 0;
+        return maxX - minX;
     }
 }
