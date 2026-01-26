@@ -5,6 +5,36 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-26] Visual-Physics Parity & Orientation Fixes
+
+**Branch / Feature:** `fix/visual-physics-parity`
+
+### 1. Current State (Visual-Physics Parity)
+
+- [x] **Adaptive Collider Pipeline:** Implemented a "Smart Decimation" strategy in `ProxyGenerator`.
+  - **Logic:** If a mesh is under 5,000 triangles, it bypasses decimation and smoothing entirely.
+  - **Result:** The Physics Collider now matches the Visual Mesh vertex-for-vertex. This eliminated the "Invisible Gap" caused by Laplacian shrinkage, allowing us to reduce collision thickness from 20mm to 5mm.
+- [x] **Configurable Physics:** Updated the Rust engine to accept `smoothing_iterations` and `inflation_amount` as runtime parameters.
+  - **Mannequin:** 0 Smoothing, 0 Inflation.
+  - **Cloth:** 3 Smoothing passes (for stiffness).
+- [x] **Voting-Based Orientation:** Replaced the fragile "Toe Check" with a robust **3-Factor Voting System** (Nose, Chest, Toes) to determine mesh orientation. This fixed the "Backward Mannequin" issue permanently.
+- [x] **Physics Tuning:**
+  - **Thickness:** Reduced to `0.005` (5mm) for a tight fit.
+  - **Aerodynamics:** Reduced `lift_coeff` to `0.001` to eliminate armpit flapping.
+  - **Friction:** Lowered to `0.3` to allow natural draping.
+- [x] **Visuals:** Switched `MannequinMesh` to render the high-quality geometry with a "Clay" material, removing the "Terminator" wireframe look.
+
+### 2. Observations / Notes (Visual-Physics Parity)
+
+- **The "Double Buffer" Trap:** We discovered that combining **Mesh Inflation** (Geometry) with **High Solver Thickness** (Force) creates a "Space Suit" effect where the cloth floats 2-3cm off the body.
+- **The Solution:** By ensuring the physics mesh is identical to the visual mesh (Raw Passthrough), we could trust the geometry and rely on a minimal solver thickness (5mm) just to prevent clipping.
+- **Aerodynamic Instability:** High lift coefficients in static simulations cause "fluttering" in concave areas (armpits) because the solver interprets micro-jitters as wind velocity. Killing the lift force stabilized the simulation.
+
+### 3. Next Steps / Plan
+
+- [ ] **Fit Visualization:** Implement a Strain/Tension heatmap to visualize tight areas.
+- [ ] **Ghost Collider:** Implement the "Growth" phase to handle A-Pose vs T-Pose arm intersections.
+
 ## [2026-01-22] Asset Pipeline & Pose Normalization
 
 **Branch / Feature:** `feat/asset_preparation`

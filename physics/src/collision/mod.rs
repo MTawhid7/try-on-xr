@@ -1,3 +1,4 @@
+// physics/src/collision/mod.rs
 pub mod collider;
 pub mod geometry;
 pub mod resolver;

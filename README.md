@@ -32,10 +32,12 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 * **State Management:** `Zustand` handles the simulation loop and transient updates outside the React render cycle.
 * **Asset Pipeline:** Modular services (`asset_loader/`) handle loading, inspection, normalization, and optimization of raw GLB assets before they reach the physics engine.
 
-### 3. Procedural Collider Pipeline
+### 3. Adaptive Collider Pipeline
 
-* **Decimation:** High-poly body scans (~100k triangles) are reduced to ~5,000 triangles using `meshoptimizer` (Quadric Error Metrics) in WASM.
-* **Laplacian Smoothing:** The decimated mesh undergoes 3 passes of Laplacian Smoothing in Rust to remove jagged artifacts ("spikes") that cause cloth snagging.
+* **Smart Decimation:** The engine analyzes the input geometry complexity.
+  * **High-Poly Scans (>10k tris):** Automatically decimated to ~5,000 triangles using `meshoptimizer` (WASM) to maintain 60 FPS.
+  * **Efficient Models (<5k tris):** Passed through as **Raw Geometry**. This preserves the exact volume and topology of the visual mesh, eliminating the "Invisible Gap" caused by decimation shrinkage.
+* **Configurable Smoothing:** Laplacian smoothing is applied dynamically. It is disabled for raw passthrough meshes to ensure the physics collider matches the visual mesh vertex-for-vertex.
 * **Pose Normalization:** Raw meshes are statistically analyzed to correct global tilt (Pitch/Roll) and enforce an upright orientation.
 
 ---
@@ -44,25 +46,21 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 
 To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered physics architecture:
 
-1. **Prevention (The Airbag):** **Anisotropic Velocity Clamping**. We limit particle velocity relative to the collision normal. Fast movement is allowed *parallel* to the body, but movement *into* the body is clamped to a safe limit, making tunneling mathematically impossible for 90% of cases.
+1. **Prevention (The Airbag):** **Anisotropic Velocity Clamping**. We limit particle velocity relative to the collision normal. Fast movement is allowed *parallel* to the body, but movement *into* the body is clamped to a safe limit.
 2. **Resolution (The Contact):** **Smoothed Mesh Proxy**. We calculate **Barycentric Interpolated Normals** at the point of impact. This approximates a perfectly smooth curved surface, eliminating "ratcheting" artifacts.
 3. **Optimization (The Cache):** **Static Spatial Partitioning & Broad Phase Caching**.
     * **Static Hash:** The body collider is hashed once into a dense grid, eliminating 65% of per-frame CPU overhead.
     * **Broad Phase Caching:** Potential collisions are found once per frame (Substep 0) and cached. Substeps 1-4 only perform cheap distance checks against the cache.
-    * **AABB Pruning:** Particles outside the body's bounding box skip the spatial query entirely.
 
 ---
 
 ## 🚀 Key Features
 
-* **Statistical Pose Normalization:** A robust pipeline that corrects leaning avatars.
-  * **Robust Median Analysis:** Filters out arms and hands to find the true anatomical center of the torso.
-  * **Symmetry Optimization:** Rotates the mesh to maximize bilateral symmetry, correcting lateral lean without skeletal rigging.
+* **Voting-Based Orientation:** A robust 3-factor analysis (Nose, Chest, Toes) determines the true forward direction of arbitrary avatars, solving the "Backward Mannequin" issue.
 * **Anatomical Anchoring:** Automatically aligns the shirt collar to the body's neck, ignoring belly protrusion or asymmetric stances.
 * **Procedural Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL).
-* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance relative to the surface angle.
+* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance. Lift is tuned to near-zero to prevent "flapping" in static poses.
 * **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding).
-* **Asymmetric Proxy Bias:** A "Virtual Foam" layer (Soft Offset) dampens geometric noise from the low-poly collider.
 * **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs) rendered with **0.0 compliance (Rigid)**.
 * **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest.
 
@@ -71,15 +69,7 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 ## ⚠️ Known Limitations
 
 * **Sleeve Alignment:** If the user's arm pose differs significantly from the garment's modeled pose (e.g., A-Pose vs T-Pose), the arm may clip through the sleeve during initialization.
-* **Extreme Force Detachment:** If the cloth is pulled with excessive force, it may clip through the collision body. This is an intentional trade-off to maintain performance.
-
----
-
-## 🔮 Future Roadmap
-
-1. **Ghost Collider (Inflation):** Implement a "Growth" phase where the body collider starts small (fitting inside the shirt) and expands to full size, naturally resolving sleeve clipping issues.
-2. **Dual-Mesh Skinning:** Implement a pipeline to drive high-poly visual meshes (20k+ verts) using the low-poly physics simulation (3k verts).
-3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
+* **Minor Penetration:** In areas of extreme curvature (e.g., underarms), minor clipping may occur due to the discrete nature of the collision detection.
 
 ---
 

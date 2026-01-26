@@ -26,10 +26,21 @@ impl SimulationLoop {
         garment_uvs: Vec<f32>,
         collider_pos: Vec<f32>,
         collider_normals: Vec<f32>,
-        collider_indices: Vec<u32>
+        collider_indices: Vec<u32>,
+        collider_smoothing: usize, // NEW
+        collider_inflation: f32    // NEW
     ) -> Self {
         let state = PhysicsState::new(garment_pos, garment_indices, garment_uvs);
-        let collider = MeshCollider::new(collider_pos, collider_normals, collider_indices);
+
+        // Pass config to collider
+        let collider = MeshCollider::new(
+            collider_pos,
+            collider_normals,
+            collider_indices,
+            collider_smoothing,
+            collider_inflation
+        );
+
         let self_collision = SelfCollision::new(&state, 0.015);
         let resolver = CollisionResolver::new();
         let solver = Solver::new(&state);

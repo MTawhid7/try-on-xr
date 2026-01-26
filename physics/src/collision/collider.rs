@@ -11,12 +11,18 @@ pub struct MeshCollider {
     pub indices: Vec<u32>,
     pub triangles: Vec<Triangle>,
     pub spatial_hash: StaticSpatialHash,
-    // Removed unused aabb_min/max fields
 }
 
 impl MeshCollider {
-    pub fn new(raw_vertices: Vec<f32>, _raw_normals: Vec<f32>, indices: Vec<u32>) -> Self {
-        let processed = preprocessing::process_mesh(&raw_vertices, &indices);
+    pub fn new(
+        raw_vertices: Vec<f32>,
+        _raw_normals: Vec<f32>,
+        indices: Vec<u32>,
+        smoothing: usize, // NEW
+        inflation: f32    // NEW
+    ) -> Self {
+        // Pass config to processor
+        let processed = preprocessing::process_mesh(&raw_vertices, &indices, smoothing, inflation);
 
         let mut min_bound = Vec3::splat(f32::MAX);
         let mut max_bound = Vec3::splat(f32::MIN);
@@ -54,7 +60,4 @@ impl MeshCollider {
             spatial_hash,
         }
     }
-
-    // Removed unused query_closest and contains_point methods.
-    // The CollisionResolver now accesses spatial_hash and triangles directly.
 }

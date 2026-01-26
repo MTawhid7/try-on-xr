@@ -19,10 +19,12 @@ impl PhysicsEngine {
     pub fn new(
         garment_pos: Vec<f32>,
         garment_indices: Vec<u32>,
-        garment_uvs: Vec<f32>, // NEW
+        garment_uvs: Vec<f32>,
         collider_pos: Vec<f32>,
         collider_normals: Vec<f32>,
-        collider_indices: Vec<u32>
+        collider_indices: Vec<u32>,
+        collider_smoothing: usize, // NEW
+        collider_inflation: f32    // NEW
     ) -> PhysicsEngine {
         utils::set_panic_hook();
 
@@ -30,10 +32,12 @@ impl PhysicsEngine {
             sim: SimulationLoop::new(
                 garment_pos,
                 garment_indices,
-                garment_uvs, // Pass
+                garment_uvs,
                 collider_pos,
                 collider_normals,
-                collider_indices
+                collider_indices,
+                collider_smoothing,
+                collider_inflation
             ),
         }
     }

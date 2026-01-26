@@ -48,9 +48,6 @@
 ├── public
 │   ├── models
 │   │   ├── mannequin.glb
-│   │   ├── mannequinb.glb
-│   │   ├── mannequinl.glb
-│   │   ├── mannequinp.glb
 │   │   └── shirt.glb
 │   ├── textures
 │   └── vite.svg
@@ -124,4 +121,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-32 directories, 93 files
+32 directories, 90 files

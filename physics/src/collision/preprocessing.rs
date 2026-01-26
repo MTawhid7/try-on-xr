@@ -6,7 +6,12 @@ pub struct ProcessedMesh {
     pub normals: Vec<Vec3>,
 }
 
-pub fn process_mesh(raw_vertices: &[f32], indices: &[u32]) -> ProcessedMesh {
+pub fn process_mesh(
+    raw_vertices: &[f32],
+    indices: &[u32],
+    smoothing_iterations: usize, // NEW: Configurable
+    inflation_amount: f32        // NEW: Configurable
+) -> ProcessedMesh {
     let num_verts = raw_vertices.len() / 3;
     let mut vertices = Vec::with_capacity(num_verts);
 
@@ -19,36 +24,38 @@ pub fn process_mesh(raw_vertices: &[f32], indices: &[u32]) -> ProcessedMesh {
         ));
     }
 
-    // 2. Build Adjacency
-    let mut adj = vec![Vec::new(); num_verts];
-    let num_triangles = indices.len() / 3;
+    // 2. Build Adjacency (Only if smoothing is needed)
+    if smoothing_iterations > 0 {
+        let mut adj = vec![Vec::new(); num_verts];
+        let num_triangles = indices.len() / 3;
 
-    for i in 0..num_triangles {
-        let idx0 = indices[i * 3] as usize;
-        let idx1 = indices[i * 3 + 1] as usize;
-        let idx2 = indices[i * 3 + 2] as usize;
-        add_neighbor(&mut adj, idx0, idx1);
-        add_neighbor(&mut adj, idx0, idx2);
-        add_neighbor(&mut adj, idx1, idx2);
-    }
+        for i in 0..num_triangles {
+            let idx0 = indices[i * 3] as usize;
+            let idx1 = indices[i * 3 + 1] as usize;
+            let idx2 = indices[i * 3 + 2] as usize;
+            add_neighbor(&mut adj, idx0, idx1);
+            add_neighbor(&mut adj, idx0, idx2);
+            add_neighbor(&mut adj, idx1, idx2);
+        }
 
-    // 3. Laplacian Smoothing (3 passes)
-    let iterations = 3;
-    let lambda = 0.5;
-    for _ in 0..iterations {
-        let old_verts = vertices.clone();
-        for i in 0..num_verts {
-            let neighbors = &adj[i];
-            if neighbors.is_empty() { continue; }
-            let mut sum = Vec3::ZERO;
-            for &n_idx in neighbors { sum += old_verts[n_idx]; }
-            let avg = sum / (neighbors.len() as f32);
-            vertices[i] = old_verts[i].lerp(avg, lambda);
+        // 3. Laplacian Smoothing
+        let lambda = 0.5;
+        for _ in 0..smoothing_iterations {
+            let old_verts = vertices.clone();
+            for i in 0..num_verts {
+                let neighbors = &adj[i];
+                if neighbors.is_empty() { continue; }
+                let mut sum = Vec3::ZERO;
+                for &n_idx in neighbors { sum += old_verts[n_idx]; }
+                let avg = sum / (neighbors.len() as f32);
+                vertices[i] = old_verts[i].lerp(avg, lambda);
+            }
         }
     }
 
     // 4. Compute Normals
     let mut normals = vec![Vec3::ZERO; num_verts];
+    let num_triangles = indices.len() / 3;
     for i in 0..num_triangles {
         let idx0 = indices[i * 3] as usize;
         let idx1 = indices[i * 3 + 1] as usize;
@@ -60,7 +67,7 @@ pub fn process_mesh(raw_vertices: &[f32], indices: &[u32]) -> ProcessedMesh {
 
         let edge1 = v1 - v0;
         let edge2 = v2 - v0;
-        let face_normal = edge1.cross(edge2); // Weighted by area
+        let face_normal = edge1.cross(edge2);
 
         normals[idx0] += face_normal;
         normals[idx1] += face_normal;
@@ -69,6 +76,13 @@ pub fn process_mesh(raw_vertices: &[f32], indices: &[u32]) -> ProcessedMesh {
 
     for n in &mut normals {
         *n = n.normalize_or_zero();
+    }
+
+    // 5. Inflation
+    if inflation_amount.abs() > 1e-6 {
+        for i in 0..num_verts {
+            vertices[i] += normals[i] * inflation_amount;
+        }
     }
 
     ProcessedMesh { vertices, normals }

@@ -42,6 +42,10 @@ export class AssetLoader {
         AutoAligner.alignBody(rawBodyMesh.geometry);
         AutoAligner.alignGarmentToBody(shirtMesh.geometry, rawBodyMesh.geometry);
 
+        // --- CAPTURE HIGH-RES VISUALS ---
+        // Clone the geometry to keep a pristine high-poly copy for rendering
+        const visualBodyGeometry = rawBodyMesh.geometry.clone();
+
         // 6. PHYSICS PROXY GENERATION
         console.log("[AssetLoader] Generating Physics Proxies...");
         const colliderProcessed = await ProxyGenerator.generateCollider(rawBodyMesh);
@@ -52,20 +56,16 @@ export class AssetLoader {
         garmentMeshForWelding.geometry.setAttribute('position', new THREE.BufferAttribute(garmentProxy.vertices, 3));
         garmentMeshForWelding.geometry.setIndex(new THREE.BufferAttribute(garmentProxy.indices, 1));
 
-        // UPDATED: Increased weld threshold to 0.02 (2cm) to fix detached collars/hems
         const garmentFinal = GeometryProcessor.process(garmentMeshForWelding, 0.02);
 
         if (garmentProxy.uvs.length > 0 && garmentFinal.vertices.length === garmentProxy.vertices.length) {
             garmentFinal.uvs = garmentProxy.uvs;
         }
 
-        console.log(`[AssetLoader] Assets Ready.
-            Garment: ${garmentFinal.vertices.length / 3} verts.
-            Collider: ${colliderProcessed.vertices.length / 3} verts.`);
-
         return {
             garment: garmentFinal,
-            collider: colliderProcessed
+            collider: colliderProcessed,
+            visualBody: visualBodyGeometry // Return high-res geo
         };
     }
 

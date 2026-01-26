@@ -1,4 +1,6 @@
 // src/domain/types.ts
+import * as THREE from 'three';
+
 export type ShirtSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 
 export interface ProcessedMesh {
@@ -11,4 +13,5 @@ export interface ProcessedMesh {
 export interface SimulationAssets {
     garment: ProcessedMesh;
     collider: ProcessedMesh;
+    visualBody: THREE.BufferGeometry; // NEW: High-res geometry
 }

@@ -11,7 +11,7 @@ export class WasmAdapter implements ISimulationEngine {
     async init(
         garmentVerts: Float32Array,
         garmentIndices: Uint32Array,
-        garmentUVs: Float32Array, // NEW
+        garmentUVs: Float32Array,
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
         colliderIndices: Uint32Array
@@ -22,10 +22,12 @@ export class WasmAdapter implements ISimulationEngine {
         this.engine = new PhysicsEngine(
             garmentVerts,
             garmentIndices,
-            garmentUVs, // Pass
+            garmentUVs,
             colliderVerts,
             colliderNormals,
-            colliderIndices
+            colliderIndices,
+            0,   // collider_smoothing: 0 (Disable Laplacian Shrinkage)
+            0.0  // collider_inflation: 0.0 (Disable Artificial Inflation)
         );
 
         this.vertexCount = garmentVerts.length / 3;

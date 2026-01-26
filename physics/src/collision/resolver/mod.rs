@@ -34,18 +34,24 @@ pub struct CollisionResolver {
 impl CollisionResolver {
     pub fn new() -> Self {
         Self {
-            thickness: 0.012,
+            // 1. THICKNESS: Reduced from 0.02 (2cm) to 0.005 (5mm)
+            // Combined with the 5mm mesh inflation, the total visual gap is ~1cm.
+            thickness: 0.005,
+
             search_radius: 0.05,
             contacts: Vec::with_capacity(3000),
             query_buffer: Vec::with_capacity(32),
-
             candidate_indices: Vec::with_capacity(10000),
             candidate_offsets: Vec::new(),
             candidate_counts: Vec::new(),
 
-            static_friction: 0.7,
-            dynamic_friction: 0.4,
-            collision_stiffness: 0.8,
+            // 2. FRICTION: Lowered to allow draping
+            // High friction acts like Velcro. Low friction allows the cloth
+            // to slide down the chest and back to find its natural resting state.
+            static_friction: 0.3,  // Was 0.7
+            dynamic_friction: 0.2, // Was 0.4
+
+            collision_stiffness: 0.9, // Increased slightly for harder contact
         }
     }
 
