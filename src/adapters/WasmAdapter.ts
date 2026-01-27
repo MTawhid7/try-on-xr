@@ -14,7 +14,8 @@ export class WasmAdapter implements ISimulationEngine {
         garmentUVs: Float32Array,
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
-        colliderIndices: Uint32Array
+        colliderIndices: Uint32Array,
+        scaleFactor: number // NEW
     ): Promise<void> {
         const wasm: InitOutput = await init();
         this.wasmMemory = wasm.memory;
@@ -26,13 +27,13 @@ export class WasmAdapter implements ISimulationEngine {
             colliderVerts,
             colliderNormals,
             colliderIndices,
-            0,   // collider_smoothing: 0 (Disable Laplacian Shrinkage)
-            0.0  // collider_inflation: 0.0 (Disable Artificial Inflation)
+            0,   // collider_smoothing
+            0.0, // collider_inflation
+            scaleFactor // NEW
         );
 
         this.vertexCount = garmentVerts.length / 3;
-
-        console.log(`[WasmAdapter] Initialized with ${this.vertexCount} garment vertices.`);
+        console.log(`[WasmAdapter] Initialized with Scale Factor: ${scaleFactor.toFixed(3)}`);
     }
 
     step(dt: number): void {

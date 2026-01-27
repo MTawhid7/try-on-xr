@@ -20,22 +20,18 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
 
         try {
             let assets = get().assets;
-
             if (!assets) {
                 const loader = new AssetLoader();
                 assets = await loader.loadSceneAssets();
                 set({ assets });
             }
-
-            // FIX: Ensure assets is not null before proceeding
-            if (!assets) {
-                throw new Error("Failed to load assets");
-            }
+            if (!assets) throw new Error("Failed to load assets");
 
             const currentSize = get().shirtSize;
             console.log(`[Store] Applying Grading: ${currentSize}`);
 
-            const scaledGarmentVerts = GarmentGrading.applyGrading(
+            // FIX: Destructure the object returned by applyGrading
+            const { vertices: scaledGarmentVerts, scaleFactor } = GarmentGrading.applyGrading(
                 assets.garment.vertices,
                 currentSize
             );
@@ -54,7 +50,8 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
                 assets.garment.uvs,
                 assets.collider.vertices,
                 assets.collider.normals,
-                assets.collider.indices
+                assets.collider.indices,
+                scaleFactor // PASS SCALE FACTOR TO ADAPTER
             );
 
             set({

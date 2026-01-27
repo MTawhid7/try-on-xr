@@ -3,10 +3,11 @@ export interface ISimulationEngine {
     init(
         garmentVerts: Float32Array,
         garmentIndices: Uint32Array,
-        garmentUVs: Float32Array, // NEW
+        garmentUVs: Float32Array,
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
-        colliderIndices: Uint32Array
+        colliderIndices: Uint32Array,
+        scaleFactor: number // NEW
     ): Promise<void>;
 
     /**

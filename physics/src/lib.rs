@@ -23,8 +23,9 @@ impl PhysicsEngine {
         collider_pos: Vec<f32>,
         collider_normals: Vec<f32>,
         collider_indices: Vec<u32>,
-        collider_smoothing: usize, // NEW
-        collider_inflation: f32    // NEW
+        collider_smoothing: usize,
+        collider_inflation: f32,
+        scale_factor: f32 // NEW
     ) -> PhysicsEngine {
         utils::set_panic_hook();
 
@@ -37,7 +38,8 @@ impl PhysicsEngine {
                 collider_normals,
                 collider_indices,
                 collider_smoothing,
-                collider_inflation
+                collider_inflation,
+                scale_factor // Pass it down
             ),
         }
     }

@@ -13,14 +13,18 @@ pub struct Solver {
 }
 
 impl Solver {
-    pub fn new(state: &PhysicsState) -> Self {
+    pub fn new(state: &PhysicsState, scale_factor: f32) -> Self {
         let distance_constraint = DistanceConstraint::new(state);
 
-        // UPDATED: Increased default compliance from 0.5 -> 1.0
-        // This makes the bending constraints softer, allowing gravity to
-        // "iron out" the initial wrinkles/curvature of the mesh.
-        let bending_constraint = BendingConstraint::new(state, 1.0);
+        // DYNAMIC COMPLIANCE (The Fix for "Tin Can")
+        // Base Compliance (for Scale 1.0) = 1.0
+        // As scale increases, compliance increases (softer).
+        // Formula: base * scale^2
+        // This ensures XXL shirts are softer than XS shirts.
+        let base_compliance = 1.0;
+        let tuned_compliance = base_compliance * (scale_factor * scale_factor);
 
+        let bending_constraint = BendingConstraint::new(state, tuned_compliance);
         let tether_constraint = TetherConstraint::new(state);
 
         Self {
