@@ -7,7 +7,7 @@ import type { ShirtSize } from '../domain/types';
 function App() {
     const { isReady, isRunning, toggleSimulation, shirtSize, setShirtSize } = useSimulationStore();
 
-    const sizes: ShirtSize[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    const sizes: ShirtSize[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
     return (
         <div style={{ width: '100vw', height: '100vh', position: 'relative', background: '#1a1a1a' }}>

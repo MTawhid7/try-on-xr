@@ -67,12 +67,17 @@
 │   ├── assets
 │   │   └── react.svg
 │   ├── domain
+│   │   ├── config
+│   │   │   └── SizingStandards.ts
 │   │   ├── index.ts
 │   │   ├── services
 │   │   │   ├── AutoAligner.ts
+│   │   │   ├── BodyMeasurer.ts
 │   │   │   ├── GarmentGrading.ts
 │   │   │   ├── GeometryProcessor.ts
 │   │   │   ├── MeshAnalyzer.ts
+│   │   │   ├── MeshMeasurer.ts
+│   │   │   ├── TextureGenerator.ts
 │   │   │   ├── asset_loader
 │   │   │   │   ├── AssetLoader.ts
 │   │   │   │   ├── MeshLoader.ts
@@ -115,10 +120,12 @@
 │   └── rendering
 │       ├── GarmentMesh.tsx
 │       ├── MannequinMesh.tsx
-│       └── Scene.tsx
+│       ├── Scene.tsx
+│       └── materials
+│           └── FabricMaterial.tsx
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-32 directories, 90 files
+34 directories, 95 files

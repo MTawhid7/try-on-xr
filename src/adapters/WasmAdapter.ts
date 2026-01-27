@@ -15,7 +15,7 @@ export class WasmAdapter implements ISimulationEngine {
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
         colliderIndices: Uint32Array,
-        scaleFactor: number // NEW
+        scaleFactor: number
     ): Promise<void> {
         const wasm: InitOutput = await init();
         this.wasmMemory = wasm.memory;
@@ -27,9 +27,9 @@ export class WasmAdapter implements ISimulationEngine {
             colliderVerts,
             colliderNormals,
             colliderIndices,
-            0,   // collider_smoothing
-            0.0, // collider_inflation
-            scaleFactor // NEW
+            0,     // collider_smoothing (Disabled for accuracy)
+            0.002, // collider_inflation (2mm Buffer - The Goldilocks Value)
+            scaleFactor
         );
 
         this.vertexCount = garmentVerts.length / 3;

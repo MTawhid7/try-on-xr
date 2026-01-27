@@ -62,7 +62,7 @@ impl SimulationLoop {
     }
 
     pub fn step(&mut self, dt: f32) {
-        let substeps = 5;
+        let substeps = 8;
         let sdt = dt / substeps as f32;
 
         self.resolver.broad_phase(&self.state, &self.collider);

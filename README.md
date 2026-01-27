@@ -22,54 +22,57 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
 
 ### 1. The Core (Rust + WASM)
 
-* **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (5x) and internal constraint iterations (15x) for high stiffness stability.
-* **Interleaved Collision Resolver:** Unlike traditional engines that resolve collision *after* constraints (causing jitter), V5 resolves collision *inside* the constraint loop. This forces the cloth to satisfy both stiffness and contact constraints simultaneously.
-* **Memory Model:** **Zero-Copy**. The vertex positions exist in linear WASM memory; JavaScript reads them directly via a `Float32Array` view, eliminating serialization overhead.
+* **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (8x) and internal constraint iterations (25x) for high stiffness stability.
+* **Interleaved Collision Resolver:** Unlike traditional engines that resolve collision *after* constraints (causing jitter), V5 resolves collision *inside* the constraint loop.
+* **Memory Model:** **Zero-Copy**. The vertex positions exist in linear WASM memory; JavaScript reads them directly via a `Float32Array` view.
 
 ### 2. The Frontend (React + TypeScript)
 
 * **Rendering:** React Three Fiber (R3F) renders the visual mesh.
-* **State Management:** `Zustand` handles the simulation loop and transient updates outside the React render cycle.
-* **Asset Pipeline:** Modular services (`asset_loader/`) handle loading, inspection, normalization, and optimization of raw GLB assets before they reach the physics engine.
+* **State Management:** `Zustand` handles the simulation loop and transient updates.
+* **Asset Pipeline:** Modular services (`asset_loader/`) handle loading, inspection, normalization, and optimization.
 
-### 3. Adaptive Collider Pipeline
+### 3. Adaptive Asset Pipeline (Body & Garment)
 
-* **Smart Decimation:** The engine analyzes the input geometry complexity.
-  * **High-Poly Scans (>10k tris):** Automatically decimated to ~5,000 triangles using `meshoptimizer` (WASM) to maintain 60 FPS.
-  * **Efficient Models (<5k tris):** Passed through as **Raw Geometry**. This preserves the exact volume and topology of the visual mesh, eliminating the "Invisible Gap" caused by decimation shrinkage.
-* **Configurable Smoothing:** Laplacian smoothing is applied dynamically. It is disabled for raw passthrough meshes to ensure the physics collider matches the visual mesh vertex-for-vertex.
+* **Smart Decimation:** The engine analyzes the input geometry complexity for *both* the body and the garment.
+  * **High-Poly (>10k tris):** Automatically decimated using `meshoptimizer` (WASM) to maintain 60 FPS.
+  * **Efficient Models (<5k tris):** Passed through as **Raw Geometry**. This preserves the exact volume and topology, eliminating the "Invisible Gap" caused by decimation shrinkage.
+* **Goldilocks Tuning:**
+  * **Inflation:** A 2mm (`0.002`) invisible buffer is applied to the collider to prevent clipping without creating a "Space Suit" effect.
+  * **Substeps:** Increased to 8x to catch high-velocity collisions.
 
 ---
 
 ## 🚀 Key Features
 
+* **Real-World Measurement System:**
+  * **Body Measurer:** Automatically slices the mannequin geometry to calculate the exact Chest Circumference in cm.
+  * **Standard Sizing:** Garments are graded based on real-world dimensions (e.g., Size M = 51cm Width) rather than arbitrary scales.
+  * **Mass-Normalized Compliance:** Physics stiffness scales dynamically with garment size, preventing the "Tin Can" effect on XXL garments.
 * **Procedural Fabric Shaders:**
-  * **Dynamic Normal Maps:** Generates seamless "Cotton Weave" textures in-memory using HTML5 Canvas, eliminating the need for external texture assets.
-  * **Matte Finish:** Tuned PBR materials (High Roughness, Low Specular) simulate the dry, light-scattering properties of real cotton.
+  * **Dynamic Normal Maps:** Generates seamless "Cotton Weave" textures in-memory.
+  * **Matte Finish:** Tuned PBR materials simulate the dry, light-scattering properties of cotton.
 * **Voting-Based Orientation:** A robust 3-factor analysis (Nose, Chest, Toes) determines the true forward direction of arbitrary avatars.
-* **Anatomical Anchoring:** Automatically aligns the shirt collar to the body's neck, ignoring belly protrusion or asymmetric stances.
-* **Procedural Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL).
-* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance.
-* **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding).
-* **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs) rendered with **0.0 compliance (Rigid)**.
+* **Anatomical Anchoring:** Automatically aligns the shirt collar to the body's neck.
+* **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding).* **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs) rendered with **0.0 compliance (Rigid)**.
 * **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest.
 
 ---
 
 ## ⚠️ Known Limitations
 
-* **Oversized Draping:** Large garments (XL/XXL) currently exhibit excessive stiffness ("Tin Can Effect"), failing to collapse naturally under gravity.
-* **High-Velocity Penetration:** Rapidly pulling the cloth can cause it to clip through the body mesh due to the thin collision boundary (5mm).
 * **Sleeve Alignment:** A-Pose vs T-Pose mismatches can cause initial intersection artifacts.
+* **Complex Layering:** Currently supports single-layer garments only.
 
 ---
 
 ## 🔮 Future Roadmap
 
-1. **Real-World Measurement System:**
-   * Move away from generic "S/M/L" scaling.
-   * Implement a data-driven pipeline that scales the body and garment based on real-world inputs (Height in cm, Chest in cm).
-2. **Ghost Collider (Inflation):** Implement a "Growth" phase where the body collider starts small (fitting inside the shirt) and expands to full size, naturally resolving sleeve clipping issues.
+1. **User Measurement Input:**
+   * Allow users to input Height/Weight/Chest.
+   * Procedurally morph the mannequin to match these inputs.
+2. **Garment Orientation Analysis:**
+   * Implement "Hole Detection" to automatically orient shirts that are imported upside-down.
 3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 
 ---

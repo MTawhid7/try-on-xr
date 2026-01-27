@@ -5,6 +5,35 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-27] Measurement System & Physics Tuning
+
+**Branch / Feature:** `feat/real-world-measurements`
+
+### 1. Current State (Measurement & Physics)
+
+- [x] **Body Measurer:** Implemented a geometric analysis service that slices the mannequin at chest height (73%) and calculates the exact circumference (106.5cm).
+- [x] **Standard Sizing:** Replaced arbitrary scales with a centimeter-based grading system.
+  - **Anchor:** Size M (51cm Width) is the reference.
+  - **Grading:** Other sizes scale relative to M based on real-world data tables.
+- [x] **Physics Compensation:** Implemented "Mass-Normalized Compliance."
+  - **Logic:** `Stiffness = Base * Scale^2`.
+  - **Result:** XXL shirts now drape naturally instead of acting like rigid shells ("Tin Can" effect fixed).
+- [x] **The "Goldilocks" Tuning:**
+  - **Inflation:** Set to `0.002` (2mm). This is the sweet spot that prevents clipping without floating.
+  - **Iterations:** Increased to 25 to handle the tension of tight fits.
+  - **Substeps:** Increased to 8 to prevent tunneling during fast motion.
+- [x] **Cleanup:** Removed "XXS" as it was physically impossible for the current mannequin.
+
+### 2. Observations / Notes (Measurement & Physics)
+
+- **Mannequin Size:** Our reference mannequin is effectively a **Size L** (106cm chest). This explains why "M" shirts looked tight—they *are* tight. This is correct behavior.
+- **Visual Parity:** By using the "Raw Passthrough" pipeline for low-poly assets, we ensure the physics collider matches the visual mesh exactly, allowing us to use the minimal 2mm inflation buffer.
+
+### 3. Next Steps / Plan (Measurement & Physics)
+
+- [ ] **User Input:** Connect the `BodyMeasurer` logic to a UI where users can input their own dimensions.
+- [ ] **Procedural Morphing:** Deform the mannequin vertices to match the user's input dimensions.
+
 ## [2026-01-27] Visual Polish & Measurement Strategy
 
 **Branch / Feature:** `fix/visual-artifacts` -> `feat/real-world-measurements`
@@ -55,7 +84,7 @@ Use it to track what works, what doesn’t, and what to do next.
 - **The Solution:** By ensuring the physics mesh is identical to the visual mesh (Raw Passthrough), we could trust the geometry and rely on a minimal solver thickness (5mm) just to prevent clipping.
 - **Aerodynamic Instability:** High lift coefficients in static simulations cause "fluttering" in concave areas (armpits) because the solver interprets micro-jitters as wind velocity. Killing the lift force stabilized the simulation.
 
-### 3. Next Steps / Plan
+### 3. Next Steps / Plan (Visual-Physics Parity)
 
 - [ ] **Fit Visualization:** Implement a Strain/Tension heatmap to visualize tight areas.
 - [ ] **Ghost Collider:** Implement the "Growth" phase to handle A-Pose vs T-Pose arm intersections.

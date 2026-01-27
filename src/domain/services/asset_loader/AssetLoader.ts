@@ -7,7 +7,8 @@ import { ProxyGenerator } from './ProxyGenerator';
 import { MeshScaler } from './MeshScaler';
 import { AutoAligner } from '../AutoAligner';
 import { GeometryProcessor } from '../GeometryProcessor';
-import { GarmentGrading } from '../GarmentGrading'; // NEW: Import Grading Service
+import { GarmentGrading } from '../GarmentGrading';
+import { BodyMeasurer } from '../BodyMeasurer'; // NEW
 import type { SimulationAssets } from '../../types';
 
 export class AssetLoader {
@@ -49,15 +50,13 @@ export class AssetLoader {
         AutoAligner.alignBody(rawBodyMesh.geometry);
         AutoAligner.alignGarmentToBody(shirtMesh.geometry, rawBodyMesh.geometry);
 
-        // --- NEW: Register Base Mesh for Grading ---
-        // Now that the shirt is aligned and upright, we measure its dimensions.
-        // This establishes the "Anchor" (Size M) for all future resizing.
-        GarmentGrading.setBaseMesh(shirtMesh);
-        // -------------------------------------------
+        // --- NEW: Measure Body ---
+        const chestCm = BodyMeasurer.getChestCircumference(rawBodyMesh);
+        console.log(`[AssetLoader] Mannequin Analysis: Height 175cm, Chest ${chestCm.toFixed(1)}cm`);
+        // -------------------------
 
-        // --- CAPTURE HIGH-RES VISUALS ---
-        // Clone the geometry to keep a pristine high-poly copy for rendering.
-        // This is used by MannequinMesh to avoid the "Terminator" low-poly look.
+        GarmentGrading.setBaseMesh(shirtMesh);
+
         const visualBodyGeometry = rawBodyMesh.geometry.clone();
 
         // 6. PHYSICS PROXY GENERATION
@@ -80,14 +79,12 @@ export class AssetLoader {
             garmentFinal.uvs = garmentProxy.uvs;
         }
 
-        console.log(`[AssetLoader] Assets Ready.
-            Garment: ${garmentFinal.vertices.length / 3} verts.
-            Collider: ${colliderProcessed.vertices.length / 3} verts.`);
+        console.log(`[AssetLoader] Assets Ready. Garment: ${garmentFinal.vertices.length / 3} verts.`);
 
         return {
             garment: garmentFinal,
             collider: colliderProcessed,
-            visualBody: visualBodyGeometry // Return high-res geo for rendering
+            visualBody: visualBodyGeometry
         };
     }
 

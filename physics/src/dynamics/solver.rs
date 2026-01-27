@@ -16,11 +16,6 @@ impl Solver {
     pub fn new(state: &PhysicsState, scale_factor: f32) -> Self {
         let distance_constraint = DistanceConstraint::new(state);
 
-        // DYNAMIC COMPLIANCE (The Fix for "Tin Can")
-        // Base Compliance (for Scale 1.0) = 1.0
-        // As scale increases, compliance increases (softer).
-        // Formula: base * scale^2
-        // This ensures XXL shirts are softer than XS shirts.
         let base_compliance = 1.0;
         let tuned_compliance = base_compliance * (scale_factor * scale_factor);
 
@@ -31,7 +26,7 @@ impl Solver {
             distance_constraint,
             bending_constraint,
             tether_constraint,
-            iterations: 20,
+            iterations: 25,
         }
     }
 
