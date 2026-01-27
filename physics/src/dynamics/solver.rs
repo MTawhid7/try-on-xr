@@ -2,21 +2,25 @@
 use crate::engine::state::PhysicsState;
 use crate::constraints::distance::DistanceConstraint;
 use crate::constraints::bending::BendingConstraint;
-use crate::constraints::tether::TetherConstraint; // Import
+use crate::constraints::tether::TetherConstraint;
 use crate::collision::CollisionResolver;
 
 pub struct Solver {
     distance_constraint: DistanceConstraint,
     bending_constraint: BendingConstraint,
-    tether_constraint: TetherConstraint, // Field
+    tether_constraint: TetherConstraint,
     iterations: usize,
 }
 
 impl Solver {
     pub fn new(state: &PhysicsState) -> Self {
         let distance_constraint = DistanceConstraint::new(state);
-        let bending_constraint = BendingConstraint::new(state, 0.5);
-        // Initialize Tethers
+
+        // UPDATED: Increased default compliance from 0.5 -> 1.0
+        // This makes the bending constraints softer, allowing gravity to
+        // "iron out" the initial wrinkles/curvature of the mesh.
+        let bending_constraint = BendingConstraint::new(state, 1.0);
+
         let tether_constraint = TetherConstraint::new(state);
 
         Self {
@@ -36,12 +40,7 @@ impl Solver {
         for _ in 0..self.iterations {
             self.distance_constraint.solve(state, dt);
             self.bending_constraint.solve(state, dt);
-
-            // Solve Tethers
-            // They act like "Limiters", so running them inside the loop
-            // ensures they work cooperatively with collision.
             self.tether_constraint.solve(state, dt);
-
             resolver.resolve_contacts(state, dt);
         }
     }

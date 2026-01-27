@@ -38,28 +38,18 @@ The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modula
   * **High-Poly Scans (>10k tris):** Automatically decimated to ~5,000 triangles using `meshoptimizer` (WASM) to maintain 60 FPS.
   * **Efficient Models (<5k tris):** Passed through as **Raw Geometry**. This preserves the exact volume and topology of the visual mesh, eliminating the "Invisible Gap" caused by decimation shrinkage.
 * **Configurable Smoothing:** Laplacian smoothing is applied dynamically. It is disabled for raw passthrough meshes to ensure the physics collider matches the visual mesh vertex-for-vertex.
-* **Pose Normalization:** Raw meshes are statistically analyzed to correct global tilt (Pitch/Roll) and enforce an upright orientation.
-
----
-
-## 🧬 Engineering Evolution: The "Defense in Depth" Strategy
-
-To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered physics architecture:
-
-1. **Prevention (The Airbag):** **Anisotropic Velocity Clamping**. We limit particle velocity relative to the collision normal. Fast movement is allowed *parallel* to the body, but movement *into* the body is clamped to a safe limit.
-2. **Resolution (The Contact):** **Smoothed Mesh Proxy**. We calculate **Barycentric Interpolated Normals** at the point of impact. This approximates a perfectly smooth curved surface, eliminating "ratcheting" artifacts.
-3. **Optimization (The Cache):** **Static Spatial Partitioning & Broad Phase Caching**.
-    * **Static Hash:** The body collider is hashed once into a dense grid, eliminating 65% of per-frame CPU overhead.
-    * **Broad Phase Caching:** Potential collisions are found once per frame (Substep 0) and cached. Substeps 1-4 only perform cheap distance checks against the cache.
 
 ---
 
 ## 🚀 Key Features
 
-* **Voting-Based Orientation:** A robust 3-factor analysis (Nose, Chest, Toes) determines the true forward direction of arbitrary avatars, solving the "Backward Mannequin" issue.
+* **Procedural Fabric Shaders:**
+  * **Dynamic Normal Maps:** Generates seamless "Cotton Weave" textures in-memory using HTML5 Canvas, eliminating the need for external texture assets.
+  * **Matte Finish:** Tuned PBR materials (High Roughness, Low Specular) simulate the dry, light-scattering properties of real cotton.
+* **Voting-Based Orientation:** A robust 3-factor analysis (Nose, Chest, Toes) determines the true forward direction of arbitrary avatars.
 * **Anatomical Anchoring:** Automatically aligns the shirt collar to the body's neck, ignoring belly protrusion or asymmetric stances.
 * **Procedural Grading:** Automatic scaling of the garment geometry to support standard sizes (XXS to XXL).
-* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance. Lift is tuned to near-zero to prevent "flapping" in static poses.
+* **Advanced Aerodynamics:** Triangle-based Lift and Drag forces simulate air resistance.
 * **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding).
 * **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs) rendered with **0.0 compliance (Rigid)**.
 * **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest.
@@ -68,8 +58,19 @@ To solve the "Tunneling vs. Jitter" trade-off, we implemented a multi-layered ph
 
 ## ⚠️ Known Limitations
 
-* **Sleeve Alignment:** If the user's arm pose differs significantly from the garment's modeled pose (e.g., A-Pose vs T-Pose), the arm may clip through the sleeve during initialization.
-* **Minor Penetration:** In areas of extreme curvature (e.g., underarms), minor clipping may occur due to the discrete nature of the collision detection.
+* **Oversized Draping:** Large garments (XL/XXL) currently exhibit excessive stiffness ("Tin Can Effect"), failing to collapse naturally under gravity.
+* **High-Velocity Penetration:** Rapidly pulling the cloth can cause it to clip through the body mesh due to the thin collision boundary (5mm).
+* **Sleeve Alignment:** A-Pose vs T-Pose mismatches can cause initial intersection artifacts.
+
+---
+
+## 🔮 Future Roadmap
+
+1. **Real-World Measurement System:**
+   * Move away from generic "S/M/L" scaling.
+   * Implement a data-driven pipeline that scales the body and garment based on real-world inputs (Height in cm, Chest in cm).
+2. **Ghost Collider (Inflation):** Implement a "Growth" phase where the body collider starts small (fitting inside the shirt) and expands to full size, naturally resolving sleeve clipping issues.
+3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
 
 ---
 

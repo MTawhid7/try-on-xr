@@ -4,12 +4,8 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
 import type { ProcessedMesh } from '../types';
 
 export class GeometryProcessor {
-    // UPDATED: Default threshold 0.01 -> 0.02
     static process(mesh: THREE.Mesh, weldThreshold: number = 0.02): ProcessedMesh {
-        // 1. Clone original to keep data safe
         const originalGeo = mesh.geometry.clone();
-
-        // 2. Prepare for Welding
         let geo = originalGeo.clone();
 
         // Delete attributes that block welding
@@ -19,12 +15,13 @@ export class GeometryProcessor {
         if (geo.attributes.color) geo.deleteAttribute('color');
         if (geo.attributes.tangent) geo.deleteAttribute('tangent');
 
-        // 3. Weld
-        // This merges vertices within 2cm of each other
+        // 1. Weld Vertices
         geo = BufferGeometryUtils.mergeVertices(geo, weldThreshold);
+
+        // 2. Compute Normals (Required for Tangents)
         geo.computeVertexNormals();
 
-        // 4. Recover UVs
+        // 3. Recover UVs (Required for Tangents)
         const newPos = geo.attributes.position;
         const oldPos = originalGeo.attributes.position;
         const oldUV = originalGeo.attributes.uv;
@@ -37,11 +34,9 @@ export class GeometryProcessor {
 
             for (let i = 0; i < newPos.count; i++) {
                 tempVec.fromBufferAttribute(newPos, i);
-
                 let minD2 = Infinity;
                 let bestIdx = 0;
 
-                // Search original mesh for closest vertex to recover UV
                 for (let j = 0; j < oldPos.count; j++) {
                     tempOrig.fromBufferAttribute(oldPos, j);
                     const d2 = tempVec.distanceToSquared(tempOrig);
@@ -51,20 +46,34 @@ export class GeometryProcessor {
                         if (d2 < 0.000001) break;
                     }
                 }
-
                 uvs[i * 2] = oldUV.getX(bestIdx);
                 uvs[i * 2 + 1] = oldUV.getY(bestIdx);
             }
         }
 
+        // Apply recovered UVs to geometry so computeTangents can use them
+        geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+
+        // 4. Compute Tangents (NEW)
+        // This generates the 4th attribute needed for Anisotropy/Normal Mapping
+        if (geo.attributes.uv && geo.attributes.normal) {
+            geo.computeTangents();
+        }
+
         const indexAttribute = geo.index;
         if (!indexAttribute) throw new Error("Mesh has no index buffer.");
+
+        // Extract Tangents
+        const tangents = geo.attributes.tangent
+            ? new Float32Array(geo.attributes.tangent.array)
+            : new Float32Array(newPos.count * 4); // Fallback empty
 
         return {
             vertices: new Float32Array(geo.attributes.position.array),
             normals: new Float32Array(geo.attributes.normal.array),
             indices: new Uint32Array(indexAttribute.array),
-            uvs: uvs
+            uvs: uvs,
+            tangents: tangents // Return tangents
         };
     }
 }

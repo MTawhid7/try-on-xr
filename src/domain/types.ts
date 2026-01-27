@@ -8,10 +8,11 @@ export interface ProcessedMesh {
     indices: Uint32Array;
     normals: Float32Array;
     uvs: Float32Array;
+    tangents: Float32Array; // NEW: Required for Normal Maps & Anisotropy
 }
 
 export interface SimulationAssets {
     garment: ProcessedMesh;
     collider: ProcessedMesh;
-    visualBody: THREE.BufferGeometry; // NEW: High-res geometry
+    visualBody: THREE.BufferGeometry;
 }

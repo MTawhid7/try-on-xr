@@ -2,9 +2,9 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-// FIX: Update import path
 import { useSimulationStore } from '../app/store/simulation/useSimulationStore';
 import { useGarmentInteraction } from '../features/interaction/useGarmentInteraction';
+import { FabricMaterial } from './materials/FabricMaterial';
 
 export const GarmentMesh = () => {
     const meshRef = useRef<THREE.Mesh>(null);
@@ -14,7 +14,6 @@ export const GarmentMesh = () => {
         if (!assets || !scaledVertices) return null;
         const geo = new THREE.BufferGeometry();
 
-        // Create a NEW Float32Array copy to prevent store corruption
         const positionBuffer = new Float32Array(scaledVertices);
 
         geo.setAttribute('position', new THREE.BufferAttribute(positionBuffer, 3));
@@ -23,6 +22,10 @@ export const GarmentMesh = () => {
 
         if (assets.garment.uvs) {
             geo.setAttribute('uv', new THREE.BufferAttribute(assets.garment.uvs, 2));
+        }
+
+        if (assets.garment.tangents && assets.garment.tangents.length > 0) {
+            geo.setAttribute('tangent', new THREE.BufferAttribute(assets.garment.tangents, 4));
         }
 
         return geo;
@@ -48,11 +51,8 @@ export const GarmentMesh = () => {
 
     return (
         <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
-            <meshStandardMaterial
-                color="#4488ff"
-                roughness={0.6}
-                side={THREE.DoubleSide}
-            />
+            {/* NEW: Use the custom Fabric Material */}
+            <FabricMaterial color="#3b82f6" />
         </mesh>
     );
 };

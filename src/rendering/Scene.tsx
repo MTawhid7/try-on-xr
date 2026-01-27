@@ -6,18 +6,14 @@ import { useSimulationStore } from '../app/store/simulation/useSimulationStore';
 import { GarmentMesh } from './GarmentMesh';
 import { MannequinMesh } from './MannequinMesh';
 
-// NEW: Camera Controller
 const CameraRig = () => {
     const { camera, controls } = useThree();
     const { isReady } = useSimulationStore();
 
     useEffect(() => {
         if (isReady) {
-            // Reset Camera Position (Front View)
             camera.position.set(0, 1.4, 2.5);
             camera.lookAt(0, 1.0, 0);
-
-            // Reset Orbit Target to Chest Height
             if (controls) {
                 // @ts-ignore
                 controls.target.set(0, 1.0, 0);
@@ -41,7 +37,7 @@ export const Scene = () => {
     if (isLoading) return <div style={{ color: 'white', padding: 20 }}>Loading Assets & Physics...</div>;
 
     return (
-        <Canvas shadows camera={{ position: [0, 1.5, 2.5], fov: 50 }}>
+        <Canvas shadows="soft" camera={{ position: [0, 1.5, 2.5], fov: 50 }} dpr={[1, 2]}>
             <color attach="background" args={['#1a1a1a']} />
 
             <CameraRig />
@@ -53,14 +49,24 @@ export const Scene = () => {
                 maxDistance={5.0}
             />
 
-            <ambientLight intensity={0.5} />
+            {/* 1. KEY LIGHT */}
             <directionalLight
                 position={[5, 10, 5]}
-                intensity={1.5}
+                intensity={1.2}
                 castShadow
                 shadow-mapSize={[2048, 2048]}
+                shadow-bias={-0.0001}
+                shadow-normalBias={0.02}
             />
-            <Environment preset="city" />
+
+            {/* 2. FILL LIGHT (Fixes Black Shadows) */}
+            {/* Increased ground intensity (2nd arg) to ensure back is visible */}
+            <hemisphereLight
+                args={['#ffffff', '#666666', 1.0]}
+            />
+
+            {/* 3. ENVIRONMENT */}
+            <Environment preset="city" blur={0.8} />
 
             {isReady && (
                 <group>

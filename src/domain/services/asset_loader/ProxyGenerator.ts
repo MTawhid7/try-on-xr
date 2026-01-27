@@ -4,16 +4,13 @@ import { MeshoptSimplifier } from 'meshoptimizer';
 import type { ProcessedMesh } from '../../types';
 
 export class ProxyGenerator {
-    // Physics engine budget
-    private static readonly GARMENT_BUDGET = 6000;
+    // UPDATED: Increased Garment Budget to 10k for better folds/visuals
+    private static readonly GARMENT_BUDGET = 10000;
     private static readonly COLLIDER_BUDGET = 5000;
 
     static async generateCollider(mesh: THREE.Mesh): Promise<ProcessedMesh> {
         const triCount = (mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count) / 3;
 
-        // CONDITIONAL LOGIC:
-        // If the mesh is already low-poly enough, DO NOT decimate.
-        // This preserves the exact volume and topology of the visual mesh.
         if (triCount <= this.COLLIDER_BUDGET) {
             console.log(`[ProxyGenerator] Collider is efficient (${triCount} tris). Skipping decimation.`);
             return this.extractRaw(mesh);
@@ -50,13 +47,10 @@ export class ProxyGenerator {
             for (let i = 0; i < count; i++) srcIndices[i] = i;
         }
 
-        // Calculate source triangle count
         const srcTriangles = srcIndices.length / 3;
-
         let targetIndexCount = Math.floor(targetTriangles * 3);
         const requestedIndexCount = targetTriangles * 3;
 
-        // Safety Clamp
         if (requestedIndexCount > srcIndices.length) {
             targetIndexCount = Math.floor(srcIndices.length * 0.8);
         }
@@ -76,8 +70,9 @@ export class ProxyGenerator {
         return {
             vertices,
             indices,
-            normals: new Float32Array(vertices.length),
-            uvs: new Float32Array(0)
+            normals: new Float32Array(vertices.length), // Placeholder, recalculated later
+            uvs: new Float32Array(0), // Placeholder
+            tangents: new Float32Array(0) // Placeholder
         };
     }
 
@@ -98,7 +93,8 @@ export class ProxyGenerator {
                 vertices: positions,
                 indices: newIndices,
                 normals: normals,
-                uvs: uvs
+                uvs: uvs,
+                tangents: new Float32Array(0)
             };
         }
 
@@ -106,7 +102,8 @@ export class ProxyGenerator {
             vertices: positions,
             indices: indices,
             normals: normals,
-            uvs: uvs
+            uvs: uvs,
+            tangents: new Float32Array(0)
         };
     }
 

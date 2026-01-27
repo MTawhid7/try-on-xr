@@ -5,6 +5,31 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-27] Visual Polish & Measurement Strategy
+
+**Branch / Feature:** `fix/visual-artifacts` -> `feat/real-world-measurements`
+
+### 1. Current State (Visual Polish)
+
+- [x] **Procedural Textures:** Implemented `TextureGenerator` to create high-quality "Cotton Weave" normal maps in-memory.
+- [x] **Material Tuning:** Fixed the "LCD Glow" and "Black Abyss" artifacts.
+  - **Color Space:** Forced `NoColorSpace` on the normal map to prevent double-gamma correction.
+  - **Material:** Reverted to `MeshStandardMaterial` for stability.
+  - **Lighting:** Added a `HemisphereLight` to fill shadows and prevent pitch-black folds.
+- [x] **Visual Parity:** The cloth now looks like matte cotton rather than plastic or glowing neon.
+
+### 2. Observations / Notes (Physics & Sizing)
+
+- **The "Tin Can" Effect:** Oversized shirts (XL/XXL) look rigid and puffed.
+  - **Diagnosis:** The bending constraints are too stiff for the larger surface area. The square-cube law implies that as the shirt gets bigger, it gets heavier, but our stiffness parameter remains constant. The shirt supports its own weight like a rigid shell instead of draping.
+- **Sizing Mismatch:** The current "L" is too big for the mannequin, while "XS" fits perfectly. We are guessing scales (0.92, 1.08) rather than using data.
+
+### 3. Next Steps / Plan (Real-World Measurements)
+
+- [ ] **Measurement Service:** Implement a service to parse real-world dimensions (Height, Chest, Waist).
+- [ ] **Body Resizing:** Procedurally scale the mannequin to match input measurements (e.g., "Make this body 180cm tall with a 100cm chest").
+- [ ] **Garment Matching:** Select and scale the garment based on its metadata (e.g., "This GLB is a Size M, 72cm length") to fit the generated body.
+
 ## [2026-01-26] Visual-Physics Parity & Orientation Fixes
 
 **Branch / Feature:** `fix/visual-physics-parity`
