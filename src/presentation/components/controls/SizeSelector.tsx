@@ -1,0 +1,39 @@
+// src/presentation/components/controls/SizeSelector.tsx
+
+import React from 'react';
+import { useSimulationStore } from '../../state/useSimulationStore';
+import { Button } from '../common/Button';
+import type { ShirtSize } from '../../../core/entities/Garment';
+
+const SIZES: ShirtSize[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+export const SizeSelector: React.FC = () => {
+    const { shirtSize, setShirtSize, isReady } = useSimulationStore();
+
+    return (
+        <div style={{ marginTop: '15px' }}>
+            <p style={{
+                margin: '0 0 8px 0',
+                fontSize: '0.75em',
+                textTransform: 'uppercase',
+                color: '#aaa',
+                letterSpacing: '1px'
+            }}>
+                Select Size
+            </p>
+            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                {SIZES.map((size) => (
+                    <Button
+                        key={size}
+                        onClick={() => setShirtSize(size)}
+                        disabled={!isReady}
+                        isActive={shirtSize === size}
+                        style={{ flex: '1 0 auto', textAlign: 'center' }}
+                    >
+                        {size}
+                    </Button>
+                ))}
+            </div>
+        </div>
+    );
+};
