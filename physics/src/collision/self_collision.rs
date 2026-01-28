@@ -1,11 +1,11 @@
 // physics/src/collision/self_collision.rs
 use crate::engine::state::PhysicsState;
-use super::spatial_hash::SpatialHash;
+use super::spatial::DynamicSpatialHash;
 
-// FIX: Suppress warnings while this feature is disabled
+// Suppress warnings while this feature is disabled in the main loop
 #[allow(dead_code)]
 pub struct SelfCollision {
-    hash: SpatialHash,
+    hash: DynamicSpatialHash,
     thickness: f32,
     neighbors: Vec<Vec<usize>>,
     query_buffer: Vec<usize>,
@@ -14,6 +14,7 @@ pub struct SelfCollision {
 #[allow(dead_code)]
 impl SelfCollision {
     pub fn new(state: &PhysicsState, thickness: f32) -> Self {
+        // Build static adjacency list to ignore connected neighbors (they can't self-collide)
         let mut neighbors = vec![Vec::new(); state.count];
         let num_triangles = state.indices.len() / 3;
 
@@ -27,7 +28,8 @@ impl SelfCollision {
             Self::add_neighbor(&mut neighbors, idx1, idx2);
         }
 
-        let hash = SpatialHash::new(thickness * 2.0);
+        // Initialize Dynamic Spatial Hash
+        let hash = DynamicSpatialHash::new(thickness * 2.0);
 
         Self {
             hash,
@@ -43,6 +45,7 @@ impl SelfCollision {
     }
 
     pub fn solve(&mut self, state: &mut PhysicsState) {
+        // 1. Rebuild Hash
         self.hash.clear();
         for i in 0..state.count {
             self.hash.insert_point(i, state.positions[i]);
@@ -50,12 +53,16 @@ impl SelfCollision {
 
         let repulsion_stiffness = 0.5;
 
+        // 2. Query and Resolve
         for i in 0..state.count {
             let p_i = state.positions[i];
+
+            // Find candidates
             self.hash.query(p_i, self.thickness, &mut self.query_buffer);
 
             for &j in self.query_buffer.iter() {
                 if i == j { continue; }
+                // Skip immediate neighbors (connected by edges)
                 if self.neighbors[i].contains(&j) { continue; }
 
                 let p_j = state.positions[j];
@@ -67,6 +74,8 @@ impl SelfCollision {
                     let dist = dist_sq.sqrt();
                     let overlap = min_dist - dist;
                     let normal = delta / dist;
+
+                    // Apply repulsion
                     let correction = normal * overlap * repulsion_stiffness;
 
                     let w1 = state.inv_mass[i];

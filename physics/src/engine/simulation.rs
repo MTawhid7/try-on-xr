@@ -1,25 +1,25 @@
 // physics/src/engine/simulation.rs
-use crate::collision::MeshCollider;
-use crate::collision::self_collision::SelfCollision;
-use crate::collision::CollisionResolver;
-use crate::dynamics::solver::Solver;
-use crate::dynamics::forces::Aerodynamics;
-use crate::constraints::mouse::MouseConstraint;
-use super::state::PhysicsState;
 
-pub struct SimulationLoop {
+use crate::engine::{PhysicsState, PhysicsConfig};
+use crate::collision::{MeshCollider, CollisionResolver};
+use crate::systems::dynamics::{Solver, Integrator};
+use crate::systems::forces::Aerodynamics;
+use crate::systems::constraints::MouseConstraint;
+
+pub struct Simulation {
+    // Data
     pub state: PhysicsState,
+    pub config: PhysicsConfig,
+
+    // Subsystems
     pub collider: MeshCollider,
-    // FIX: Suppress warning for disabled self-collision
-    #[allow(dead_code)]
-    pub self_collision: SelfCollision,
     pub resolver: CollisionResolver,
     pub solver: Solver,
-    pub forces: Aerodynamics,
+    pub aerodynamics: Aerodynamics,
     pub mouse: MouseConstraint,
 }
 
-impl SimulationLoop {
+impl Simulation {
     pub fn new(
         garment_pos: Vec<f32>,
         garment_indices: Vec<u32>,
@@ -29,9 +29,10 @@ impl SimulationLoop {
         collider_indices: Vec<u32>,
         collider_smoothing: usize,
         collider_inflation: f32,
-        scale_factor: f32 // NEW
+        scale_factor: f32
     ) -> Self {
-        let state = PhysicsState::new(garment_pos, garment_indices, garment_uvs);
+        let state = PhysicsState::new(&garment_pos, &garment_indices, &garment_uvs);
+        let config = PhysicsConfig::default();
 
         let collider = MeshCollider::new(
             collider_pos,
@@ -41,48 +42,47 @@ impl SimulationLoop {
             collider_inflation
         );
 
-        let self_collision = SelfCollision::new(&state, 0.015);
         let resolver = CollisionResolver::new();
-
-        // Pass scale_factor to Solver
         let solver = Solver::new(&state, scale_factor);
-
-        let forces = Aerodynamics::new();
+        let aerodynamics = Aerodynamics::new();
         let mouse = MouseConstraint::new();
 
-        SimulationLoop {
+        Self {
             state,
+            config,
             collider,
-            self_collision,
             resolver,
             solver,
-            forces,
+            aerodynamics,
             mouse,
         }
     }
 
     pub fn step(&mut self, dt: f32) {
-        let substeps = 8;
-        let sdt = dt / substeps as f32;
+        // Divide the frame time by the number of substeps for stability
+        let sdt = dt / self.config.substeps as f32;
 
+        // 1. Broad Phase Collision Detection
+        // We do this once per frame as the body doesn't move fast enough to require substep checks.
         self.resolver.broad_phase(&self.state, &self.collider);
 
-        // FIX: Rename step_i to _step_i to indicate it's unused
-        for _step_i in 0..substeps {
-            self.forces.apply(&mut self.state, sdt);
+        for _ in 0..self.config.substeps {
+            // 2. Apply External Forces (Gravity + Wind + Drag/Lift)
+            let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
+
+            // 3. Integrate (Verlet: Update Positions based on Forces)
+            Integrator::integrate(&mut self.state, &self.config, forces, sdt);
+
+            // 4. Solve User Interaction (Mouse Drag)
             self.mouse.solve(&mut self.state, sdt);
 
-            self.resolver.narrow_phase(&mut self.state, &self.collider, sdt);
+            // 5. Narrow Phase Collision Detection
+            // Checks precise triangle intersections for candidates found in Broad Phase.
+            self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
 
-            self.solver.solve(
-                &mut self.state,
-                &self.resolver,
-                sdt
-            );
-
-            // if _step_i == 0 {
-            //     self.self_collision.solve(&mut self.state);
-            // }
+            // 6. Solve Constraints & Resolve Contacts
+            // This enforces cloth structure (Distance/Bending) and pushes particles out of the body.
+            self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
         }
     }
 }

@@ -1,7 +1,7 @@
 // physics/src/collision/collider.rs
 use glam::Vec3;
 use super::geometry::Triangle;
-use super::spatial_hash::StaticSpatialHash;
+use super::spatial::StaticSpatialHash;
 use super::preprocessing;
 
 pub struct MeshCollider {
@@ -18,8 +18,8 @@ impl MeshCollider {
         raw_vertices: Vec<f32>,
         _raw_normals: Vec<f32>,
         indices: Vec<u32>,
-        smoothing: usize, // NEW
-        inflation: f32    // NEW
+        smoothing: usize,
+        inflation: f32
     ) -> Self {
         // Pass config to processor
         let processed = preprocessing::process_mesh(&raw_vertices, &indices, smoothing, inflation);

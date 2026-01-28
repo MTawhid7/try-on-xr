@@ -1,4 +1,5 @@
-// physics/src/constraints/distance.rs
+// physics/src/systems/constraints/distance.rs
+
 use crate::engine::state::PhysicsState;
 use std::collections::HashMap;
 
@@ -59,7 +60,6 @@ impl DistanceConstraint {
             let is_high = p1.y > collar_threshold && p2.y > collar_threshold;
 
             if is_boundary && is_high {
-                // "Elastic Collar" effect
                 rest_lengths.push(dist * 0.80);
             } else {
                 rest_lengths.push(dist);

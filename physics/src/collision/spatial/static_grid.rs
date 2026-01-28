@@ -1,10 +1,10 @@
-// physics/src/collision/spatial_hash/static_grid.rs
+// physics/src/collision/spatial/static_grid.rs
+
 use glam::Vec3;
 
 pub struct StaticSpatialHash {
     cell_size: f32,
     min: Vec3,
-    // Add max for AABB check
     max: Vec3,
     width: usize,
     height: usize,
@@ -24,6 +24,7 @@ impl StaticSpatialHash {
         let height = (size.y / cell_size).ceil() as usize;
         let depth = (size.z / cell_size).ceil() as usize;
 
+        // Safety caps to prevent OOM on huge meshes
         let safe_width = width.max(1).min(1000);
         let safe_height = height.max(1).min(1000);
         let safe_depth = depth.max(1).min(1000);
@@ -33,7 +34,7 @@ impl StaticSpatialHash {
         Self {
             cell_size,
             min,
-            max, // Store it
+            max,
             width: safe_width,
             height: safe_height,
             depth: safe_depth,
@@ -41,7 +42,7 @@ impl StaticSpatialHash {
         }
     }
 
-    // New helper for AABB Pruning
+    /// Fast AABB check to skip particles far outside the mesh
     pub fn contains(&self, p: Vec3) -> bool {
         p.x >= self.min.x && p.x <= self.max.x &&
         p.y >= self.min.y && p.y <= self.max.y &&
@@ -49,7 +50,6 @@ impl StaticSpatialHash {
     }
 
     pub fn insert_aabb(&mut self, id: usize, min: Vec3, max: Vec3) {
-        // ... (Existing implementation) ...
         let start_local = (min - self.min).max(Vec3::ZERO);
         let end_local = max - self.min;
 
@@ -72,7 +72,6 @@ impl StaticSpatialHash {
     }
 
     pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
-        // ... (Existing implementation) ...
         buffer.clear();
         let min = p - Vec3::splat(radius);
         let max = p + Vec3::splat(radius);

@@ -1,16 +1,15 @@
 // physics/src/lib.rs
 mod engine;
-mod dynamics;
-mod constraints;
+mod systems;
 mod collision;
 mod utils;
 
 use wasm_bindgen::prelude::*;
-use engine::simulation::SimulationLoop;
+use engine::Simulation;
 
 #[wasm_bindgen]
 pub struct PhysicsEngine {
-    sim: SimulationLoop,
+    sim: Simulation,
 }
 
 #[wasm_bindgen]
@@ -25,12 +24,12 @@ impl PhysicsEngine {
         collider_indices: Vec<u32>,
         collider_smoothing: usize,
         collider_inflation: f32,
-        scale_factor: f32 // NEW
+        scale_factor: f32
     ) -> PhysicsEngine {
         utils::set_panic_hook();
 
         PhysicsEngine {
-            sim: SimulationLoop::new(
+            sim: Simulation::new(
                 garment_pos,
                 garment_indices,
                 garment_uvs,
@@ -39,7 +38,7 @@ impl PhysicsEngine {
                 collider_indices,
                 collider_smoothing,
                 collider_inflation,
-                scale_factor // Pass it down
+                scale_factor
             ),
         }
     }

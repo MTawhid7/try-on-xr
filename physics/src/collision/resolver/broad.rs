@@ -29,7 +29,9 @@ pub fn perform_broad_phase(resolver: &mut CollisionResolver, state: &PhysicsStat
         }
 
         // Query Spatial Hash
-        collider.spatial_hash.query(pos, resolver.search_radius, &mut resolver.query_buffer);
+        // We use a search radius slightly larger than the contact thickness
+        let search_radius = 0.05;
+        collider.spatial_hash.query(pos, search_radius, &mut resolver.query_buffer);
 
         // Store in Cache
         let start_idx = resolver.candidate_indices.len();

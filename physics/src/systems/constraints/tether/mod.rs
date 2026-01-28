@@ -1,4 +1,5 @@
-// physics/src/constraints/tether/mod.rs
+// physics/src/systems/constraints/tether/mod.rs
+
 mod vertical;
 mod horizontal;
 
@@ -26,7 +27,7 @@ impl TetherConstraint {
     }
 
     pub fn solve(&self, state: &mut PhysicsState, _dt: f32) {
-        let alpha = 0.0;
+        let alpha = 0.0; // Rigid tether
 
         for k in 0..self.constraints.len() {
             let [i1, i2] = self.constraints[k];

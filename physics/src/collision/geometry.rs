@@ -6,7 +6,7 @@ pub struct Triangle {
     pub v0: Vec3,
     pub v1: Vec3,
     pub v2: Vec3,
-    #[allow(dead_code)] // Suppress warning
+    #[allow(dead_code)] // Useful for debugging, though not used in calculation
     pub index: usize,
 }
 

@@ -20,6 +20,10 @@
 │       │   │   ├── mod.rs
 │       │   │   └── narrow.rs
 │       │   ├── self_collision.rs
+│       │   ├── spatial
+│       │   │   ├── dynamic.rs
+│       │   │   ├── mod.rs
+│       │   │   └── static_grid.rs
 │       │   └── spatial_hash
 │       │       ├── dynamic.rs
 │       │       ├── mod.rs
@@ -38,10 +42,28 @@
 │       │   ├── mod.rs
 │       │   └── solver.rs
 │       ├── engine
+│       │   ├── config.rs
 │       │   ├── mod.rs
 │       │   ├── simulation.rs
 │       │   └── state.rs
 │       ├── lib.rs
+│       ├── systems
+│       │   ├── constraints
+│       │   │   ├── bending.rs
+│       │   │   ├── distance.rs
+│       │   │   ├── mod.rs
+│       │   │   ├── mouse.rs
+│       │   │   └── tether
+│       │   │       ├── horizontal.rs
+│       │   │       ├── mod.rs
+│       │   │       └── vertical.rs
+│       │   ├── dynamics
+│       │   │   ├── integrator.rs
+│       │   │   ├── mod.rs
+│       │   │   └── solver.rs
+│       │   └── forces
+│       │       ├── aerodynamics.rs
+│       │       └── mod.rs
 │       └── utils
 │           └── mod.rs
 ├── project-structure.txt
@@ -52,63 +74,64 @@
 │   ├── textures
 │   └── vite.svg
 ├── src
-│   ├── adapters
-│   │   ├── WasmAdapter.ts
-│   │   └── types.ts
-│   ├── app
-│   │   ├── App.tsx
-│   │   └── store
-│   │       └── simulation
-│   │           ├── interactionSlice.ts
-│   │           ├── lifecycleSlice.ts
-│   │           ├── simulationSlice.ts
-│   │           ├── types.ts
-│   │           └── useSimulationStore.ts
+│   ├── application
+│   │   ├── index.ts
+│   │   ├── pipelines
+│   │   │   ├── AssetPreparationPipeline.ts
+│   │   │   └── GradingPipeline.ts
+│   │   └── use-cases
+│   │       ├── InitializeSimulation.ts
+│   │       └── UpdateGarmentSize.ts
 │   ├── assets
 │   │   └── react.svg
-│   ├── domain
-│   │   ├── config
-│   │   │   └── SizingStandards.ts
-│   │   ├── index.ts
-│   │   ├── services
-│   │   │   ├── AutoAligner.ts
-│   │   │   ├── BodyMeasurer.ts
-│   │   │   ├── GarmentGrading.ts
-│   │   │   ├── GeometryProcessor.ts
-│   │   │   ├── MeshAnalyzer.ts
-│   │   │   ├── MeshMeasurer.ts
-│   │   │   ├── TextureGenerator.ts
-│   │   │   ├── asset_loader
-│   │   │   │   ├── AssetLoader.ts
-│   │   │   │   ├── MeshLoader.ts
-│   │   │   │   ├── MeshScaler.ts
-│   │   │   │   ├── ProxyGenerator.ts
-│   │   │   │   └── index.ts
-│   │   │   └── mesh_analysis
-│   │   │       ├── OrientationDetector.ts
-│   │   │       ├── SliceAnalyzer.ts
-│   │   │       ├── SpineRegressor.ts
-│   │   │       ├── index.ts
-│   │   │       ├── orientation
-│   │   │       │   ├── OrientationOptimizer.ts
-│   │   │       │   ├── PCASolver.ts
-│   │   │       │   ├── TopologyValidator.ts
-│   │   │       │   ├── ValidationUtils.ts
-│   │   │       │   └── validators
-│   │   │       │       ├── ForwardValidator.ts
-│   │   │       │       ├── VerticalValidator.ts
-│   │   │       │       └── voters
-│   │   │       │           ├── ChestVoter.ts
-│   │   │       │           ├── FeetVoter.ts
-│   │   │       │           └── HeadVoter.ts
-│   │   │       └── slice
-│   │   │           ├── ClusterEngine.ts
-│   │   │           └── SliceAnalyzer.ts
-│   │   └── types.ts
-│   ├── features
-│   │   └── interaction
-│   │       └── useGarmentInteraction.ts
+│   ├── core
+│   │   ├── constants
+│   │   │   ├── SimulationConstants.ts
+│   │   │   ├── SizingStandards.ts
+│   │   │   └── index.ts
+│   │   ├── entities
+│   │   │   ├── Assets.ts
+│   │   │   ├── Garment.ts
+│   │   │   ├── Geometry.ts
+│   │   │   └── index.ts
+│   │   └── interfaces
+│   │       ├── IAssetLoader.ts
+│   │       ├── IPhysicsEngine.ts
+│   │       └── index.ts
 │   ├── index.css
+│   ├── infrastructure
+│   │   ├── geometry
+│   │   │   ├── analysis
+│   │   │   │   ├── BodyMeasurer.ts
+│   │   │   │   ├── MeshAnalyzer.ts
+│   │   │   │   ├── MeshMeasurer.ts
+│   │   │   │   ├── SpineRegressor.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── orientation
+│   │   │   │   │   ├── OrientationDetector.ts
+│   │   │   │   │   ├── OrientationOptimizer.ts
+│   │   │   │   │   ├── PCASolver.ts
+│   │   │   │   │   └── ValidationUtils.ts
+│   │   │   │   └── slice
+│   │   │   │       ├── ClusterEngine.ts
+│   │   │   │       └── SliceAnalyzer.ts
+│   │   │   ├── index.ts
+│   │   │   ├── modifiers
+│   │   │   │   ├── AutoAligner.ts
+│   │   │   │   ├── MeshScaler.ts
+│   │   │   │   └── ProxyGenerator.ts
+│   │   │   └── processors
+│   │   │       └── GeometryProcessor.ts
+│   │   ├── index.ts
+│   │   ├── loaders
+│   │   │   └── MeshLoader.ts
+│   │   ├── physics
+│   │   │   ├── adapter
+│   │   │   │   └── WasmAdapter.ts
+│   │   │   └── wasm
+│   │   │       └── index.ts
+│   │   └── rendering
+│   │       └── TextureGenerator.ts
 │   ├── main.tsx
 │   ├── physics-pkg
 │   │   ├── .gitignore
@@ -117,15 +140,43 @@
 │   │   ├── garment_physics_bg.wasm
 │   │   ├── garment_physics_bg.wasm.d.ts
 │   │   └── package.json
-│   └── rendering
-│       ├── GarmentMesh.tsx
-│       ├── MannequinMesh.tsx
-│       ├── Scene.tsx
-│       └── materials
-│           └── FabricMaterial.tsx
+│   └── presentation
+│       ├── App.tsx
+│       ├── canvas
+│       │   ├── CameraRig.tsx
+│       │   ├── GarmentMesh.tsx
+│       │   ├── Lights.tsx
+│       │   ├── MannequinMesh.tsx
+│       │   ├── Scene.tsx
+│       │   └── index.ts
+│       ├── components
+│       │   ├── LoadingScreen.tsx
+│       │   ├── common
+│       │   │   ├── Button.tsx
+│       │   │   └── Panel.tsx
+│       │   ├── controls
+│       │   │   ├── SimulationControls.tsx
+│       │   │   └── SizeSelector.tsx
+│       │   ├── index.ts
+│       │   └── overlay
+│       │       ├── Overlay.tsx
+│       │       └── StatusPanel.tsx
+│       ├── hooks
+│       │   ├── index.ts
+│       │   └── useGarmentInteraction.ts
+│       ├── materials
+│       │   ├── FabricMaterial.tsx
+│       │   └── index.ts
+│       └── state
+│           ├── index.ts
+│           ├── interactionSlice.ts
+│           ├── lifecycleSlice.ts
+│           ├── simulationSlice.ts
+│           ├── types.ts
+│           └── useSimulationStore.ts
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-34 directories, 95 files
+51 directories, 129 files

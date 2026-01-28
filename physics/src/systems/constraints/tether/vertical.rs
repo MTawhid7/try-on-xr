@@ -1,4 +1,5 @@
-// physics/src/constraints/tether/vertical.rs
+// physics/src/systems/constraints/tether/vertical.rs
+
 use crate::engine::state::PhysicsState;
 use std::collections::HashMap;
 
@@ -6,8 +7,7 @@ pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
     let mut constraints = Vec::new();
     let mut rest_lengths = Vec::new();
 
-    // --- PASS 1: VERTICAL TETHERS (Anti-Sag) ---
-    // Prevents the hem from dropping like rubber.
+    // Anti-Sag: Connect vertices vertically
     let cell_size = 0.03;
     let mut columns: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
 

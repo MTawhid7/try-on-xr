@@ -5,6 +5,33 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-01-28] - Refactoring Complete & Rebranding
+
+### 🚀 Major Milestone: Vestra Physics Engine (v0.5.0)
+
+Completed a comprehensive refactor of the entire codebase to align with enterprise software engineering standards. The project has been renamed from "try-on-xr" to **Vestra Physics**.
+
+### 🔧 Architectural Changes
+
+- **Frontend (TypeScript):**
+  - Migrated to **Clean Architecture** (Hexagonal).
+  - Separated concerns into `Core` (Domain), `Application` (Use Cases), `Infrastructure` (Adapters), and `Presentation` (UI).
+  - Decoupled React logic from Physics logic using specific Pipelines (`AssetPreparationPipeline`, `GradingPipeline`).
+- **Backend (Rust):**
+  - Adopted **Data-Oriented Design**.
+  - Split monolithic files into modular subsystems: `Engine` (State), `Systems` (Dynamics/Forces), and `Collision` (Spatial Hashing).
+  - Preserved all core algorithms (XPBD, Interleaved Solver, Anisotropic Bending) with 100% feature parity.
+
+### 🎨 UI & UX
+
+- Implemented a modular UI system with `Zustand` slices.
+- Added a dedicated Loading Screen and Status Panel.
+- Updated branding to "Vestra Physics".
+
+### 📦 Repository Migration
+
+Renaming the GitHub repository to reflect the new identity.
+
 ## [2026-01-27] Measurement System & Physics Tuning
 
 **Branch / Feature:** `feat/real-world-measurements`

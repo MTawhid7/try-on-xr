@@ -1,4 +1,7 @@
+// physics/src/collision/resolver/narrow.rs
+
 use crate::engine::state::PhysicsState;
+use crate::engine::config::PhysicsConfig;
 use crate::collision::collider::MeshCollider;
 use super::{CollisionResolver, Contact};
 
@@ -6,12 +9,15 @@ pub fn perform_narrow_phase(
     resolver: &mut CollisionResolver,
     state: &mut PhysicsState,
     collider: &MeshCollider,
+    config: &PhysicsConfig,
     dt: f32
 ) {
     resolver.contacts.clear();
 
-    let max_v_per_step = resolver.thickness * 0.9;
+    // "Airbag" logic: Limit how fast a particle can penetrate the collider
+    let max_v_per_step = config.contact_thickness * 0.9;
     let max_v = max_v_per_step / dt;
+    let search_radius = 0.05;
 
     for i in 0..state.count {
         let count = resolver.candidate_counts[i];
@@ -21,7 +27,7 @@ pub fn perform_narrow_phase(
         let pos = state.positions[i];
 
         // Find closest point among cached candidates
-        let mut best_dist_sq = resolver.search_radius * resolver.search_radius;
+        let mut best_dist_sq = search_radius * search_radius;
         let mut best_result = None;
 
         for j in 0..count {
@@ -34,7 +40,7 @@ pub fn perform_narrow_phase(
             if dist_sq < best_dist_sq {
                 best_dist_sq = dist_sq;
 
-                // Reconstruct smooth normal
+                // Reconstruct smooth normal from barycentric coordinates
                 let idx0 = collider.indices[tri_idx * 3] as usize;
                 let idx1 = collider.indices[tri_idx * 3 + 1] as usize;
                 let idx2 = collider.indices[tri_idx * 3 + 2] as usize;
@@ -51,7 +57,7 @@ pub fn perform_narrow_phase(
 
         // If we found a collision
         if let Some((surface_point, normal)) = best_result {
-            // "Airbag" Velocity Clamping
+            // Velocity Clamping (Airbag)
             let prev = state.prev_positions[i];
             let velocity = (pos - prev) / dt;
             let v_normal = velocity.dot(normal);

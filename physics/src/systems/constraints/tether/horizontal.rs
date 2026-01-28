@@ -1,4 +1,5 @@
-// physics/src/constraints/tether/horizontal.rs
+// physics/src/systems/constraints/tether/horizontal.rs
+
 use crate::engine::state::PhysicsState;
 use std::collections::HashMap;
 
@@ -6,19 +7,14 @@ pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
     let mut constraints = Vec::new();
     let mut rest_lengths = Vec::new();
 
-    // --- PASS 2: HORIZONTAL SHOULDER BRIDGES (Anti-Widen) ---
-    // Prevents the neckline from stretching open and slipping off.
-
-    // 1. Find bounding box to determine "Top"
+    // Anti-Widen: Connect shoulders horizontally
     let mut max_y = f32::MIN;
     for p in &state.positions {
         if p.y > max_y { max_y = p.y; }
     }
 
-    let shoulder_threshold = max_y - 0.15; // Top 15cm (Neck & Shoulders)
-
-    // 2. Bucket by Depth (Z) to find horizontal lines
-    let z_cell_size = 0.04; // 4cm slices
+    let shoulder_threshold = max_y - 0.15;
+    let z_cell_size = 0.04;
     let mut rows: HashMap<i32, Vec<usize>> = HashMap::new();
 
     for i in 0..state.count {
@@ -29,7 +25,6 @@ pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
         rows.entry(cell_z).or_insert_with(Vec::new).push(i);
     }
 
-    // 3. Connect Left-most to Right-most in each row
     for (_, indices) in rows {
         if indices.len() < 2 { continue; }
 
@@ -39,7 +34,7 @@ pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
         });
 
         let count = sorted.len();
-        let steps = count / 2; // Connect up to half the pairs
+        let steps = count / 2;
 
         for i in 0..steps {
             let left = sorted[i];

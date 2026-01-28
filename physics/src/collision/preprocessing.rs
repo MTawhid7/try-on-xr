@@ -9,8 +9,8 @@ pub struct ProcessedMesh {
 pub fn process_mesh(
     raw_vertices: &[f32],
     indices: &[u32],
-    smoothing_iterations: usize, // NEW: Configurable
-    inflation_amount: f32        // NEW: Configurable
+    smoothing_iterations: usize,
+    inflation_amount: f32
 ) -> ProcessedMesh {
     let num_verts = raw_vertices.len() / 3;
     let mut vertices = Vec::with_capacity(num_verts);

@@ -1,11 +1,12 @@
-// physics/src/constraints/bending.rs
+// physics/src/systems/constraints/bending.rs
+
 use crate::engine::state::PhysicsState;
 use std::collections::HashSet;
 
 pub struct BendingConstraint {
     pub constraints: Vec<[usize; 2]>,
     pub rest_lengths: Vec<f32>,
-    pub compliances: Vec<f32>, // Now per-constraint
+    pub compliances: Vec<f32>,
 }
 
 impl BendingConstraint {
@@ -28,7 +29,7 @@ impl BendingConstraint {
             adj[idx2].insert(idx0); adj[idx2].insert(idx1);
         }
 
-        // 2. Build Constraints
+        // 2. Build Constraints (2-ring neighbors)
         let mut processed = HashSet::new();
 
         for i in 0..state.count {
@@ -57,8 +58,6 @@ impl BendingConstraint {
                     // Check alignment
                     // If du is much larger than dv, it's U-aligned (Horizontal)
                     // If dv is much larger than du, it's V-aligned (Vertical)
-                    // Otherwise, it's Diagonal (Bias)
-
                     let is_axis_aligned = du > 2.0 * dv || dv > 2.0 * du;
 
                     if is_axis_aligned {
@@ -88,7 +87,6 @@ impl BendingConstraint {
             let w_sum = w1 + w2;
             if w_sum == 0.0 { continue; }
 
-            // Use per-constraint compliance
             let alpha = self.compliances[k] / (dt * dt);
 
             let p1 = state.positions[i1];

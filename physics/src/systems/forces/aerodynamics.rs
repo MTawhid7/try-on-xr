@@ -1,13 +1,10 @@
-// physics/src/engine/simulation.rs
+// physics/src/system/forces/aerodynamics.rs
+
 use glam::Vec3;
 use crate::engine::state::PhysicsState;
+use crate::engine::config::PhysicsConfig;
 
 pub struct Aerodynamics {
-    pub gravity: Vec3,
-    pub wind: Vec3,
-    pub drag_coeff: f32, // Resistance perpendicular to surface (Catching wind)
-    pub lift_coeff: f32, // Resistance parallel to surface (Slicing air)
-
     // Buffer to accumulate forces per particle before integration
     force_buffer: Vec<Vec3>,
 }
@@ -15,15 +12,11 @@ pub struct Aerodynamics {
 impl Aerodynamics {
     pub fn new() -> Self {
         Self {
-            gravity: Vec3::new(0.0, -9.81, 0.0),
-            wind: Vec3::new(0.0, 0.0, 0.0),
-            drag_coeff: 2.0, // High drag for cloth
-            lift_coeff: 0.05, // Low friction for slicing
             force_buffer: Vec::new(),
         }
     }
 
-    pub fn apply(&mut self, state: &mut PhysicsState, dt: f32) {
+    pub fn apply(&mut self, state: &PhysicsState, config: &PhysicsConfig, dt: f32) -> &Vec<Vec3> {
         // 1. Resize/Reset Buffer
         if self.force_buffer.len() != state.count {
             self.force_buffer.resize(state.count, Vec3::ZERO);
@@ -50,7 +43,7 @@ impl Aerodynamics {
             let tri_vel = (v0 + v1 + v2) / 3.0;
 
             // Relative velocity (Air moving against cloth)
-            let rel_vel = tri_vel - self.wind;
+            let rel_vel = tri_vel - config.wind;
             let vel_sq = rel_vel.length_squared();
 
             if vel_sq < 1e-6 { continue; }
@@ -74,11 +67,10 @@ impl Aerodynamics {
 
             // Drag Force (Opposes Normal Velocity)
             // Fd = -0.5 * Cd * Area * |vn| * vn
-            // We assume density = 1.0 for simplicity
-            let f_drag = -0.5 * self.drag_coeff * area * v_normal.length() * v_normal;
+            let f_drag = -0.5 * config.drag_coeff * area * v_normal.length() * v_normal;
 
             // Lift/Skin Friction (Opposes Tangent Velocity)
-            let f_lift = -0.5 * self.lift_coeff * area * v_tangent.length() * v_tangent;
+            let f_lift = -0.5 * config.lift_coeff * area * v_tangent.length() * v_tangent;
 
             let total_force = f_drag + f_lift;
 
@@ -89,29 +81,6 @@ impl Aerodynamics {
             self.force_buffer[idx2] += force_per_vert;
         }
 
-        // 3. Integrate (Verlet)
-        for i in 0..state.count {
-            if state.inv_mass[i] == 0.0 { continue; }
-
-            let pos = state.positions[i];
-            let prev = state.prev_positions[i];
-
-            // F = ma => a = F * inv_mass
-            // Gravity is constant acceleration, Aero is a force.
-            let f_aero = self.force_buffer[i];
-            let acceleration = self.gravity + f_aero * state.inv_mass[i];
-
-            // Verlet Integration
-            // x_new = x + v*dt + a*dt^2
-            // We assume v = (x - prev) / dt
-            let velocity = pos - prev; // This is v*dt
-
-            // Note: We removed the linear 'drag' multiplier (0.99).
-            // The aerodynamic forces now provide the damping naturally.
-            let next_pos = pos + velocity + acceleration * (dt * dt);
-
-            state.prev_positions[i] = pos;
-            state.positions[i] = next_pos;
-        }
+        &self.force_buffer
     }
 }

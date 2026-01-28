@@ -1,14 +1,14 @@
-// physics/src/collision/spatial_hash/dynamic.rs
+// physics/src/collision/spatial/dynamic.rs
+
 use glam::Vec3;
 use std::collections::HashMap;
 
-pub struct SpatialHash {
+pub struct DynamicSpatialHash {
     cell_size: f32,
     grid: HashMap<(i32, i32, i32), Vec<usize>>,
 }
 
-#[allow(dead_code)]
-impl SpatialHash {
+impl DynamicSpatialHash {
     pub fn new(cell_size: f32) -> Self {
         Self {
             cell_size,
@@ -36,22 +36,6 @@ impl SpatialHash {
             .entry(cell)
             .or_insert_with(Vec::new)
             .push(id);
-    }
-
-    pub fn insert_aabb(&mut self, id: usize, min: Vec3, max: Vec3) {
-        let (min_x, min_y, min_z) = self.get_cell(min);
-        let (max_x, max_y, max_z) = self.get_cell(max);
-
-        for x in min_x..=max_x {
-            for y in min_y..=max_y {
-                for z in min_z..=max_z {
-                    self.grid
-                        .entry((x, y, z))
-                        .or_insert_with(Vec::new)
-                        .push(id);
-                }
-            }
-        }
     }
 
     pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {

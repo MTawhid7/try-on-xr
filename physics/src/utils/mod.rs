@@ -1,7 +1,9 @@
+// physics/src/utils/mod.rs
+
 use wasm_bindgen::prelude::*;
 
 pub fn set_panic_hook() {
-    // Directly call the hook without the feature check
+    // Better error messages in the browser console
     console_error_panic_hook::set_once();
 }
 

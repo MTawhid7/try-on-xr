@@ -24,16 +24,20 @@ export const StatusPanel: React.FC = () => {
 
     return (
         <div>
-            <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1em' }}>V5 Physics Engine</h3>
+            <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1em', letterSpacing: '1px' }}>
+                VESTRA PHYSICS
+            </h3>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
                     backgroundColor: statusColor,
-                    boxShadow: isRunning ? `0 0 8px ${statusColor}` : 'none'
+                    boxShadow: isRunning ? `0 0 8px ${statusColor}` : 'none',
+                    transition: 'all 0.3s ease'
                 }} />
-                <span style={{ fontSize: '0.85em', color: '#ccc' }}>
+                <span style={{ fontSize: '0.85em', color: '#ccc', fontWeight: 500 }}>
                     {statusText}
                 </span>
             </div>

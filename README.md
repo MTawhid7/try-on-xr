@@ -1,108 +1,209 @@
-# 3D Garment Visualization Engine (V5)
+# Vestra Physics Engine
 
+![Version](https://img.shields.io/badge/Version-0.5.0_(Beta)-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
-![Tech](https://img.shields.io/badge/Stack-Rust_WASM_%7C_React_Three_Fiber-orange)
-![Physics](https://img.shields.io/badge/Physics-XPBD_%2B_Interleaved_Solver-blue)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_React_Three_Fiber-orange)
 
-A high-performance, real-time Virtual Try-On (VTO) engine designed for the web.
+**Vestra** is a high-performance, real-time Virtual Try-On (VTO) engine built for the modern web.
 
-Version 5 represents a complete architectural maturity, utilizing a **Hybrid Compute Model**. The core physics solver is written in **Rust** and compiled to **WebAssembly (WASM)**, communicating with a **React Three Fiber** frontend via **Zero-Copy** memory synchronization.
+It utilizes a **Hybrid Compute Architecture** to bridge the gap between physical realism and browser performance. The core physics solver is written in **Rust**, compiled to **WebAssembly (WASM)**, and communicates with a **React Three Fiber** frontend via a **Zero-Copy** memory model.
 
----
-
-## 🎯 Project Objective
-
-To create a browser-based cloth simulation that balances **physical realism** with **real-time performance (60 FPS)**. The system is designed to simulate heavy fabrics (cotton, denim) on articulated characters without the jitter, tunneling, or "floating" artifacts common in web-based physics.
+Unlike traditional JavaScript-based physics engines, Vestra is designed specifically for cloth simulation, handling heavy fabrics (cotton, denim) on articulated characters without the jitter, tunneling, or "floating" artifacts common in web-based solutions.
 
 ---
 
-## 🏗️ Architecture
+## 📚 Table of Contents
 
-The project follows a **Domain-Driven, Hexagonal Architecture** to ensure modularity and scalability.
+- [Architecture](#-architecture)
+- [Key Features](#-key-features)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Configuration and Tuning](#%EF%B8%8F-configuration-and-tuning)
+- [Development Workflow](#-development-workflow)
+- [Roadmap](#-roadmap)
 
-### 1. The Core (Rust + WASM)
+---
 
-* **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (8x) and internal constraint iterations (25x) for high stiffness stability.
-* **Interleaved Collision Resolver:** Unlike traditional engines that resolve collision *after* constraints (causing jitter), V5 resolves collision *inside* the constraint loop.
-* **Memory Model:** **Zero-Copy**. The vertex positions exist in linear WASM memory; JavaScript reads them directly via a `Float32Array` view.
+## 🏗 Architecture
 
-### 2. The Frontend (React + TypeScript)
+Vestra follows **Clean Architecture (Hexagonal Architecture)** principles to ensure separation of concerns, testability, and scalability.
 
-* **Rendering:** React Three Fiber (R3F) renders the visual mesh.
-* **State Management:** `Zustand` handles the simulation loop and transient updates.
-* **Asset Pipeline:** Modular services (`asset_loader/`) handle loading, inspection, normalization, and optimization.
+### 1. The Core (Domain Layer)
 
-### 3. Adaptive Asset Pipeline (Body & Garment)
+Located in `src/core`.
 
-* **Smart Decimation:** The engine analyzes the input geometry complexity for *both* the body and the garment.
-  * **High-Poly (>10k tris):** Automatically decimated using `meshoptimizer` (WASM) to maintain 60 FPS.
-  * **Efficient Models (<5k tris):** Passed through as **Raw Geometry**. This preserves the exact volume and topology, eliminating the "Invisible Gap" caused by decimation shrinkage.
-* **Goldilocks Tuning:**
-  * **Inflation:** A 2mm (`0.002`) invisible buffer is applied to the collider to prevent clipping without creating a "Space Suit" effect.
-  * **Substeps:** Increased to 8x to catch high-velocity collisions.
+- Defines the **Entities** (Garment, Assets) and **Interfaces** (Contracts).
+- Pure TypeScript. No dependencies on React, Three.js, or WASM.
+- Contains the "Business Logic" of sizing standards and simulation constants.
+
+### 2. The Application (Orchestration Layer)
+
+Located in `src/application`.
+
+- Contains **Use Cases** (e.g., `InitializeSimulation`) and **Pipelines**.
+- **Asset Pipeline:** Orchestrates the loading, analysis, alignment, scaling, and proxy generation of 3D assets.
+- **Grading Pipeline:** Handles the mathematical resizing of garments based on real-world sizing charts.
+
+### 3. The Infrastructure (Implementation Layer)
+
+Located in `src/infrastructure`.
+
+- **Physics Adapter:** The bridge to the Rust/WASM backend.
+- **Geometry Engine:** Wrappers around `three.js` and `meshoptimizer` for heavy mesh processing.
+- **Loaders:** GLTF/GLB handling.
+
+### 4. The Presentation (View Layer)
+
+Located in `src/presentation`.
+
+- **React Components:** UI overlays and controls.
+- **Canvas:** React Three Fiber (R3F) scene graph.
+- **State:** `Zustand` stores for managing the simulation loop and UI state.
+
+### 5. The Physics Backend (Rust)
+
+Located in `physics/`.
+
+- **Data-Oriented Design:** State is stored in flat vectors (SoA) for cache efficiency.
+- **XPBD Solver:** Extended Position Based Dynamics with sub-stepping (8x) and internal constraint iterations (25x).
+- **Interleaved Solver:** Collision resolution occurs *inside* the constraint loop to eliminate jitter.
 
 ---
 
 ## 🚀 Key Features
 
-* **Real-World Measurement System:**
-  * **Body Measurer:** Automatically slices the mannequin geometry to calculate the exact Chest Circumference in cm.
-  * **Standard Sizing:** Garments are graded based on real-world dimensions (e.g., Size M = 51cm Width) rather than arbitrary scales.
-  * **Mass-Normalized Compliance:** Physics stiffness scales dynamically with garment size, preventing the "Tin Can" effect on XXL garments.
-* **Procedural Fabric Shaders:**
-  * **Dynamic Normal Maps:** Generates seamless "Cotton Weave" textures in-memory.
-  * **Matte Finish:** Tuned PBR materials simulate the dry, light-scattering properties of cotton.
-* **Voting-Based Orientation:** A robust 3-factor analysis (Nose, Chest, Toes) determines the true forward direction of arbitrary avatars.
-* **Anatomical Anchoring:** Automatically aligns the shirt collar to the body's neck.
-* **Coulomb Friction:** A physically based friction model distinguishes between **Static Friction** (sticking) and **Kinetic Friction** (sliding).* **Material Zones:** Automatic detection of boundary edges (collars, hems, cuffs) rendered with **0.0 compliance (Rigid)**.
-* **Zero-Jitter Resting:** The combination of XPBD and Interleaved Solving allows the cloth to come to a complete rest.
+### 🧶 Physics & Simulation
+
+- **XPBD Solver:** Stable simulation of stiff constraints (non-stretchy fabrics) using compliance-based solving.
+- **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates.
+- **Coulomb Friction:** Physically based friction model distinguishing between static (sticking) and kinetic (sliding) friction.
+- **Aerodynamics:** Real-time lift and drag forces based on relative velocity and wind vectors.
+
+### 📐 Asset Intelligence
+
+- **Smart Decimation:** Automatically analyzes mesh complexity. High-poly meshes (>10k tris) are decimated via `meshoptimizer` for physics proxies, while efficient meshes are used raw to preserve volume.
+- **Anatomical Anchoring:** Automatically detects the neck position of the avatar and snaps the garment collar to fit.
+- **Voting-Based Orientation:** A heuristic algorithm analyzes mesh topology (Nose, Chest, Toes) to automatically correct upside-down or backward avatars.
+
+### 📏 Real-World Grading
+
+- **Body Measurer:** Algorithms slice the mannequin geometry to calculate exact chest circumference in centimeters.
+- **Standard Sizing:** Garments are graded (scaled) based on retail standards (XS - XXL).
+- **Mass-Normalized Compliance:** Physics stiffness scales dynamically with garment size to prevent larger garments from behaving like "tin cans."
 
 ---
 
-## ⚠️ Known Limitations
+## 📂 Project Structure
 
-* **Sleeve Alignment:** A-Pose vs T-Pose mismatches can cause initial intersection artifacts.
-* **Complex Layering:** Currently supports single-layer garments only.
+```text
+root/
+├── physics/                    # Rust Source Code
+│   ├── src/
+│   │   ├── engine/             # State & Config
+│   │   ├── systems/            # Forces, Constraints, Dynamics
+│   │   ├── collision/          # Spatial Hashing & Resolvers
+│   │   └── lib.rs              # WASM Interface
+│
+├── src/                        # TypeScript Frontend
+│   ├── core/                   # Domain Entities & Interfaces
+│   ├── application/            # Use Cases & Pipelines
+│   ├── infrastructure/         # Adapters (WASM, Three.js)
+│   ├── presentation/           # React Components & State
+│   └── main.tsx                # Entry Point
+│
+└── public/                     # Static Assets (Models)
+```
 
 ---
 
-## 🔮 Future Roadmap
-
-1. **User Measurement Input:**
-   * Allow users to input Height/Weight/Chest.
-   * Procedurally morph the mannequin to match these inputs.
-2. **Garment Orientation Analysis:**
-   * Implement "Hole Detection" to automatically orient shirts that are imported upside-down.
-3. **WebGPU Compute Shaders:** Port the `solver.rs` logic to WGSL to support high-density meshes (>10,000 vertices).
-
----
-
-## 🛠️ Setup & Run
+## ⚡ Getting Started
 
 ### Prerequisites
 
-* Node.js (v18+)
-* Rust & Cargo
-* `wasm-pack` (`cargo install wasm-pack`)
+- **Node.js** (v18 or higher)
+- **Rust** (Latest Stable)
+- **wasm-pack** (`cargo install wasm-pack`)
 
 ### Installation
 
-1. **Install JS Dependencies:**
+1. **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/MTawhid7/vestra-physics.git
+    cd vestra-physics
+    ```
+
+2. **Install JavaScript dependencies:**
 
     ```bash
     npm install
     ```
 
-2. **Build WASM Core:**
+3. **Compile the Physics Engine:**
+    This compiles the Rust code to WebAssembly and generates the JS bindings in `src/physics-pkg`.
 
     ```bash
-    npm run build:wasm
-    # or
     cd physics && wasm-pack build --target web --out-dir ../src/physics-pkg && cd ..
     ```
 
-3. **Run Development Server:**
+4. **Run the Development Server:**
 
     ```bash
     npm run dev
     ```
+
+    Open `http://localhost:5173` in your browser.
+
+---
+
+## ⚙️ Configuration and Tuning
+
+Vestra is designed to be tunable.
+
+### Physics Parameters
+
+Modify `physics/src/engine/config.rs` to tune the simulation behavior.
+
+- `substeps`: Higher = more accurate, more CPU usage.
+- `solver_iterations`: Higher = stiffer cloth.
+- `contact_thickness`: The padding distance for collisions.
+- `drag_coeff`: Air resistance.
+
+### Asset Pipeline
+
+Modify `src/core/constants/SimulationConstants.ts` to tune the asset processing.
+
+- `TARGET_BODY_HEIGHT`: The normalized height for avatars (default: 1.75m).
+- `GARMENT_RESOLUTION_BUDGET`: Max triangle count for cloth physics.
+- `GEOMETRY_WELD_THRESHOLD`: Distance to merge vertices (fixes detached collars).
+
+---
+
+## 🛠 Development Workflow
+
+The project uses a hybrid workflow.
+
+1. **Frontend Changes:**
+    - Modify files in `src/`.
+    - Vite HMR (Hot Module Replacement) updates the browser instantly.
+
+2. **Physics Changes:**
+    - Modify files in `physics/src/`.
+    - Run `wasm-pack build ...` (or create a script in package.json).
+    - Vite will detect the change in `src/physics-pkg` and reload the page.
+
+---
+
+## 🔮 Roadmap
+
+- [ ] **Self-Collision:** Re-enable the spatial hashing self-collision system (currently implemented but disabled for performance).
+- [ ] **User Input:** UI for users to input custom height/weight measurements to morph the mannequin.
+- [ ] **WebGPU:** Explore porting the solver logic to WGSL Compute Shaders for massive particle counts (>50k).
+- [ ] **Multi-Layering:** Support for tucking shirts into pants or layering jackets.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

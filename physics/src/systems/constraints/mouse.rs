@@ -1,4 +1,5 @@
-// physics/src/constraints/mouse.rs
+// physics/src/systems/constraints/mouse.rs
+
 use glam::Vec3;
 use crate::engine::state::PhysicsState;
 
@@ -43,7 +44,6 @@ impl MouseConstraint {
 
             // XPBD Position Update:
             // Delta x = (target - x) * w / (w + alpha)
-            // If compliance = 0 (Hard constraint), alpha = 0, multiplier = 1.0 (Direct move)
             let multiplier = w / (w + alpha);
 
             state.positions[idx] += difference * multiplier;
