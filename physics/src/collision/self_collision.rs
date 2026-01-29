@@ -1,6 +1,7 @@
 // physics/src/collision/self_collision.rs
 use crate::engine::state::PhysicsState;
 use super::spatial::DynamicSpatialHash;
+use glam::Vec4;
 
 // Suppress warnings while this feature is disabled in the main loop
 #[allow(dead_code)]
@@ -14,7 +15,6 @@ pub struct SelfCollision {
 #[allow(dead_code)]
 impl SelfCollision {
     pub fn new(state: &PhysicsState, thickness: f32) -> Self {
-        // Build static adjacency list to ignore connected neighbors (they can't self-collide)
         let mut neighbors = vec![Vec::new(); state.count];
         let num_triangles = state.indices.len() / 3;
 
@@ -28,7 +28,6 @@ impl SelfCollision {
             Self::add_neighbor(&mut neighbors, idx1, idx2);
         }
 
-        // Initialize Dynamic Spatial Hash
         let hash = DynamicSpatialHash::new(thickness * 2.0);
 
         Self {
@@ -48,24 +47,26 @@ impl SelfCollision {
         // 1. Rebuild Hash
         self.hash.clear();
         for i in 0..state.count {
-            self.hash.insert_point(i, state.positions[i]);
+            // FIX: Truncate Vec4 -> Vec3 for spatial hashing
+            self.hash.insert_point(i, state.positions[i].truncate());
         }
 
         let repulsion_stiffness = 0.5;
 
         // 2. Query and Resolve
         for i in 0..state.count {
-            let p_i = state.positions[i];
+            let p_i_v4 = state.positions[i];
+            let p_i = p_i_v4.truncate();
 
-            // Find candidates
             self.hash.query(p_i, self.thickness, &mut self.query_buffer);
 
             for &j in self.query_buffer.iter() {
                 if i == j { continue; }
-                // Skip immediate neighbors (connected by edges)
                 if self.neighbors[i].contains(&j) { continue; }
 
-                let p_j = state.positions[j];
+                let p_j_v4 = state.positions[j];
+                let p_j = p_j_v4.truncate();
+
                 let delta = p_i - p_j;
                 let dist_sq = delta.length_squared();
                 let min_dist = self.thickness;
@@ -75,7 +76,6 @@ impl SelfCollision {
                     let overlap = min_dist - dist;
                     let normal = delta / dist;
 
-                    // Apply repulsion
                     let correction = normal * overlap * repulsion_stiffness;
 
                     let w1 = state.inv_mass[i];
@@ -83,8 +83,13 @@ impl SelfCollision {
                     let w_sum = w1 + w2;
 
                     if w_sum > 0.0 {
-                        if w1 > 0.0 { state.positions[i] += correction * (w1 / w_sum); }
-                        if w2 > 0.0 { state.positions[j] -= correction * (w2 / w_sum); }
+                        // FIX: Apply correction as Vec4
+                        if w1 > 0.0 {
+                            state.positions[i] += Vec4::from((correction * (w1 / w_sum), 0.0));
+                        }
+                        if w2 > 0.0 {
+                            state.positions[j] -= Vec4::from((correction * (w2 / w_sum), 0.0));
+                        }
                     }
                 }
             }

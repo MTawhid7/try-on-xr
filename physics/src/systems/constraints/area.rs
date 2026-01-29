@@ -1,98 +1,120 @@
 // physics/src/systems/constraints/area.rs
 
 use crate::engine::state::PhysicsState;
+use crate::utils::coloring;
+use glam::Vec4;
 
 pub struct AreaConstraint {
     indices: Vec<[usize; 3]>,
     rest_areas: Vec<f32>,
-    // REMOVED: compliance (It is now passed at runtime)
+    batch_offsets: Vec<usize>,
 }
 
 impl AreaConstraint {
     pub fn new(state: &PhysicsState) -> Self {
         let num_triangles = state.indices.len() / 3;
-        let mut indices = Vec::with_capacity(num_triangles);
-        let mut rest_areas = Vec::with_capacity(num_triangles);
+        let mut raw_indices = Vec::with_capacity(num_triangles);
+        let mut raw_rest_areas = Vec::with_capacity(num_triangles);
 
         for i in 0..num_triangles {
             let idx0 = state.indices[i * 3] as usize;
             let idx1 = state.indices[i * 3 + 1] as usize;
             let idx2 = state.indices[i * 3 + 2] as usize;
 
+            // Vec4 Math
             let p0 = state.positions[idx0];
             let p1 = state.positions[idx1];
             let p2 = state.positions[idx2];
 
-            // Calculate Rest Area
-            // Area = 0.5 * |(p1 - p0) x (p2 - p0)|
             let u = p1 - p0;
             let v = p2 - p0;
-            let cross = u.cross(v);
+            // Cross product of Vec4 returns Vec3-like behavior in first 3 components
+            // glam::Vec3::cross equivalent for Vec4 ignores w
+            let u3 = u.truncate();
+            let v3 = v.truncate();
+            let cross = u3.cross(v3);
             let area = 0.5 * cross.length();
 
-            // Only add non-degenerate triangles
             if area > 1e-6 {
-                indices.push([idx0, idx1, idx2]);
-                rest_areas.push(area);
+                raw_indices.push([idx0, idx1, idx2]);
+                raw_rest_areas.push(area);
             }
+        }
+
+        // --- GRAPH COLORING ---
+        let (sorted_indices, batch_offsets) = coloring::color_constraints_3(&raw_indices, state.count);
+
+        let mut indices = Vec::with_capacity(raw_indices.len());
+        let mut rest_areas = Vec::with_capacity(raw_indices.len());
+
+        for idx in sorted_indices {
+            indices.push(raw_indices[idx]);
+            rest_areas.push(raw_rest_areas[idx]);
         }
 
         Self {
             indices,
             rest_areas,
+            batch_offsets,
         }
     }
 
-    // Compliance is now passed per-frame, allowing runtime material changes
     pub fn solve(&self, state: &mut PhysicsState, compliance: f32, dt: f32) {
         let alpha = compliance / (dt * dt);
 
-        for k in 0..self.indices.len() {
-            let [i0, i1, i2] = self.indices[k];
+        for b in 0..(self.batch_offsets.len() - 1) {
+            let start = self.batch_offsets[b];
+            let end = self.batch_offsets[b + 1];
 
-            let w0 = state.inv_mass[i0];
-            let w1 = state.inv_mass[i1];
-            let w2 = state.inv_mass[i2];
+            for k in start..end {
+                let [i0, i1, i2] = self.indices[k];
 
-            let w_sum = w0 + w1 + w2;
-            if w_sum == 0.0 { continue; }
+                let w0 = state.inv_mass[i0];
+                let w1 = state.inv_mass[i1];
+                let w2 = state.inv_mass[i2];
 
-            let p0 = state.positions[i0];
-            let p1 = state.positions[i1];
-            let p2 = state.positions[i2];
+                let w_sum = w0 + w1 + w2;
+                if w_sum == 0.0 { continue; }
 
-            // Current Area Calculation
-            let u = p1 - p0;
-            let v = p2 - p0;
-            let cross = u.cross(v);
-            let current_area = 0.5 * cross.length();
+                let p0 = state.positions[i0];
+                let p1 = state.positions[i1];
+                let p2 = state.positions[i2];
 
-            // Constraint: C(x) = A - A_rest
-            let rest_area = self.rest_areas[k];
-            let c = current_area - rest_area;
+                // Area Calculation
+                let u = p1 - p0;
+                let v = p2 - p0;
 
-            if c.abs() < 1e-6 { continue; }
+                // We must truncate for cross product as it's strictly a 3D operation
+                let u3 = u.truncate();
+                let v3 = v.truncate();
+                let cross = u3.cross(v3);
+                let current_area = 0.5 * cross.length();
 
-            // Gradients
-            if current_area < 1e-9 { continue; }
+                let rest_area = self.rest_areas[k];
+                let c = current_area - rest_area;
 
-            let n = cross / (2.0 * current_area); // Normalized normal
+                if c.abs() < 1e-6 { continue; }
+                if current_area < 1e-9 { continue; }
 
-            let grad0 = 0.5 * (p2 - p1).cross(n);
-            let grad1 = 0.5 * (p0 - p2).cross(n);
-            let grad2 = 0.5 * (p1 - p0).cross(n);
+                let n = cross / (2.0 * current_area);
 
-            let denom = w0 * grad0.length_squared() +
-                        w1 * grad1.length_squared() +
-                        w2 * grad2.length_squared();
+                let grad0 = 0.5 * (p2.truncate() - p1.truncate()).cross(n);
+                let grad1 = 0.5 * (p0.truncate() - p2.truncate()).cross(n);
+                let grad2 = 0.5 * (p1.truncate() - p0.truncate()).cross(n);
 
-            if denom < 1e-9 { continue; }
+                let denom = w0 * grad0.length_squared() +
+                            w1 * grad1.length_squared() +
+                            w2 * grad2.length_squared();
 
-            let delta_lambda = -c / (denom + alpha);
+                if denom < 1e-9 { continue; }
 
-            if w0 > 0.0 { state.positions[i0] += grad0 * (delta_lambda * w0); }
-            if w1 > 0.0 { state.positions[i1] += grad1 * (delta_lambda * w1); }
-            if w2 > 0.0 { state.positions[i2] += grad2 * (delta_lambda * w2); }
+                let delta_lambda = -c / (denom + alpha);
+
+                // Apply back to Vec4
+                if w0 > 0.0 { state.positions[i0] += Vec4::from((grad0 * (delta_lambda * w0), 0.0)); }
+                if w1 > 0.0 { state.positions[i1] += Vec4::from((grad1 * (delta_lambda * w1), 0.0)); }
+                if w2 > 0.0 { state.positions[i2] += Vec4::from((grad2 * (delta_lambda * w2), 0.0)); }
+            }
         }
     }
 }

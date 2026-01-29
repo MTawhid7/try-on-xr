@@ -7,7 +7,6 @@ pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
     let mut constraints = Vec::new();
     let mut rest_lengths = Vec::new();
 
-    // Anti-Widen: Connect shoulders horizontally
     let mut max_y = f32::MIN;
     for p in &state.positions {
         if p.y > max_y { max_y = p.y; }

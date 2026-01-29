@@ -7,7 +7,6 @@ pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
     let mut constraints = Vec::new();
     let mut rest_lengths = Vec::new();
 
-    // Anti-Sag: Connect vertices vertically
     let cell_size = 0.03;
     let mut columns: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
 

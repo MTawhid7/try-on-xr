@@ -1,6 +1,6 @@
 // physics/src/systems/constraints/mouse.rs
 
-use glam::Vec3;
+use glam::{Vec3, Vec4};
 use crate::engine::state::PhysicsState;
 
 pub struct MouseConstraint {
@@ -39,14 +39,15 @@ impl MouseConstraint {
             if w == 0.0 { return; }
 
             let alpha = self.compliance / (dt * dt);
-            let current_pos = state.positions[idx];
+
+            // FIX: Truncate current position to Vec3 for math
+            let current_pos = state.positions[idx].truncate();
             let difference = self.target_position - current_pos;
 
-            // XPBD Position Update:
-            // Delta x = (target - x) * w / (w + alpha)
             let multiplier = w / (w + alpha);
 
-            state.positions[idx] += difference * multiplier;
+            // FIX: Apply correction as Vec4
+            state.positions[idx] += Vec4::from((difference * multiplier, 0.0));
         }
     }
 }

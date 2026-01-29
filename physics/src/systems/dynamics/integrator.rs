@@ -1,6 +1,6 @@
 // physics/src/systems/dynamics/integrator.rs
 
-use glam::Vec3;
+use glam::{Vec3, Vec4};
 use crate::engine::state::PhysicsState;
 use crate::engine::config::PhysicsConfig;
 
@@ -14,32 +14,54 @@ impl Integrator {
         dt: f32
     ) {
         let dt_sq = dt * dt;
+        let gravity = Vec4::from((config.gravity, 0.0));
+        let count = state.count;
 
-        for i in 0..state.count {
-            if state.inv_mass[i] == 0.0 { continue; }
+        // Process in chunks of 4 for explicit vectorization hints
+        let mut i = 0;
+        while i + 4 <= count {
+            // We can't easily use slice iterators here because we need to access multiple arrays
+            // (positions, prev_positions, inv_mass, external_forces)
+            // So we unroll manually.
 
-            let pos = state.positions[i];
-            let prev = state.prev_positions[i];
+            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i);
+            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+1);
+            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+2);
+            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+3);
 
-            // F = ma => a = F * inv_mass
-            // Gravity is constant acceleration.
-            // Aerodynamics is a Force, so we multiply by inv_mass.
-            let f_aero = external_forces[i];
-            let acceleration = config.gravity + (f_aero * state.inv_mass[i]);
-
-            // Verlet Integration
-            // x_new = x + v*dt + a*dt^2
-            // v*dt is approximated as (x - prev)
-            let velocity_term = pos - prev;
-
-            // Note: We rely on aerodynamic drag for damping, so no explicit linear damping here.
-            let next_pos = pos + velocity_term + acceleration * dt_sq;
-
-            state.prev_positions[i] = pos;
-            state.positions[i] = next_pos;
-
-            // Update explicit velocity for other systems to use
-            state.velocities[i] = (next_pos - pos) / dt;
+            i += 4;
         }
+
+        // Handle remainder
+        while i < count {
+            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i);
+            i += 1;
+        }
+    }
+
+    #[inline(always)]
+    fn integrate_particle(
+        state: &mut PhysicsState,
+        _config: &PhysicsConfig,
+        external_forces: &[Vec3],
+        dt: f32,
+        dt_sq: f32,
+        gravity: Vec4,
+        i: usize
+    ) {
+        if state.inv_mass[i] == 0.0 { return; }
+
+        let pos = state.positions[i];
+        let prev = state.prev_positions[i];
+
+        let f_aero = Vec4::from((external_forces[i], 0.0));
+        let acceleration = gravity + (f_aero * state.inv_mass[i]);
+
+        let velocity_term = pos - prev;
+        let next_pos = pos + velocity_term + acceleration * dt_sq;
+
+        state.prev_positions[i] = pos;
+        state.positions[i] = next_pos;
+        state.velocities[i] = (next_pos - pos) / dt;
     }
 }

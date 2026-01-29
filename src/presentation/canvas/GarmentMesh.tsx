@@ -11,19 +11,20 @@ export const GarmentMesh: React.FC = () => {
     const meshRef = useRef<THREE.Mesh>(null);
     const { assets, scaledVertices, engine, step, isRunning } = useSimulationStore();
 
-    // 1. Construct Geometry
-    // We recreate this only when the assets or the size (scaledVertices) changes.
+    // 1. Construct Initial Geometry
+    // We use useMemo to create the geometry container.
+    // Initially, it uses the 'scaledVertices' (CPU array) for the static pose.
+    // Once simulation starts, we will hot-swap the position attribute with the WASM buffer.
     const geometry = useMemo(() => {
         if (!assets || !scaledVertices) return null;
 
         const geo = new THREE.BufferGeometry();
 
-        // Position Attribute (Dynamic - updated every frame)
-        // We clone the scaledVertices to ensure we have a fresh buffer for Three.js
+        // Initial Position (CPU Copy)
         const positionBuffer = new Float32Array(scaledVertices);
         geo.setAttribute('position', new THREE.BufferAttribute(positionBuffer, 3));
 
-        // Static Attributes (Normals, Indices, UVs)
+        // Static Attributes
         geo.setAttribute('normal', new THREE.BufferAttribute(assets.garment.normals, 3));
         geo.setIndex(new THREE.BufferAttribute(assets.garment.indices, 1));
 
@@ -31,7 +32,6 @@ export const GarmentMesh: React.FC = () => {
             geo.setAttribute('uv', new THREE.BufferAttribute(assets.garment.uvs, 2));
         }
 
-        // Tangents (Required for Anisotropic lighting)
         if (assets.garment.tangents && assets.garment.tangents.length > 0) {
             geo.setAttribute('tangent', new THREE.BufferAttribute(assets.garment.tangents, 4));
         }
@@ -51,18 +51,33 @@ export const GarmentMesh: React.FC = () => {
             step(delta);
         }
 
-        // B. Sync Physics -> Visuals
-        // Get the Zero-Copy view from WASM
-        const positions = engine.getPositions();
+        // B. Sync Physics -> Visuals (Zero-Copy)
+        // The engine returns a direct view into WASM memory (InterleavedBufferAttribute)
+        const physicsAttribute = engine.getPositions() as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
-        // Update the Three.js attribute
-        // We assume the topology hasn't changed, so we just copy values.
-        const posAttr = geometry.attributes.position;
-        (posAttr.array as Float32Array).set(positions);
-        posAttr.needsUpdate = true;
+        // Check if we need to bind the Zero-Copy buffer
+        // This happens on the first frame of simulation, or if WASM memory resized.
+        if (geometry.attributes.position !== physicsAttribute) {
+            geometry.setAttribute('position', physicsAttribute);
+
+            // CRITICAL: When swapping attributes, we must ensure the new one is flagged for upload
+            if (physicsAttribute instanceof THREE.InterleavedBufferAttribute) {
+                physicsAttribute.data.needsUpdate = true;
+            } else {
+                physicsAttribute.needsUpdate = true;
+            }
+        } else {
+            // If already bound, just flag for update
+            if (physicsAttribute instanceof THREE.InterleavedBufferAttribute) {
+                physicsAttribute.data.needsUpdate = true;
+            } else {
+                physicsAttribute.needsUpdate = true;
+            }
+        }
 
         // C. Recompute Normals
         // Necessary because the cloth deforms.
+        // Three.js computeVertexNormals supports InterleavedBufferAttribute.
         geometry.computeVertexNormals();
     });
 

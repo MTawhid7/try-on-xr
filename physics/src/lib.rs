@@ -47,8 +47,16 @@ impl PhysicsEngine {
         self.sim.step(dt);
     }
 
+    /// Returns a pointer to the positions buffer.
+    /// Layout: [x, y, z, w, x, y, z, w...] (Stride = 4 floats)
     pub fn get_positions_ptr(&self) -> *const f32 {
         self.sim.state.positions[0].as_ref().as_ptr()
+    }
+
+    /// Returns a pointer to the normals buffer.
+    /// Layout: [x, y, z, w, x, y, z, w...] (Stride = 4 floats)
+    pub fn get_normals_ptr(&self) -> *const f32 {
+        self.sim.state.normals[0].as_ref().as_ptr()
     }
 
     // --- Interaction Methods ---

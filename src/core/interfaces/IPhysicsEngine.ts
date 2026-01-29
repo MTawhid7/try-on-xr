@@ -6,14 +6,6 @@
 export interface IPhysicsEngine {
     /**
      * Initializes the physics engine with the necessary geometry data.
-     *
-     * @param garmentVerts - Flattened vertex positions of the cloth [x,y,z...]
-     * @param garmentIndices - Triangle indices of the cloth
-     * @param garmentUVs - Flattened UV coordinates [u,v...] (Required for Anisotropy)
-     * @param colliderVerts - Flattened vertex positions of the body collider
-     * @param colliderNormals - Flattened normals of the body collider
-     * @param colliderIndices - Triangle indices of the body collider
-     * @param scaleFactor - The sizing scale factor (e.g., 1.0 for M, 1.1 for L) used to tune stiffness
      */
     init(
         garmentVerts: Float32Array,
@@ -34,11 +26,11 @@ export interface IPhysicsEngine {
     /**
      * Returns a view into the memory buffer representing the current vertex positions.
      *
-     * WARNING: This view is typically Zero-Copy (a direct view into WASM memory).
-     * It may become invalid if the underlying memory is resized.
-     * Consumers should not hold references to this array across frames.
+     * NOTE: The return type is flexible (any) to allow implementations to return
+     * optimized rendering objects (like THREE.InterleavedBufferAttribute)
+     * instead of raw Float32Arrays, avoiding garbage collection overhead.
      */
-    getPositions(): Float32Array;
+    getPositions(): any;
 
     /**
      * Frees any unmanaged resources (e.g., WASM memory).
@@ -47,22 +39,9 @@ export interface IPhysicsEngine {
 
     // --- Interaction Methods ---
 
-    /**
-     * Initiates a grab interaction on a specific particle.
-     * @param index - The index of the vertex being grabbed.
-     * @param x - World X coordinate.
-     * @param y - World Y coordinate.
-     * @param z - World Z coordinate.
-     */
     startInteraction(index: number, x: number, y: number, z: number): void;
 
-    /**
-     * Updates the target position of the currently grabbed particle.
-     */
     updateInteraction(x: number, y: number, z: number): void;
 
-    /**
-     * Releases the currently grabbed particle.
-     */
     endInteraction(): void;
 }
