@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:physics": "cd physics && RUSTFLAGS='-C target-feature=+simd128 -C link-arg=--initial-memory=134217728' wasm-pack build --target web --out-dir ../src/physics-pkg && cd .."
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

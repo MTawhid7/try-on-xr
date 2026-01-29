@@ -23,13 +23,18 @@ pub struct CollisionResolver {
 }
 
 impl CollisionResolver {
-    pub fn new() -> Self {
+    pub fn new(particle_count: usize) -> Self {
+        // High-fidelity cloth can have many overlaps when crumpled.
+        // We reserve a large pool (100 candidates per particle) to
+        // absolutely prevent memory.grow during simulation.
+        let estimated_candidates = particle_count * 100;
+
         Self {
-            contacts: Vec::with_capacity(3000),
-            query_buffer: Vec::with_capacity(32),
-            candidate_indices: Vec::with_capacity(10000),
-            candidate_offsets: Vec::new(),
-            candidate_counts: Vec::new(),
+            contacts: Vec::with_capacity(particle_count),
+            query_buffer: Vec::with_capacity(256),
+            candidate_indices: Vec::with_capacity(estimated_candidates),
+            candidate_offsets: vec![0; particle_count],
+            candidate_counts: vec![0; particle_count],
         }
     }
 
@@ -44,11 +49,8 @@ impl CollisionResolver {
     pub fn resolve_contacts(&self, state: &mut PhysicsState, config: &PhysicsConfig, _dt: f32) {
         for contact in &self.contacts {
             let i = contact.particle_index;
-
-            // FIX: Truncate for calculation
             let pos_v4 = state.positions[i];
             let pos = pos_v4.truncate();
-
             let normal = contact.normal;
             let surface_point = contact.surface_point;
 
@@ -56,18 +58,12 @@ impl CollisionResolver {
             let projection = vec.dot(normal);
 
             if projection < config.contact_thickness {
-                // 1. Position Correction
                 let penetration = config.contact_thickness - projection;
                 let stiffness = if projection < 0.0 { 1.0 } else { config.collision_stiffness };
-
                 let correction = normal * penetration * stiffness;
-
-                // FIX: Apply as Vec4
                 state.positions[i] += Vec4::from((correction, 0.0));
 
-                // 2. Friction
                 let prev_v4 = state.prev_positions[i];
-                // Note: We use the *updated* position for velocity calculation
                 let current_pos_v3 = state.positions[i].truncate();
                 let prev_pos_v3 = prev_v4.truncate();
 
@@ -91,7 +87,6 @@ impl CollisionResolver {
                 let new_vt = vt * (1.0 - friction_factor);
                 let new_vn = if vn_mag < 0.0 { Vec3::ZERO } else { vn };
 
-                // FIX: Apply friction correction to prev_positions (Verlet damping)
                 let total_correction = new_vn + new_vt;
                 state.prev_positions[i] = state.positions[i] - Vec4::from((total_correction, 0.0));
             }

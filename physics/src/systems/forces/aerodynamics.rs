@@ -1,6 +1,6 @@
 // physics/src/system/forces/aerodynamics.rs
 
-use glam::Vec3; // Removed Vec4
+use glam::Vec3;
 use crate::engine::state::PhysicsState;
 use crate::engine::config::PhysicsConfig;
 
@@ -9,18 +9,16 @@ pub struct Aerodynamics {
 }
 
 impl Aerodynamics {
-    pub fn new() -> Self {
+    pub fn new(particle_count: usize) -> Self {
         Self {
-            force_buffer: Vec::new(),
+            // Eagerly allocate the entire buffer to prevent runtime resizing
+            force_buffer: vec![Vec3::ZERO; particle_count],
         }
     }
 
     pub fn apply(&mut self, state: &PhysicsState, config: &PhysicsConfig, dt: f32) -> &Vec<Vec3> {
-        if self.force_buffer.len() != state.count {
-            self.force_buffer.resize(state.count, Vec3::ZERO);
-        } else {
-            self.force_buffer.fill(Vec3::ZERO);
-        }
+        // Zero out the buffer using a fast fill instead of clearing/pushing
+        self.force_buffer.fill(Vec3::ZERO);
 
         let num_triangles = state.indices.len() / 3;
         for i in 0..num_triangles {
@@ -44,7 +42,6 @@ impl Aerodynamics {
 
             let edge1 = p1 - p0;
             let edge2 = p2 - p0;
-
             let cross = edge1.cross(edge2);
             let area_x2 = cross.length();
 

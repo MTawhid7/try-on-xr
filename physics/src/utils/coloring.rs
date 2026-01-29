@@ -1,87 +1,126 @@
 // physics/src/utils/coloring.rs
 
-/// Organizes constraints into batches where no two constraints in the same batch
-/// share a particle. This allows for safe parallel or unrolled execution.
-///
-/// Returns: (sorted_indices, batch_offsets)
-/// - sorted_indices: The original indices reordered by batch.
-/// - batch_offsets: The starting index of each batch.
+/// Organizes constraints into batches using a CSR (Compressed Sparse Row)
+/// adjacency structure. This is zero-allocation during the solve phase.
 pub fn color_constraints(
     constraints: &[[usize; 2]],
     particle_count: usize
 ) -> (Vec<usize>, Vec<usize>) {
-    let mut particle_last_batch = vec![-1isize; particle_count];
-    let mut batches: Vec<Vec<usize>> = Vec::new();
+    // 1. Build Adjacency (CSR Format)
+    let mut degree = vec![0usize; particle_count];
+    for &[p1, p2] in constraints {
+        degree[p1] += 1;
+        degree[p2] += 1;
+    }
 
+    let mut offset = vec![0usize; particle_count + 1];
+    for i in 0..particle_count {
+        offset[i + 1] = offset[i] + degree[i];
+    }
+
+    let mut adj = vec![0usize; offset[particle_count]];
+    let mut counter = offset.clone();
     for (i, &[p1, p2]) in constraints.iter().enumerate() {
-        // Find the earliest batch where both particles are free
-        let batch_idx_1 = particle_last_batch[p1];
-        let batch_idx_2 = particle_last_batch[p2];
+        adj[counter[p1]] = i;
+        counter[p1] += 1;
+        adj[counter[p2]] = i;
+        counter[p2] += 1;
+    }
 
-        let target_batch = (batch_idx_1.max(batch_idx_2) + 1) as usize;
+    // 2. Greedy Coloring with bitmask for speed
+    let mut constraint_colors: Vec<Option<usize>> = vec![None; constraints.len()];
+    let mut batch_indices: Vec<Vec<usize>> = Vec::new();
 
-        // Ensure the batch exists
-        if target_batch >= batches.len() {
-            batches.resize(target_batch + 1, Vec::new());
+    for i in 0..constraints.len() {
+        let [p1, p2] = constraints[i];
+        let mut used_colors = 0u64;
+
+        // Find used colors among neighbors
+        for &c_idx in &adj[offset[p1]..offset[p1+1]] {
+            if let Some(c) = constraint_colors[c_idx] {
+                // FIX: Explicitly use u64 literal for bitwise operation
+                used_colors |= 1u64 << c;
+            }
+        }
+        for &c_idx in &adj[offset[p2]..offset[p2+1]] {
+            if let Some(c) = constraint_colors[c_idx] {
+                // FIX: Explicitly use u64 literal for bitwise operation
+                used_colors |= 1u64 << c;
+            }
         }
 
-        // Assign constraint to batch
-        batches[target_batch].push(i);
+        // Find the first unset bit (the first available color)
+        let color = (!used_colors).trailing_zeros() as usize;
+        constraint_colors[i] = Some(color);
 
-        // Mark particles as busy in this batch
-        particle_last_batch[p1] = target_batch as isize;
-        particle_last_batch[p2] = target_batch as isize;
+        if color >= batch_indices.len() {
+            batch_indices.resize(color + 1, Vec::new());
+        }
+        batch_indices[color].push(i);
     }
 
-    // Flatten into a single list for cache locality
-    let mut sorted_indices = Vec::with_capacity(constraints.len());
-    let mut batch_offsets = Vec::new();
-    let mut current_offset = 0;
-
-    for batch in batches {
-        if batch.is_empty() { continue; }
-        batch_offsets.push(current_offset);
-        sorted_indices.extend_from_slice(&batch);
-        current_offset += batch.len();
-    }
-    // Push the final end index
-    batch_offsets.push(current_offset);
-
-    (sorted_indices, batch_offsets)
+    flatten_batches(batch_indices, constraints.len())
 }
 
-/// Overload for 3-particle constraints (Triangles/Area)
 pub fn color_constraints_3(
     constraints: &[[usize; 3]],
     particle_count: usize
 ) -> (Vec<usize>, Vec<usize>) {
-    let mut particle_last_batch = vec![-1isize; particle_count];
-    let mut batches: Vec<Vec<usize>> = Vec::new();
-
-    for (i, &[p1, p2, p3]) in constraints.iter().enumerate() {
-        let b1 = particle_last_batch[p1];
-        let b2 = particle_last_batch[p2];
-        let b3 = particle_last_batch[p3];
-
-        let target_batch = (b1.max(b2).max(b3) + 1) as usize;
-
-        if target_batch >= batches.len() {
-            batches.resize(target_batch + 1, Vec::new());
-        }
-
-        batches[target_batch].push(i);
-
-        particle_last_batch[p1] = target_batch as isize;
-        particle_last_batch[p2] = target_batch as isize;
-        particle_last_batch[p3] = target_batch as isize;
+    let mut degree = vec![0usize; particle_count];
+    for &[p1, p2, p3] in constraints {
+        degree[p1] += 1;
+        degree[p2] += 1;
+        degree[p3] += 1;
     }
 
-    let mut sorted_indices = Vec::with_capacity(constraints.len());
+    let mut offset = vec![0usize; particle_count + 1];
+    for i in 0..particle_count {
+        offset[i + 1] = offset[i] + degree[i];
+    }
+
+    let mut adj = vec![0usize; offset[particle_count]];
+    let mut counter = offset.clone();
+    for (i, &[p1, p2, p3]) in constraints.iter().enumerate() {
+        adj[counter[p1]] = i; counter[p1] += 1;
+        adj[counter[p2]] = i; counter[p2] += 1;
+        adj[counter[p3]] = i; counter[p3] += 1;
+    }
+
+    let mut constraint_colors: Vec<Option<usize>> = vec![None; constraints.len()];
+    let mut batch_indices: Vec<Vec<usize>> = Vec::new();
+
+    for i in 0..constraints.len() {
+        let [p1, p2, p3] = constraints[i];
+        let mut used_colors = 0u64;
+
+        for &c_idx in &adj[offset[p1]..offset[p1+1]] {
+            if let Some(c) = constraint_colors[c_idx] { used_colors |= 1u64 << c; }
+        }
+        for &c_idx in &adj[offset[p2]..offset[p2+1]] {
+            if let Some(c) = constraint_colors[c_idx] { used_colors |= 1u64 << c; }
+        }
+        for &c_idx in &adj[offset[p3]..offset[p3+1]] {
+            if let Some(c) = constraint_colors[c_idx] { used_colors |= 1u64 << c; }
+        }
+
+        let color = (!used_colors).trailing_zeros() as usize;
+        constraint_colors[i] = Some(color);
+
+        if color >= batch_indices.len() {
+            batch_indices.resize(color + 1, Vec::new());
+        }
+        batch_indices[color].push(i);
+    }
+
+    flatten_batches(batch_indices, constraints.len())
+}
+
+fn flatten_batches(batch_indices: Vec<Vec<usize>>, total_count: usize) -> (Vec<usize>, Vec<usize>) {
+    let mut sorted_indices = Vec::with_capacity(total_count);
     let mut batch_offsets = Vec::new();
     let mut current_offset = 0;
 
-    for batch in batches {
-        if batch.is_empty() { continue; }
+    for batch in batch_indices {
         batch_offsets.push(current_offset);
         sorted_indices.extend_from_slice(&batch);
         current_offset += batch.len();

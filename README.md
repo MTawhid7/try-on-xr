@@ -144,7 +144,7 @@ root/
     This compiles the Rust code to WebAssembly and generates the JS bindings in `src/physics-pkg`.
 
     ```bash
-    cd physics && wasm-pack build --target web --out-dir ../src/physics-pkg && cd ..
+    cd physics && RUSTFLAGS='-C target-feature=+simd128 -C link-arg=--initial-memory=134217728' wasm-pack build --target web --out-dir ../src/physics-pkg && cd ..
     ```
 
 4. **Run the Development Server:**

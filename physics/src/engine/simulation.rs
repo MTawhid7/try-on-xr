@@ -7,11 +7,8 @@ use crate::systems::forces::Aerodynamics;
 use crate::systems::constraints::MouseConstraint;
 
 pub struct Simulation {
-    // Data
     pub state: PhysicsState,
     pub config: PhysicsConfig,
-
-    // Subsystems
     pub collider: MeshCollider,
     pub resolver: CollisionResolver,
     pub solver: Solver,
@@ -32,6 +29,8 @@ impl Simulation {
         scale_factor: f32
     ) -> Self {
         let state = PhysicsState::new(&garment_pos, &garment_indices, &garment_uvs);
+        let particle_count = state.count; // Exact count
+
         let config = PhysicsConfig::default();
 
         let collider = MeshCollider::new(
@@ -42,9 +41,11 @@ impl Simulation {
             collider_inflation
         );
 
-        let resolver = CollisionResolver::new();
+        // Subsystems now initialized with fixed-size buffers
+        let resolver = CollisionResolver::new(particle_count);
+        let aerodynamics = Aerodynamics::new(particle_count);
+
         let solver = Solver::new(&state, scale_factor);
-        let aerodynamics = Aerodynamics::new();
         let mouse = MouseConstraint::new();
 
         Self {
@@ -59,29 +60,15 @@ impl Simulation {
     }
 
     pub fn step(&mut self, dt: f32) {
-        // Divide the frame time by the number of substeps for stability
         let sdt = dt / self.config.substeps as f32;
 
-        // 1. Broad Phase Collision Detection
-        // We do this once per frame as the body doesn't move fast enough to require substep checks.
         self.resolver.broad_phase(&self.state, &self.collider);
 
         for _ in 0..self.config.substeps {
-            // 2. Apply External Forces (Gravity + Wind + Drag/Lift)
             let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
-
-            // 3. Integrate (Verlet: Update Positions based on Forces)
             Integrator::integrate(&mut self.state, &self.config, forces, sdt);
-
-            // 4. Solve User Interaction (Mouse Drag)
             self.mouse.solve(&mut self.state, sdt);
-
-            // 5. Narrow Phase Collision Detection
-            // Checks precise triangle intersections for candidates found in Broad Phase.
             self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
-
-            // 6. Solve Constraints & Resolve Contacts
-            // This enforces cloth structure (Distance/Bending) and pushes particles out of the body.
             self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
         }
     }
