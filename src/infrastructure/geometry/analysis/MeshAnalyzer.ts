@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { OrientationDetector } from './orientation/OrientationDetector';
 import { SpineRegressor } from './SpineRegressor';
-import type { AnatomicalAnchors } from '../../../../core/entities/Geometry';
+import type { AnatomicalAnchors } from '../../../core/entities/Geometry';
 
 export class MeshAnalyzer {
     static analyzeBody(geometry: THREE.BufferGeometry): AnatomicalAnchors {

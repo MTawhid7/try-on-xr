@@ -53,7 +53,7 @@ export class ProxyGenerator {
             for (let i = 0; i < count; i++) srcIndices[i] = i;
         }
 
-        const srcTriangles = srcIndices.length / 3;
+
         let targetIndexCount = Math.floor(targetTriangles * 3);
         const requestedIndexCount = targetTriangles * 3;
 

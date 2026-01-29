@@ -20,27 +20,10 @@
 │       │   │   ├── mod.rs
 │       │   │   └── narrow.rs
 │       │   ├── self_collision.rs
-│       │   ├── spatial
-│       │   │   ├── dynamic.rs
-│       │   │   ├── mod.rs
-│       │   │   └── static_grid.rs
-│       │   └── spatial_hash
+│       │   └── spatial
 │       │       ├── dynamic.rs
 │       │       ├── mod.rs
 │       │       └── static_grid.rs
-│       ├── constraints
-│       │   ├── bending.rs
-│       │   ├── distance.rs
-│       │   ├── mod.rs
-│       │   ├── mouse.rs
-│       │   └── tether
-│       │       ├── horizontal.rs
-│       │       ├── mod.rs
-│       │       └── vertical.rs
-│       ├── dynamics
-│       │   ├── forces.rs
-│       │   ├── mod.rs
-│       │   └── solver.rs
 │       ├── engine
 │       │   ├── config.rs
 │       │   ├── mod.rs
@@ -61,9 +44,10 @@
 │       │   │   ├── integrator.rs
 │       │   │   ├── mod.rs
 │       │   │   └── solver.rs
-│       │   └── forces
-│       │       ├── aerodynamics.rs
-│       │       └── mod.rs
+│       │   ├── forces
+│       │   │   ├── aerodynamics.rs
+│       │   │   └── mod.rs
+│       │   └── mod.rs
 │       └── utils
 │           └── mod.rs
 ├── project-structure.txt
@@ -179,4 +163,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-51 directories, 129 files
+47 directories, 117 files

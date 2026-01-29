@@ -6,7 +6,7 @@ pub struct Triangle {
     pub v0: Vec3,
     pub v1: Vec3,
     pub v2: Vec3,
-    #[allow(dead_code)] // Useful for debugging, though not used in calculation
+    #[allow(dead_code)]
     pub index: usize,
 }
 
@@ -75,5 +75,48 @@ impl Triangle {
         let u = 1.0 - v - w;
 
         (self.v0 + ab * v + ac * w, [u, v, w])
+    }
+
+    /// Möller–Trumbore intersection algorithm.
+    /// Checks if the segment p1->p2 intersects the triangle.
+    /// Returns Some((intersection_point, normal, t)) if intersection occurs within [0, 1].
+    pub fn intersect_segment(&self, p1: Vec3, p2: Vec3) -> Option<(Vec3, Vec3, f32)> {
+        let epsilon = 1e-7;
+        let edge1 = self.v1 - self.v0;
+        let edge2 = self.v2 - self.v0;
+        let ray_vector = p2 - p1;
+        let h = ray_vector.cross(edge2);
+        let a = edge1.dot(h);
+
+        if a > -epsilon && a < epsilon {
+            return None; // Ray is parallel to triangle
+        }
+
+        let f = 1.0 / a;
+        let s = p1 - self.v0;
+        let u = f * s.dot(h);
+
+        if u < 0.0 || u > 1.0 {
+            return None;
+        }
+
+        let q = s.cross(edge1);
+        let v = f * ray_vector.dot(q);
+
+        if v < 0.0 || u + v > 1.0 {
+            return None;
+        }
+
+        let t = f * edge2.dot(q);
+
+        if t > epsilon && t < 1.0 {
+            let intersection_point = p1 + ray_vector * t;
+            let normal = edge1.cross(edge2).normalize();
+            // Ensure normal points against the ray
+            let final_normal = if normal.dot(ray_vector) < 0.0 { normal } else { -normal };
+            return Some((intersection_point, final_normal, t));
+        }
+
+        None
     }
 }

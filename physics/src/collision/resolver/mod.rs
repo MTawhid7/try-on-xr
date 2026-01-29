@@ -54,28 +54,26 @@ impl CollisionResolver {
             let vec = pos - surface_point;
             let projection = vec.dot(normal);
 
-            if projection < config.contact_thickness {
-                // 1. Back-Face Recovery
-                if projection < 0.0 {
-                    let prev = state.prev_positions[i];
-                    let velocity = state.positions[i] - prev;
-                    if velocity.dot(normal) < 0.0 {
-                        state.prev_positions[i] = state.positions[i];
-                    }
-                    if projection < -config.contact_thickness * 2.0 {
-                        let snap_correction = normal * (config.contact_thickness - projection);
-                        state.positions[i] += snap_correction;
-                        continue;
-                    }
-                }
+            // Robustness Check:
+            // If projection is deeply negative (tunneling), we still want to resolve it.
+            // The narrow phase ensures 'normal' points towards the outside.
 
-                // 2. Position Correction (Stiffness)
+            if projection < config.contact_thickness {
+
+                // 1. Position Correction
+                // We push the particle out to 'contact_thickness' distance.
                 let penetration = config.contact_thickness - projection;
+
+                // Stiffness:
+                // If deep penetration (tunneling), use max stiffness (1.0) to snap back immediately.
+                // Otherwise use configured stiffness for soft contact.
                 let stiffness = if projection < 0.0 { 1.0 } else { config.collision_stiffness };
+
                 let correction = normal * penetration * stiffness;
                 state.positions[i] += correction;
 
-                // 3. Friction
+                // 2. Friction
+                // Standard Coulomb friction model
                 let prev = state.prev_positions[i];
                 let velocity = state.positions[i] - prev;
                 let vn_mag = velocity.dot(normal);
@@ -86,7 +84,7 @@ impl CollisionResolver {
                 let mut friction_factor = 0.0;
                 if vt_len > 1e-9 {
                     if vt_len < penetration * config.static_friction {
-                        friction_factor = 1.0;
+                        friction_factor = 1.0; // Static friction (stick)
                     } else {
                         let max_slide = penetration * config.dynamic_friction;
                         friction_factor = max_slide / vt_len;
@@ -95,7 +93,11 @@ impl CollisionResolver {
                 }
 
                 let new_vt = vt * (1.0 - friction_factor);
+
+                // Restitution / Normal Damping
+                // If moving into the wall, kill normal velocity (inelastic collision)
                 let new_vn = if vn_mag < 0.0 { Vec3::ZERO } else { vn };
+
                 state.prev_positions[i] = state.positions[i] - (new_vn + new_vt);
             }
         }
