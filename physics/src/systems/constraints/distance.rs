@@ -33,37 +33,18 @@ impl DistanceConstraint {
             *edge_counts.entry(e3).or_insert(0) += 1;
         }
 
-        // 2. Determine Height Threshold for Collar
-        // We assume the top 10% of the mesh is the collar area.
-        let mut max_y = f32::MIN;
-        let mut min_y = f32::MAX;
-        for p in &state.positions {
-            if p.y > max_y { max_y = p.y; }
-            if p.y < min_y { min_y = p.y; }
-        }
-        let height = max_y - min_y;
-        let collar_threshold = max_y - (height * 0.10);
-
-        // 3. Build Constraints
-        for ((i1, i2), count) in edge_counts {
+        // 2. Build Constraints
+        for ((i1, i2), _count) in edge_counts {
             let p1 = state.positions[i1];
             let p2 = state.positions[i2];
             let dist = p1.distance(p2);
 
             constraints.push([i1, i2]);
 
-            // LOGIC: Collar Cinch
-            // If it's a Boundary Edge (count == 1) AND it's high up (Y > threshold),
-            // it is likely the neckline.
-            // We shrink its rest length to 80% to cinch it tight.
-            let is_boundary = count == 1;
-            let is_high = p1.y > collar_threshold && p2.y > collar_threshold;
-
-            if is_boundary && is_high {
-                rest_lengths.push(dist * 0.80);
-            } else {
-                rest_lengths.push(dist);
-            }
+            // FIX: Removed the "Collar Cinch" logic (dist * 0.80).
+            // We now trust the geometry exactly as it comes from the Grading Pipeline.
+            // If the shirt needs to be tighter, the Grading Pipeline should scale the vertices.
+            rest_lengths.push(dist);
 
             // Compliance: 0.0 (Rigid)
             compliances.push(0.0);

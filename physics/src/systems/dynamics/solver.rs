@@ -6,13 +6,15 @@ use crate::collision::CollisionResolver;
 use crate::systems::constraints::{
     DistanceConstraint,
     BendingConstraint,
-    TetherConstraint
+    TetherConstraint,
+    AreaConstraint
 };
 
 pub struct Solver {
     distance_constraint: DistanceConstraint,
     bending_constraint: BendingConstraint,
     tether_constraint: TetherConstraint,
+    area_constraint: AreaConstraint,
 }
 
 impl Solver {
@@ -20,17 +22,20 @@ impl Solver {
         let distance_constraint = DistanceConstraint::new(state);
 
         // Tune bending stiffness based on scale
-        // Larger shirts need to be stiffer to avoid looking like wet tissue paper.
         let base_compliance = 1.0;
         let tuned_compliance = base_compliance * (scale_factor * scale_factor);
 
         let bending_constraint = BendingConstraint::new(state, tuned_compliance);
         let tether_constraint = TetherConstraint::new(state);
 
+        // Initialize Area Constraint (Topology only)
+        let area_constraint = AreaConstraint::new(state);
+
         Self {
             distance_constraint,
             bending_constraint,
             tether_constraint,
+            area_constraint,
         }
     }
 
@@ -46,7 +51,12 @@ impl Solver {
             self.bending_constraint.solve(state, dt);
             self.tether_constraint.solve(state, dt);
 
-            // Resolve collisions last to prevent constraints pushing particles into the body
+            // Solve Area Conservation
+            // We pass the compliance from the config here.
+            // This allows the user to change the material stiffness at runtime.
+            self.area_constraint.solve(state, config.area_compliance, dt);
+
+            // Resolve collisions last
             resolver.resolve_contacts(state, config, dt);
         }
     }
