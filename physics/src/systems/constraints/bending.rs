@@ -12,7 +12,6 @@ pub struct BendingConstraint {
 }
 
 impl BendingConstraint {
-    // Renamed argument to 'compliance_factor' to be explicit
     pub fn new(state: &PhysicsState, compliance_factor: f32) -> Self {
         let mut raw_constraints = Vec::new();
         let mut raw_rest_lengths = Vec::new();
@@ -56,10 +55,10 @@ impl BendingConstraint {
                     let dv = (uv1.y - uv2.y).abs();
                     let is_axis_aligned = du > 2.0 * dv || dv > 2.0 * du;
 
-                    // FIX: Use compliance_factor to scale the base values.
-                    // Base values stiffened: 0.5 -> 0.1 (Cotton/Denim feel)
+                    // SOFTENED: 0.5 allows the cloth to fold.
+                    // Previous 0.1 was too stiff for low-poly meshes.
                     if is_axis_aligned {
-                        raw_compliances.push(0.1 * compliance_factor);
+                        raw_compliances.push(0.5 * compliance_factor);
                     } else {
                         raw_compliances.push(1.0 * compliance_factor);
                     }

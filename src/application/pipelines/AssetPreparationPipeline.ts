@@ -54,24 +54,45 @@ export class AssetPreparationPipeline {
         AutoAligner.alignBody(rawBodyMesh.geometry);
         AutoAligner.alignGarmentToBody(shirtMesh.geometry, rawBodyMesh.geometry);
 
-        // (Optional) Log Body Measurements
+        // Log Body Measurements
         const chestCm = BodyMeasurer.getChestCircumference(rawBodyMesh);
         console.log(`[AssetPipeline] Mannequin Analysis: Height 1.75m, Chest ${chestCm.toFixed(1)}cm`);
 
         // 7. Physics Proxy Generation
         // Decimates high-poly meshes to optimized counts for physics
         console.log("[AssetPipeline] Generating Physics Proxies...");
+
+        // A. Body Collider
         const colliderProcessed = await ProxyGenerator.generateCollider(rawBodyMesh);
-        const garmentProxy = await ProxyGenerator.generateGarment(shirtMesh);
+
+        // B. Garment Proxy
+        // Step 1: Smart Weld the High-Poly mesh to close seams.
+        // We use a 1.25cm (0.0125) threshold. This is tight enough to preserve folds/shape
+        // but wide enough to close standard UV seams, preventing the "Confetti" effect.
+        const weldedGarmentGeo = GeometryProcessor.smartWeld(shirtMesh.geometry, 0.0125);
+        const weldedGarmentMesh = new THREE.Mesh(weldedGarmentGeo);
+
+        // Step 2: Decimate the Welded Mesh
+        // The decimator now sees a continuous hull, so it won't split the seams.
+        const garmentProxy = await ProxyGenerator.generateGarment(weldedGarmentMesh);
 
         // 8. Final Geometry Processing
         // Prepares the garment for simulation (Welding, Tangents, UVs)
-        const garmentMeshForWelding = new THREE.Mesh(new THREE.BufferGeometry());
-        garmentMeshForWelding.geometry.setAttribute('position', new THREE.BufferAttribute(garmentProxy.vertices, 3));
-        garmentMeshForWelding.geometry.setIndex(new THREE.BufferAttribute(garmentProxy.indices, 1));
+        const garmentMeshForProcessing = new THREE.Mesh(new THREE.BufferGeometry());
+        garmentMeshForProcessing.geometry.setAttribute('position', new THREE.BufferAttribute(garmentProxy.vertices, 3));
+        garmentMeshForProcessing.geometry.setIndex(new THREE.BufferAttribute(garmentProxy.indices, 1));
 
-        // Process with weld threshold to fix detached collars/hems
-        const garmentFinal = GeometryProcessor.process(garmentMeshForWelding, GEOMETRY_WELD_THRESHOLD);
+        // Ensure source has normals for the smart recovery
+        shirtMesh.geometry.computeVertexNormals();
+
+        // Step 3: Process & Recover UVs
+        // We pass 'shirtMesh.geometry' (Original High-Poly) as the reference to recover UVs
+        // that were lost during the pre-weld step.
+        const garmentFinal = GeometryProcessor.process(
+            garmentMeshForProcessing,
+            GEOMETRY_WELD_THRESHOLD, // Keep final cleanup weld tight (2cm default)
+            shirtMesh.geometry
+        );
 
         // Restore UVs if they exist (needed for textures)
         if (garmentProxy.uvs.length > 0 && garmentFinal.vertices.length === garmentProxy.vertices.length) {
