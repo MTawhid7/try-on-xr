@@ -7,57 +7,48 @@ pub struct PhysicsConfig {
     // --- Simulation Quality ---
     pub substeps: usize,
     pub solver_iterations: usize,
-
-    // --- Global Forces ---
+    pub spectral_radius: f32, // Chebyshev
     pub gravity: Vec3,
     pub wind: Vec3,
-
+    pub damping: f32,
     // --- Material Properties ---
-    pub drag_coeff: f32,      // Air resistance (Perpendicular)
-    pub lift_coeff: f32,      // Air resistance (Parallel)
 
-    #[allow(dead_code)]       // Placeholder for future mass calculation
+    pub drag_coeff: f32,
+    pub lift_coeff: f32,
+    #[allow(dead_code)]
     pub density: f32,
-
-    // Compliance (Inverse Stiffness)
     pub area_compliance: f32,
-
-    // --- Collision Settings ---
-    pub contact_thickness: f32, // Distance to trigger collision (padding)
+    pub contact_thickness: f32,
     pub static_friction: f32,
     pub dynamic_friction: f32,
-    pub collision_stiffness: f32, // 0.0 to 1.0 (How hard the surface is)
+    pub collision_stiffness: f32,
 }
 
 impl PhysicsConfig {
     pub fn default() -> Self {
         Self {
-            // Quality
             substeps: 8,
-            solver_iterations: 25,
+            solver_iterations: 15,
 
-            // Forces
+            // Reduced to 0.90 to prevent "over-drive" noise (micro-crumples)
+            spectral_radius: 0.90,
+
             gravity: Vec3::new(0.0, -9.81, 0.0),
             wind: Vec3::new(0.0, 0.0, 0.0),
+            damping: 0.99,
 
-            // Material (Cotton-like)
             drag_coeff: 2.0,
             lift_coeff: 0.05,
             density: 1.0,
 
-            // Area Compliance:
-            // Changed from 0.0 to 1e-6.
-            // This provides "effectively rigid" behavior while preventing
-            // numerical explosions if the mesh starts in a slightly invalid state.
-            area_compliance: 1e-6,
+            // RELAXED: Changed from 1e-6 to 1e-4.
+            // This allows slight shearing, preventing the "buckling" artifacts
+            // while still maintaining the overall surface area.
+            area_compliance: 1.0e-4,
 
-            // Collision
-            // 5mm thickness + 2mm visual inflation = ~7mm gap
             contact_thickness: 0.005,
             static_friction: 0.3,
             dynamic_friction: 0.2,
-
-            // Response
             collision_stiffness: 0.9,
         }
     }

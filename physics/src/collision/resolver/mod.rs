@@ -24,11 +24,7 @@ pub struct CollisionResolver {
 
 impl CollisionResolver {
     pub fn new(particle_count: usize) -> Self {
-        // High-fidelity cloth can have many overlaps when crumpled.
-        // We reserve a large pool (100 candidates per particle) to
-        // absolutely prevent memory.grow during simulation.
         let estimated_candidates = particle_count * 100;
-
         Self {
             contacts: Vec::with_capacity(particle_count),
             query_buffer: Vec::with_capacity(256),
@@ -46,6 +42,7 @@ impl CollisionResolver {
         narrow::perform_narrow_phase(self, state, collider, config, dt);
     }
 
+    // FIX: Removed 'omega' parameter. Collisions are NOT accelerated.
     pub fn resolve_contacts(&self, state: &mut PhysicsState, config: &PhysicsConfig, _dt: f32) {
         for contact in &self.contacts {
             let i = contact.particle_index;
@@ -60,7 +57,9 @@ impl CollisionResolver {
             if projection < config.contact_thickness {
                 let penetration = config.contact_thickness - projection;
                 let stiffness = if projection < 0.0 { 1.0 } else { config.collision_stiffness };
-                let correction = normal * penetration * stiffness;
+
+                // FIX: No omega multiplication here.
+                let correction = normal * (penetration * stiffness);
                 state.positions[i] += Vec4::from((correction, 0.0));
 
                 let prev_v4 = state.prev_positions[i];

@@ -1,21 +1,23 @@
 // physics/src/systems/constraints/bending.rs
 
 use crate::engine::state::PhysicsState;
+use crate::utils::coloring;
 use std::collections::HashSet;
 
 pub struct BendingConstraint {
     pub constraints: Vec<[usize; 2]>,
     pub rest_lengths: Vec<f32>,
     pub compliances: Vec<f32>,
+    pub batch_offsets: Vec<usize>,
 }
 
 impl BendingConstraint {
-    pub fn new(state: &PhysicsState, _default_compliance: f32) -> Self {
-        let mut constraints = Vec::new();
-        let mut rest_lengths = Vec::new();
-        let mut compliances = Vec::new();
+    // Renamed argument to 'compliance_factor' to be explicit
+    pub fn new(state: &PhysicsState, compliance_factor: f32) -> Self {
+        let mut raw_constraints = Vec::new();
+        let mut raw_rest_lengths = Vec::new();
+        let mut raw_compliances = Vec::new();
 
-        // 1. Build Adjacency
         let mut adj = vec![HashSet::new(); state.count];
         let num_triangles = state.indices.len() / 3;
 
@@ -29,7 +31,6 @@ impl BendingConstraint {
             adj[idx2].insert(idx0); adj[idx2].insert(idx1);
         }
 
-        // 2. Build Constraints (2-ring neighbors)
         let mut processed = HashSet::new();
 
         for i in 0..state.count {
@@ -45,63 +46,77 @@ impl BendingConstraint {
                     let p1 = state.positions[i];
                     let p2 = state.positions[far_neighbor];
 
-                    constraints.push([i, far_neighbor]);
-                    rest_lengths.push(p1.distance(p2));
+                    raw_constraints.push([i, far_neighbor]);
+                    raw_rest_lengths.push(p1.distance(p2));
 
-                    // --- ANISOTROPIC LOGIC ---
                     let uv1 = state.uvs[i];
                     let uv2 = state.uvs[far_neighbor];
 
                     let du = (uv1.x - uv2.x).abs();
                     let dv = (uv1.y - uv2.y).abs();
-
-                    // Check alignment
-                    // If du is much larger than dv, it's U-aligned (Horizontal)
-                    // If dv is much larger than du, it's V-aligned (Vertical)
                     let is_axis_aligned = du > 2.0 * dv || dv > 2.0 * du;
 
+                    // FIX: Use compliance_factor to scale the base values.
+                    // Base values stiffened: 0.5 -> 0.1 (Cotton/Denim feel)
                     if is_axis_aligned {
-                        // Warp/Weft: Stiff (Cotton)
-                        compliances.push(0.5);
+                        raw_compliances.push(0.1 * compliance_factor);
                     } else {
-                        // Bias (Diagonal): Soft (Stretch)
-                        // This allows the fabric to drape naturally over curves
-                        compliances.push(2.0);
+                        raw_compliances.push(1.0 * compliance_factor);
                     }
                 }
             }
+        }
+
+        let (sorted_indices, batch_offsets) = coloring::color_constraints(&raw_constraints, state.count);
+
+        let mut constraints = Vec::with_capacity(raw_constraints.len());
+        let mut rest_lengths = Vec::with_capacity(raw_constraints.len());
+        let mut compliances = Vec::with_capacity(raw_constraints.len());
+
+        for idx in sorted_indices {
+            constraints.push(raw_constraints[idx]);
+            rest_lengths.push(raw_rest_lengths[idx]);
+            compliances.push(raw_compliances[idx]);
         }
 
         Self {
             constraints,
             rest_lengths,
             compliances,
+            batch_offsets,
         }
     }
 
-    pub fn solve(&self, state: &mut PhysicsState, dt: f32) {
-        for k in 0..self.constraints.len() {
-            let [i1, i2] = self.constraints[k];
-            let w1 = state.inv_mass[i1];
-            let w2 = state.inv_mass[i2];
-            let w_sum = w1 + w2;
-            if w_sum == 0.0 { continue; }
+    pub fn solve(&self, state: &mut PhysicsState, omega: f32, dt: f32) {
+        for b in 0..(self.batch_offsets.len() - 1) {
+            let start = self.batch_offsets[b];
+            let end = self.batch_offsets[b + 1];
 
-            let alpha = self.compliances[k] / (dt * dt);
+            for k in start..end {
+                let [i1, i2] = self.constraints[k];
+                let w1 = state.inv_mass[i1];
+                let w2 = state.inv_mass[i2];
+                let w_sum = w1 + w2;
+                if w_sum == 0.0 { continue; }
 
-            let p1 = state.positions[i1];
-            let p2 = state.positions[i2];
-            let delta = p1 - p2;
-            let len = delta.length();
-            if len < 1e-6 { continue; }
+                let alpha = self.compliances[k] / (dt * dt);
+                let p1 = state.positions[i1];
+                let p2 = state.positions[i2];
+                let delta = p1 - p2;
+                let len = delta.length();
+                if len < 1e-6 { continue; }
 
-            let rest = self.rest_lengths[k];
-            let c = len - rest;
-            let correction_scalar = -c / (w_sum + alpha);
-            let correction_vector = (delta / len) * correction_scalar;
+                let rest = self.rest_lengths[k];
+                let c = len - rest;
 
-            if w1 > 0.0 { state.positions[i1] += correction_vector * w1; }
-            if w2 > 0.0 { state.positions[i2] -= correction_vector * w2; }
+                let delta_lambda = -c / (w_sum + alpha);
+                let correction_vector = (delta / len) * delta_lambda;
+
+                let accelerated_correction = correction_vector * omega;
+
+                if w1 > 0.0 { state.positions[i1] += accelerated_correction * w1; }
+                if w2 > 0.0 { state.positions[i2] -= accelerated_correction * w2; }
+            }
         }
     }
 }

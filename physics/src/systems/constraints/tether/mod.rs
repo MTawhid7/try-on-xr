@@ -14,7 +14,6 @@ pub struct TetherConstraint {
 
 impl TetherConstraint {
     pub fn new(state: &PhysicsState) -> Self {
-        // Generate both types of tethers
         let (v_constraints, v_lengths) = vertical::generate(state);
         let (h_constraints, h_lengths) = horizontal::generate(state);
 
@@ -24,7 +23,6 @@ impl TetherConstraint {
         let mut raw_rest_lengths = v_lengths;
         raw_rest_lengths.extend(h_lengths);
 
-        // --- GRAPH COLORING ---
         let (sorted_indices, batch_offsets) = coloring::color_constraints(&raw_constraints, state.count);
 
         let mut constraints = Vec::with_capacity(raw_constraints.len());
@@ -42,8 +40,8 @@ impl TetherConstraint {
         }
     }
 
-    pub fn solve(&self, state: &mut PhysicsState, _dt: f32) {
-        let alpha = 0.0; // Rigid tether
+    pub fn solve(&self, state: &mut PhysicsState, omega: f32, _dt: f32) {
+        let alpha = 0.0;
 
         for b in 0..(self.batch_offsets.len() - 1) {
             let start = self.batch_offsets[b];
@@ -60,20 +58,21 @@ impl TetherConstraint {
                 let p2 = state.positions[i2];
                 let delta = p1 - p2;
                 let len = delta.length();
-
                 if len < 1e-6 { continue; }
 
                 let rest = self.rest_lengths[k];
-
-                // UNILATERAL CHECK: Only correct if stretched
                 if len <= rest { continue; }
 
                 let c = len - rest;
-                let correction_scalar = -c / (w_sum + alpha);
-                let correction_vector = (delta / len) * correction_scalar;
 
-                if w1 > 0.0 { state.positions[i1] += correction_vector * w1; }
-                if w2 > 0.0 { state.positions[i2] -= correction_vector * w2; }
+                let delta_lambda = -c / (w_sum + alpha);
+                let correction_vector = (delta / len) * delta_lambda;
+
+                // Chebyshev
+                let accelerated_correction = correction_vector * omega;
+
+                if w1 > 0.0 { state.positions[i1] += accelerated_correction * w1; }
+                if w2 > 0.0 { state.positions[i2] -= accelerated_correction * w2; }
             }
         }
     }

@@ -3,7 +3,6 @@
 use crate::engine::state::PhysicsState;
 use crate::utils::coloring;
 use std::collections::HashMap;
-// Removed unused import: use glam::Vec4;
 
 pub struct DistanceConstraint {
     pub constraints: Vec<[usize; 2]>,
@@ -65,7 +64,7 @@ impl DistanceConstraint {
         }
     }
 
-    pub fn solve(&self, state: &mut PhysicsState, dt: f32) {
+    pub fn solve(&self, state: &mut PhysicsState, omega: f32, dt: f32) {
         for b in 0..(self.batch_offsets.len() - 1) {
             let start = self.batch_offsets[b];
             let end = self.batch_offsets[b + 1];
@@ -75,7 +74,6 @@ impl DistanceConstraint {
                 let w1 = state.inv_mass[i1];
                 let w2 = state.inv_mass[i2];
                 let w_sum = w1 + w2;
-
                 if w_sum == 0.0 { continue; }
 
                 let alpha = self.compliances[k] / (dt * dt);
@@ -84,16 +82,24 @@ impl DistanceConstraint {
                 let p2 = state.positions[i2];
                 let delta = p1 - p2;
                 let len = delta.length();
-
                 if len < 1e-6 { continue; }
 
                 let rest = self.rest_lengths[k];
                 let c = len - rest;
-                let correction_scalar = -c / (w_sum + alpha);
-                let correction_vector = (delta / len) * correction_scalar;
 
-                if w1 > 0.0 { state.positions[i1] += correction_vector * w1; }
-                if w2 > 0.0 { state.positions[i2] -= correction_vector * w2; }
+                let delta_lambda = -c / (w_sum + alpha);
+                let correction_vector = (delta / len) * delta_lambda;
+
+                // Chebyshev Acceleration: Scale correction by omega
+                let accelerated_correction = correction_vector * omega;
+
+                // FIX: accelerated_correction is already Vec4, so we add it directly.
+                if w1 > 0.0 {
+                    state.positions[i1] += accelerated_correction * w1;
+                }
+                if w2 > 0.0 {
+                    state.positions[i2] -= accelerated_correction * w2;
+                }
             }
         }
     }

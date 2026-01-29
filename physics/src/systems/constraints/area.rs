@@ -21,15 +21,12 @@ impl AreaConstraint {
             let idx1 = state.indices[i * 3 + 1] as usize;
             let idx2 = state.indices[i * 3 + 2] as usize;
 
-            // Vec4 Math
             let p0 = state.positions[idx0];
             let p1 = state.positions[idx1];
             let p2 = state.positions[idx2];
 
             let u = p1 - p0;
             let v = p2 - p0;
-            // Cross product of Vec4 returns Vec3-like behavior in first 3 components
-            // glam::Vec3::cross equivalent for Vec4 ignores w
             let u3 = u.truncate();
             let v3 = v.truncate();
             let cross = u3.cross(v3);
@@ -41,7 +38,6 @@ impl AreaConstraint {
             }
         }
 
-        // --- GRAPH COLORING ---
         let (sorted_indices, batch_offsets) = coloring::color_constraints_3(&raw_indices, state.count);
 
         let mut indices = Vec::with_capacity(raw_indices.len());
@@ -59,7 +55,7 @@ impl AreaConstraint {
         }
     }
 
-    pub fn solve(&self, state: &mut PhysicsState, compliance: f32, dt: f32) {
+    pub fn solve(&self, state: &mut PhysicsState, compliance: f32, omega: f32, dt: f32) {
         let alpha = compliance / (dt * dt);
 
         for b in 0..(self.batch_offsets.len() - 1) {
@@ -72,7 +68,6 @@ impl AreaConstraint {
                 let w0 = state.inv_mass[i0];
                 let w1 = state.inv_mass[i1];
                 let w2 = state.inv_mass[i2];
-
                 let w_sum = w0 + w1 + w2;
                 if w_sum == 0.0 { continue; }
 
@@ -80,11 +75,8 @@ impl AreaConstraint {
                 let p1 = state.positions[i1];
                 let p2 = state.positions[i2];
 
-                // Area Calculation
                 let u = p1 - p0;
                 let v = p2 - p0;
-
-                // We must truncate for cross product as it's strictly a 3D operation
                 let u3 = u.truncate();
                 let v3 = v.truncate();
                 let cross = u3.cross(v3);
@@ -110,10 +102,12 @@ impl AreaConstraint {
 
                 let delta_lambda = -c / (denom + alpha);
 
-                // Apply back to Vec4
-                if w0 > 0.0 { state.positions[i0] += Vec4::from((grad0 * (delta_lambda * w0), 0.0)); }
-                if w1 > 0.0 { state.positions[i1] += Vec4::from((grad1 * (delta_lambda * w1), 0.0)); }
-                if w2 > 0.0 { state.positions[i2] += Vec4::from((grad2 * (delta_lambda * w2), 0.0)); }
+                // Chebyshev Scaling
+                let lambda_omega = delta_lambda * omega;
+
+                if w0 > 0.0 { state.positions[i0] += Vec4::from((grad0 * (lambda_omega * w0), 0.0)); }
+                if w1 > 0.0 { state.positions[i1] += Vec4::from((grad1 * (lambda_omega * w1), 0.0)); }
+                if w2 > 0.0 { state.positions[i2] += Vec4::from((grad2 * (lambda_omega * w2), 0.0)); }
             }
         }
     }

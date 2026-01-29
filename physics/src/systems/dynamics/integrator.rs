@@ -17,22 +17,15 @@ impl Integrator {
         let gravity = Vec4::from((config.gravity, 0.0));
         let count = state.count;
 
-        // Process in chunks of 4 for explicit vectorization hints
         let mut i = 0;
         while i + 4 <= count {
-            // We can't easily use slice iterators here because we need to access multiple arrays
-            // (positions, prev_positions, inv_mass, external_forces)
-            // So we unroll manually.
-
             Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i);
             Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+1);
             Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+2);
             Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+3);
-
             i += 4;
         }
 
-        // Handle remainder
         while i < count {
             Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i);
             i += 1;
@@ -42,7 +35,7 @@ impl Integrator {
     #[inline(always)]
     fn integrate_particle(
         state: &mut PhysicsState,
-        _config: &PhysicsConfig,
+        config: &PhysicsConfig,
         external_forces: &[Vec3],
         dt: f32,
         dt_sq: f32,
@@ -57,7 +50,10 @@ impl Integrator {
         let f_aero = Vec4::from((external_forces[i], 0.0));
         let acceleration = gravity + (f_aero * state.inv_mass[i]);
 
-        let velocity_term = pos - prev;
+        // FIX: Apply Damping
+        // velocity = (pos - prev) * damping
+        let velocity_term = (pos - prev) * config.damping;
+
         let next_pos = pos + velocity_term + acceleration * dt_sq;
 
         state.prev_positions[i] = pos;
