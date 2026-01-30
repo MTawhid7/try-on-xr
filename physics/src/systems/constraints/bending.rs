@@ -4,6 +4,9 @@ use crate::engine::state::PhysicsState;
 use crate::utils::coloring;
 use std::collections::HashSet;
 
+/// Enforces dihedral angle preservation (Bend Resistance).
+/// Connects vertices that are two edges apart (bends).
+/// Uses limits and reduced compliance for "folding" behavior along anatomical creases.
 pub struct BendingConstraint {
     pub constraints: Vec<[usize; 2]>,
     pub rest_lengths: Vec<f32>,
@@ -12,6 +15,7 @@ pub struct BendingConstraint {
 }
 
 impl BendingConstraint {
+    /// Identifies bending pairs (neighbors of neighbors) and initializes constraints.
     pub fn new(state: &PhysicsState, compliance_factor: f32) -> Self {
         let mut raw_constraints = Vec::new();
         let mut raw_rest_lengths = Vec::new();
@@ -86,6 +90,10 @@ impl BendingConstraint {
         }
     }
 
+    /// Solves bending constraints between two non-adjacent particles.
+    /// 1. Checks current distance vs rest distance for the "bending edge".
+    /// 2. Applies correction using `compliance` (stiffness) and `dt`.
+    /// 3. Standard XPBD limits are applied.
     pub fn solve(&self, state: &mut PhysicsState, omega: f32, dt: f32) {
         for b in 0..(self.batch_offsets.len() - 1) {
             let start = self.batch_offsets[b];

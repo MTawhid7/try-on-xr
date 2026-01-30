@@ -6,6 +6,9 @@ use crate::collision::collider::MeshCollider;
 use super::{CollisionResolver, Contact};
 use glam::{Vec3, Vec4};
 
+/// Executes the Narrow Phase of collision detection.
+/// Performs precise geometric tests (Point-Triangle) on candidates found in the Broad Phase.
+/// Supports both Continuous (CCD) and Discrete collision detection.
 pub fn perform_narrow_phase(
     resolver: &mut CollisionResolver,
     state: &mut PhysicsState,

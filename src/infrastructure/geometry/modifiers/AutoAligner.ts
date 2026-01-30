@@ -3,6 +3,11 @@
 import * as THREE from 'three';
 import { MeshAnalyzer } from '../analysis/MeshAnalyzer';
 
+/**
+ * Automatically aligns geometry to a standardized coordinate system.
+ * Ensures that imported meshes (Body and Garment) are correctly positioned relative to each other
+ * and the world origin (0,0,0) before simulation starts.
+ */
 export class AutoAligner {
     /**
      * Centers the body mesh on (0,0,0) and places the feet on the ground (Y=0).

@@ -3,6 +3,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+/**
+ * Infrastructure service for loading GLTF/GLB files.
+ * Provides functionality to extract meshes from scenes and bake transforms.
+ */
 export class MeshLoader {
     private loader: GLTFLoader;
 

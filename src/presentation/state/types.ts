@@ -5,6 +5,10 @@ import type { IPhysicsEngine } from '../../core/interfaces/IPhysicsEngine';
 import type { SimulationAssets } from '../../core/entities/Assets';
 import type { ShirtSize } from '../../core/entities/Garment';
 
+/**
+ * The single source of truth for the application state.
+ * Combines Data, Flags, and Actions into one cohesive Store interface.
+ */
 export interface SimulationState {
     // --- Data ---
     engine: IPhysicsEngine | null;

@@ -10,6 +10,8 @@ use crate::systems::constraints::{
     AreaConstraint
 };
 
+/// The XPBD (Extended Position Based Dynamics) Solver.
+/// Manages and solves all internal constraints of the cloth system.
 pub struct Solver {
     distance_constraint: DistanceConstraint,
     bending_constraint: BendingConstraint,
@@ -34,6 +36,11 @@ impl Solver {
         }
     }
 
+    /// Main simulation loop iteration.
+    /// Uses "Sub-stepping" with Chebyshev acceleration (Omega) for faster convergence.
+    /// - Iterates `config.solver_iterations` times.
+    /// - Adjusts `omega` dynamically for stability.
+    /// - Resolves constraints and collisions in order.
     pub fn solve(
         &self,
         state: &mut PhysicsState,

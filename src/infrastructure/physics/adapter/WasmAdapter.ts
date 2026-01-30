@@ -8,6 +8,10 @@ import {
     COLLIDER_SMOOTHING_ITERATIONS
 } from '../../../core/constants/SimulationConstants';
 
+/**
+ * Adapter class that helps React/TS communicate with the Rust/WASM physics engine.
+ * Handles memory management, type conversion, and efficient data transfer.
+ */
 export class WasmAdapter implements IPhysicsEngine {
     private engine: PhysicsEngine | null = null;
     private wasmMemory: WebAssembly.Memory | null = null;
@@ -48,6 +52,10 @@ export class WasmAdapter implements IPhysicsEngine {
         console.log(`[WasmAdapter] Initialized. Vertices: ${this.vertexCount} (Aligned Vec4)`);
     }
 
+    /**
+     * Steps the physics simulation forward by dt seconds.
+     * @param dt - The time step delta in seconds.
+     */
     step(dt: number): void {
         if (!this.engine) return;
         this.engine.step(dt);

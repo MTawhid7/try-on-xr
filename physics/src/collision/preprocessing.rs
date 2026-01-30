@@ -1,11 +1,18 @@
 // physics/src/collision/preprocessing.rs
 use glam::Vec3;
 
+/// A mesh that has been pre-processed for physics collision (smoothed, inflated, etc).
 pub struct ProcessedMesh {
     pub vertices: Vec<Vec3>,
     pub normals: Vec<Vec3>,
 }
 
+/// Prepares a raw mesh for use as a collider.
+/// Steps:
+/// 1. Converts flat float buffers to Vec3.
+/// 2. Performs Laplacian Smoothing to remove sharp edges that snag cloth.
+/// 3. Computes Face Normals (flat shading style for accurate collisions).
+/// 4. Inflates the mesh to create a "safety buffer".
 pub fn process_mesh(
     raw_vertices: &[f32],
     indices: &[u32],

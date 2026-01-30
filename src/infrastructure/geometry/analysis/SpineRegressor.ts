@@ -10,6 +10,14 @@ export interface SpineData {
 }
 
 export class SpineRegressor {
+    /**
+     * Estimates the spine position using linear regression on torso slices.
+     * This provides a robust "Center Line" for the body, independent of arm position or pose.
+     *
+     * @param geometry - The body geometry.
+     * @param minY - The logical minimum Y (feet/bottom).
+     * @param height - The total logic height.
+     */
     static analyze(
         geometry: THREE.BufferGeometry,
         minY: number,

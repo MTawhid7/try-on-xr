@@ -12,6 +12,10 @@ export interface UpdateResult {
     scaledVertices: Float32Array;
 }
 
+/**
+ * Use Case: Updates the garment size during an active session.
+ * Re-runs the grading pipeline and re-initializes the physics engine with the new mesh data.
+ */
 export class UpdateGarmentSize {
     /**
      * Resizes the garment and re-initializes the physics engine.

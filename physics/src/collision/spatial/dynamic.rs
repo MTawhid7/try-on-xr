@@ -3,6 +3,9 @@
 use glam::Vec3;
 use std::collections::HashMap;
 
+/// A sparse hash map-based spatial grid.
+/// Used for moving objects or scenarios where the bounds are not known ahead of time.
+/// Slightly slower than `StaticSpatialHash` but infinite in extent.
 pub struct DynamicSpatialHash {
     cell_size: f32,
     grid: HashMap<(i32, i32, i32), Vec<usize>>,
@@ -30,6 +33,8 @@ impl DynamicSpatialHash {
         )
     }
 
+    /// Inserts a particle index into the spatial entity.
+    /// The key is derived from the floor of the position divided by cell size.
     pub fn insert_point(&mut self, id: usize, p: Vec3) {
         let cell = self.get_cell(p);
         self.grid
@@ -38,6 +43,8 @@ impl DynamicSpatialHash {
             .push(id);
     }
 
+    /// Finds all particles within the given radius of a point.
+    /// Queries the cell containing the point and all immediate neighbors (3x3x3 block).
     pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
         buffer.clear();
         let min = p - Vec3::splat(radius);

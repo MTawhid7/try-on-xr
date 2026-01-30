@@ -4,6 +4,8 @@ use glam::Vec3;
 use crate::engine::state::PhysicsState;
 use crate::engine::config::PhysicsConfig;
 
+/// Calculates aerodynamic forces (Lift and Drag) acting on the garment.
+/// Uses a simplified triangle-based model assuming a uniform wind vector.
 pub struct Aerodynamics {
     force_buffer: Vec<Vec3>,
 }
@@ -16,6 +18,10 @@ impl Aerodynamics {
         }
     }
 
+    /// Computes lift and drag for every triangle and distributes the force to vertices.
+    /// - Uses the relative velocity between the wind and the triangle's surface.
+    /// - `Drag`: Resistance parallel to airflow.
+    /// - `Lift`: Force perpendicular to airflow (Bernoulli principle).
     pub fn apply(&mut self, state: &PhysicsState, config: &PhysicsConfig, dt: f32) -> &Vec<Vec3> {
         // Zero out the buffer using a fast fill instead of clearing/pushing
         self.force_buffer.fill(Vec3::ZERO);

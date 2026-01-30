@@ -2,9 +2,13 @@
 
 import * as THREE from 'three';
 
+/**
+ * Helper functions for validating and manipulating geometry during analysis.
+ */
 export class ValidationUtils {
     /**
-     * Rotates geometry around its center.
+     * Rotates geometry around its center point.
+     * Useful for correcting orientation issues.
      */
     static rotateGeometry(geometry: THREE.BufferGeometry, axis: 'x' | 'y' | 'z', angle: number) {
         geometry.computeBoundingBox();
@@ -21,7 +25,7 @@ export class ValidationUtils {
 
     /**
      * Estimates the Z-position of the "Core" (Spine/Neck)
-     * by averaging the center of the bounding box of the mid-section.
+     * by averaging the center of the bounding box of the mid-section (Torso).
      */
     static getCoreZ(geometry: THREE.BufferGeometry, minY: number, height: number): number {
         // Analyze the "Stomach/Waist" area (40% to 60% height)
@@ -35,6 +39,7 @@ export class ValidationUtils {
 
     /**
      * Gets the Min and Max Z values in a vertical slice.
+     * precise bounds calculation for a specific height range.
      */
     static getZExtremesInSlice(geometry: THREE.BufferGeometry, minY: number, maxY: number) {
         const pos = geometry.attributes.position;
@@ -57,6 +62,7 @@ export class ValidationUtils {
 
     /**
      * Calculates the Mass Centroid Z and Geometric Bounds Z of a slice.
+     * Used to find the "center of mass" of a slice, which is more robust than just the bounding box center.
      */
     static getSliceCentroidAndBounds(geometry: THREE.BufferGeometry, minY: number, maxY: number) {
         const pos = geometry.attributes.position;

@@ -4,9 +4,14 @@ use glam::{Vec3, Vec4};
 use crate::engine::state::PhysicsState;
 use crate::engine::config::PhysicsConfig;
 
+/// Performs Verlet Integration to update particle positions.
+/// This is an "explicit" integration step, but combined with XPBD (which happens after),
+/// it forms a semi-implicit solver that is stable for cloth simulation.
 pub struct Integrator;
 
 impl Integrator {
+    /// Updates position based on velocity and external forces (Gravity + Aerodynamics).
+    /// P(new) = P(curr) + V * dt + 0.5 * A * dt^2
     pub fn integrate(
         state: &mut PhysicsState,
         config: &PhysicsConfig,
@@ -32,6 +37,10 @@ impl Integrator {
         }
     }
 
+    /// Integrates a single particle using Verlet integration.
+    /// - Applies external forces (Gravity + Wind).
+    /// - Damps velocity to simulate air resistance.
+    /// - Updates position based on previous position and acceleration.
     #[inline(always)]
     fn integrate_particle(
         state: &mut PhysicsState,

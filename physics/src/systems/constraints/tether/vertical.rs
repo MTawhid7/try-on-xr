@@ -3,6 +3,9 @@
 use crate::engine::state::PhysicsState;
 use std::collections::HashMap;
 
+/// Generates vertical tethers (Shoulder-to-Hem).
+/// Sorts particles into vertical columns and connects top-point to bottom-point by UV or normal alignment.
+/// Prevents the "Super-Elastic" effect where gravity stretches the cloth down like gum.
 pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
     let mut constraints = Vec::new();
     let mut rest_lengths = Vec::new();

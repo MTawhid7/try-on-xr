@@ -6,6 +6,10 @@ import { InitializeSimulation } from '../../application/use-cases/InitializeSimu
 import { UpdateGarmentSize } from '../../application/use-cases/UpdateGarmentSize';
 import { ANCHOR_SIZE } from '../../core/constants/SizingStandards';
 
+/**
+ * Slice responsible for the high-level application lifecycle.
+ * Manages ASYNC loading of assets, error handling, and shirt sizing operations.
+ */
 export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial<SimulationStore>> = (set, get) => ({
     // Initial State
     engine: null,

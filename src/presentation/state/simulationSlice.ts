@@ -4,6 +4,10 @@ import type { StateCreator } from 'zustand';
 import type { SimulationStore } from './types';
 import { MAX_PHYSICS_STEP } from '../../core/constants/SimulationConstants';
 
+/**
+ * Slice responsible for the physics loop control.
+ * Handles the Start/Stop state and the per-frame physics stepping.
+ */
 export const createSimulationSlice: StateCreator<SimulationStore, [], [], Partial<SimulationStore>> = (set, get) => ({
     isRunning: false,
 

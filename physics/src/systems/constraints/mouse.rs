@@ -3,6 +3,8 @@
 use glam::{Vec3, Vec4};
 use crate::engine::state::PhysicsState;
 
+/// Handles user interaction forces (Grabbing and Dragging).
+/// Applies a spring force between a grabbed particle and the mouse cursor's 3D projection.
 pub struct MouseConstraint {
     pub grabbed_index: Option<usize>,
     pub target_position: Vec3,

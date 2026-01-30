@@ -3,6 +3,12 @@
 import React from 'react';
 import { useSimulationStore } from '../state/useSimulationStore';
 
+/**
+ * A full-screen overlay displayed during the initial application load.
+ * - Shows while `isLoading` is true AND `isReady` is false.
+ * - Once the simulation is ready for the first time, this screen disappears.
+ * - Subsequent loading states (e.g. changing sizes) use the `StatusPanel` instead.
+ */
 export const LoadingScreen: React.FC = () => {
     const { isLoading, isReady } = useSimulationStore();
 

@@ -6,6 +6,10 @@ import { GEOMETRY_WELD_THRESHOLD } from '../../../core/constants/SimulationConst
 import type { ProcessedMesh } from '../../../core/entities/Geometry';
 
 export class GeometryProcessor {
+    /**
+     * Vertices within this threshold are merged.
+     * Includes a feature to preserve sharp normals if the dot product is distinct enough.
+     */
     static smartWeld(geometry: THREE.BufferGeometry, threshold: number = 0.05): THREE.BufferGeometry {
         let geo = geometry.clone();
         if (geo.attributes.uv) geo.deleteAttribute('uv');
@@ -26,16 +30,16 @@ export class GeometryProcessor {
         const cellSize = threshold;
 
         const getKey = (x: number, y: number, z: number) =>
-            `${Math.floor(x/cellSize)},${Math.floor(y/cellSize)},${Math.floor(z/cellSize)}`;
+            `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)},${Math.floor(z / cellSize)}`;
 
         let uniqueCount = 0;
 
         // Neighbor offsets for 3x3x3 search
         const offsets: number[][] = [];
-        for(let x=-1; x<=1; x++) {
-            for(let y=-1; y<=1; y++) {
-                for(let z=-1; z<=1; z++) {
-                    offsets.push([x,y,z]);
+        for (let x = -1; x <= 1; x++) {
+            for (let y = -1; y <= 1; y++) {
+                for (let z = -1; z <= 1; z++) {
+                    offsets.push([x, y, z]);
                 }
             }
         }
@@ -50,14 +54,14 @@ export class GeometryProcessor {
             const nz = norm.getZ(i);
 
             // Base cell coordinates
-            const cx = Math.floor(x/cellSize);
-            const cy = Math.floor(y/cellSize);
-            const cz = Math.floor(z/cellSize);
+            const cx = Math.floor(x / cellSize);
+            const cy = Math.floor(y / cellSize);
+            const cz = Math.floor(z / cellSize);
 
             let found = -1;
 
             // Check all 27 neighboring cells
-            for(const offset of offsets) {
+            for (const offset of offsets) {
                 const key = `${cx + offset[0]},${cy + offset[1]},${cz + offset[2]}`;
                 const candidates = grid[key];
 
@@ -67,12 +71,12 @@ export class GeometryProcessor {
                         const ty = newPos[idx * 3 + 1];
                         const tz = newPos[idx * 3 + 2];
 
-                        const d2 = (x-tx)*(x-tx) + (y-ty)*(y-ty) + (z-tz)*(z-tz);
+                        const d2 = (x - tx) * (x - tx) + (y - ty) * (y - ty) + (z - tz) * (z - tz);
                         if (d2 < threshold * threshold) {
                             const cnx = newNorm[idx * 3];
                             const cny = newNorm[idx * 3 + 1];
                             const cnz = newNorm[idx * 3 + 2];
-                            const dot = nx*cnx + ny*cny + nz*cnz;
+                            const dot = nx * cnx + ny * cny + nz * cnz;
 
                             if (dot > 0.7) {
                                 found = idx;
@@ -123,6 +127,14 @@ export class GeometryProcessor {
         return result;
     }
 
+    /**
+     * Prepares a mesh for physics simulation and rendering.
+     * - Removes unused attributes (color, etc.)
+     * - Merges vertices
+     * - Recomputes normals
+     * - Restores UVs from original mesh via nearest-neighbor search
+     * - Generates tangents for normal mapping
+     */
     static process(
         mesh: THREE.Mesh,
         weldThreshold: number = GEOMETRY_WELD_THRESHOLD,

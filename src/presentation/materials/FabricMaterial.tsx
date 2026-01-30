@@ -4,11 +4,18 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { TextureGenerator } from '../../infrastructure/rendering/TextureGenerator';
 
+/**
+ * Props for the FabricMaterial.
+ */
 interface FabricMaterialProps {
     /** The base color of the fabric. Defaults to Blue (#4488ff). */
     color?: string;
 }
 
+/**
+ * A specialized PBR material that simulates the look of cotton fabric.
+ * Uses a procedurally generated normal map to create a realistic weave pattern.
+ */
 export const FabricMaterial: React.FC<FabricMaterialProps> = ({ color = "#4488ff" }) => {
     // Generate the weave texture once on mount.
     // We use useMemo to prevent regenerating the canvas on every render.

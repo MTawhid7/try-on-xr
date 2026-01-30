@@ -5,7 +5,16 @@ import { OrientationDetector } from './orientation/OrientationDetector';
 import { SpineRegressor } from './SpineRegressor';
 import type { AnatomicalAnchors } from '../../../core/entities/Geometry';
 
+/**
+ * Orchestrates the anatomical analysis of a body mesh.
+ * It combines orientation detection, bounds analysis, and spine regression
+ * to identify key landmarks (Neck, Spine, Pelvis) required for garment fitting.
+ */
 export class MeshAnalyzer {
+    /**
+     * Analyze a body geometry to find its anatomical structure.
+     * Handles upside-down meshes and normalizes the data into a standard "Anchors" format.
+     */
     static analyzeBody(geometry: THREE.BufferGeometry): AnatomicalAnchors {
         geometry.computeBoundingBox();
         const box = geometry.boundingBox!;

@@ -3,6 +3,9 @@
 use crate::engine::state::PhysicsState;
 use std::collections::HashMap;
 
+/// Generates horizontal tethers (Shoulder-to-Shoulder, Torso-to-Torso).
+/// Scans the mesh in Z-slices and connects particles on the left side to the right side.
+/// This limits the garment's ability to stretch infinitely wide.
 pub fn generate(state: &PhysicsState) -> (Vec<[usize; 2]>, Vec<f32>) {
     let mut constraints = Vec::new();
     let mut rest_lengths = Vec::new();

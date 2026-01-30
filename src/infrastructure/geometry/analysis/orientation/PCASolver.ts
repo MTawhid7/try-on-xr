@@ -17,6 +17,10 @@ export class PCASolver {
         return c.divideScalar(count);
     }
 
+    /**
+     * Computes the primary axis of variance (Principal Component) using Power Iteration.
+     * This avoids computationally expensive SVD/Eigendecomposition while being sufficient for finding the "Up" vector.
+     */
     static computePrincipalAxis(geometry: THREE.BufferGeometry, centroid: THREE.Vector3): THREE.Vector3 {
         const pos = geometry.attributes.position;
         let xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;

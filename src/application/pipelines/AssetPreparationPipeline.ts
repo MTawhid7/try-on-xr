@@ -11,6 +11,10 @@ import { GeometryProcessor } from '../../infrastructure/geometry/processors/Geom
 import { GEOMETRY_WELD_THRESHOLD } from '../../core/constants/SimulationConstants';
 import type { SimulationAssets } from '../../core/entities/Assets';
 
+/**
+ * Pipeline responsible for loading, analyzing, and preparing 3D assets for the simulation.
+ * This includes loading GLB files, aligning them, ensuring correct scale, and generating physics proxies.
+ */
 export class AssetPreparationPipeline {
     private meshLoader: MeshLoader;
 

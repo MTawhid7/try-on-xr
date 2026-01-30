@@ -3,10 +3,15 @@
 import * as THREE from 'three';
 import { SliceAnalyzer } from '../slice/SliceAnalyzer';
 
+/**
+ * Detects the orientation of a humanoid mesh.
+ * Specifically checks if the mesh is upside-down, which is a common issue with different 3D coordinate systems (Y-up vs Z-up).
+ */
 export class OrientationDetector {
     /**
      * Checks if the mesh is upside down.
      * Heuristic: A standing human has 1 island at the top (Head) and 2 at the bottom (Feet).
+     * If we find 2 islands at the "top" and 1 at the "bottom", it's likely upside down.
      */
     static isUpsideDown(geometry: THREE.BufferGeometry, box: THREE.Box3): boolean {
         const height = box.max.y - box.min.y;

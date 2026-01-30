@@ -4,10 +4,19 @@ import { ClusterEngine, type Cluster } from './ClusterEngine';
 
 export type { Cluster };
 
+/**
+ * Analyzes cross-sections (slices) of 3D geometry.
+ * Used to understand the topology of the body at specific heights (Y-levels).
+ */
 export class SliceAnalyzer {
     /**
      * Extracts distinct "islands" of geometry within a vertical slice.
-     * Useful for detecting arms vs torso.
+     * Useful for detecting arms vs torso or legs vs feet.
+     *
+     * @param geometry - The input geometry.
+     * @param minY - The bottom Y coordinate of the slice.
+     * @param maxY - The top Y coordinate of the slice.
+     * @param stride - Optimization: Skip every N vertices for speed (default 2).
      */
     static getIslandsInSlice(
         geometry: THREE.BufferGeometry,

@@ -14,6 +14,10 @@ export interface InitializationResult {
     scaledVertices: Float32Array;
 }
 
+/**
+ * Use Case: Initializes the entire simulation environment.
+ * Orchestrates asset loading, initial grading (sizing), and physics engine initialization.
+ */
 export class InitializeSimulation {
     private assetPipeline: AssetPreparationPipeline;
 

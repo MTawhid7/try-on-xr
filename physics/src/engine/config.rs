@@ -2,20 +2,34 @@
 
 use glam::Vec3;
 
+/// Global configuration for the physics simulation.
+/// Controls solver quality/speed trade-offs and physical properties like gravity and stiffness.
 #[derive(Clone, Debug)]
 pub struct PhysicsConfig {
     // --- Simulation Quality ---
+    /// Number of sub-steps per frame. Higher = More stable, Slower.
     pub substeps: usize,
+    /// Number of solver iterations per sub-step. Higher = Stiffer constraints.
     pub solver_iterations: usize,
+    /// Relaxation parameter (Successive Over-Relaxation). 1.0 = Gauss-Seidel. <1.0 = More stable.
     pub spectral_radius: f32,
+
+    // --- Environment ---
     pub gravity: Vec3,
     pub wind: Vec3,
+    /// Global Velocity Damping (0.0 to 1.0). Simulates air resistance.
     pub damping: f32,
+
+    // --- Material Properties ---
     pub drag_coeff: f32,
     pub lift_coeff: f32,
     #[allow(dead_code)]
     pub density: f32,
+
+    // --- Constraint Stiffness ---
+    /// Resistance to area change (Shearing). Very low for cloth.
     pub area_compliance: f32,
+    /// Distance between cloth layers or cloth/body.
     pub contact_thickness: f32,
     pub static_friction: f32,
     pub dynamic_friction: f32,

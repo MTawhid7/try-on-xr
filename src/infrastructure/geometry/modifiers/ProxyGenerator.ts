@@ -8,8 +8,18 @@ import {
 } from '../../../core/constants/SimulationConstants';
 import type { ProcessedMesh } from '../../../core/entities/Geometry';
 
+/**
+ * Generates optimized proxy meshes for physics simulation.
+ * uses `meshoptimizer` to decimate high-poly meshes into efficient low-poly versions
+ * suitable for real-time cloth simulation and collision detection.
+ */
 export class ProxyGenerator {
 
+    /**
+     * Generates a collision proxy from the input mesh.
+     * Decimates the mesh to `COLLIDER_RESOLUTION_BUDGET` if it's too high-poly.
+     * collision meshes need enough detail to capture body shape but must be low-poly enough for performance.
+     */
     static async generateCollider(mesh: THREE.Mesh): Promise<ProcessedMesh> {
         const triCount = this.getTriangleCount(mesh);
 
@@ -22,6 +32,13 @@ export class ProxyGenerator {
         return this.process(mesh, COLLIDER_RESOLUTION_BUDGET, 0.01);
     }
 
+    /**
+     * Generates a garment simulation proxy.
+     * Cloth simulation requires a specific topology balance:
+     * - Too high poly: Simulation runs slow.
+     * - Too low poly: Cloth looks blocky and lacks detail.
+     * Decimates to `GARMENT_RESOLUTION_BUDGET` if needed.
+     */
     static async generateGarment(mesh: THREE.Mesh): Promise<ProcessedMesh> {
         const triCount = this.getTriangleCount(mesh);
 

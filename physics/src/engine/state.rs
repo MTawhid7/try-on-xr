@@ -1,19 +1,27 @@
 // physics/src/engine/state.rs
 use glam::{Vec4, Vec2}; // Removed Vec3
 
+/// The core data container for the particle system.
+/// Uses Structure-of-Arrays (SoA) layout for better cache locality and SIMD alignment.
+/// All vectors are 16-byte aligned (Vec4) to support WebAssembly SIMD implementation.
 pub struct PhysicsState {
     pub count: usize,
 
     // --- Particle Data (Aligned to 16 bytes / Vec4) ---
+    /// Current position (xyz) + Padding (w)
     pub positions: Vec<Vec4>,
+    /// Previous position (xyz) + Padding (w) - for Verlet integration.
     pub prev_positions: Vec<Vec4>,
+    /// Calculated velocity (for damping/aerodynamics).
     pub velocities: Vec<Vec4>,
+    /// Vertex normals for rendering and aerodynamics.
     pub normals: Vec<Vec4>,
 
     pub inv_mass: Vec<f32>,
     pub uvs: Vec<Vec2>,
 
     // --- Topology ---
+    /// Triangle indices (3 per triangle).
     pub indices: Vec<u32>,
 }
 

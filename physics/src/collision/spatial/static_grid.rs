@@ -2,6 +2,9 @@
 
 use glam::Vec3;
 
+/// A fixed-size 3D grid for spatial partitioning.
+/// Optimized for static geometry (like the mannequin) where objects do not move.
+/// Allows fast O(1) lookups of triangles near a particle.
 pub struct StaticSpatialHash {
     cell_size: f32,
     min: Vec3,
@@ -49,6 +52,8 @@ impl StaticSpatialHash {
         p.z >= self.min.z && p.z <= self.max.z
     }
 
+    /// Inserts a triangle index into all cells that overlap its Axis-Aligned Bounding Box (AABB).
+    /// This ensures that even large triangles are correctly registered in the grid.
     pub fn insert_aabb(&mut self, id: usize, min: Vec3, max: Vec3) {
         let start_local = (min - self.min).max(Vec3::ZERO);
         let end_local = max - self.min;
@@ -71,6 +76,8 @@ impl StaticSpatialHash {
         }
     }
 
+    /// Retrieves all triangles in cells overlapping the query radius.
+    /// Used during Broad Phase Collision Detection.
     pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
         buffer.clear();
         let min = p - Vec3::splat(radius);

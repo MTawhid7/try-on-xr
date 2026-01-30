@@ -7,60 +7,57 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ## [2026-01-29] - Performance & Convergence Milestone (v0.6.0)
 
-### 🚀 Major Milestone: v0.6.0 Performance Engine
+### 1. Current State (Performance & Convergence)
 
-Completed a deep-tier optimization of the core physics solver and asset pipeline. The engine now sustains a consistent 60 FPS baseline for garments up to 25k vertices by offloading math to hardware-accelerated SIMD instructions and eliminating JavaScript garbage collection overhead.
+- [x] **WASM SIMD128:** Refactored internal data layout to 16-byte aligned `Vec4`. Enabled native 128-bit vector instructions, processing 4 floats per cycle.
+- [x] **Chebyshev Acceleration:** Integrated semi-iterative solver with dynamic relaxation ($\omega$). Reduced iterations from 25 -> 15 with identical stiffness.
+- [x] **Zero-Copy Rendering:** Migrated frontend to `InterleavedBufferAttribute`. Three.js reads directly from WASM memory, eliminating `Float32Array` copies.
+- [x] **Memory Hygiene:** implemented eager allocation (128MB reserve) and CSR adjacency lists to eliminate GC spikes and resizing stutters.
+- [x] **Speculative Contacts:** Implemented hybrid Discrete/Continuous collision resolution to predict and prevent tunneling.
+- [x] **Area Conservation:** Added constraints to preserve triangle surface area, preventing "chainmail" distortion.
 
-### 🔧 Architectural Upgrades
+### 2. Not Working / Issues (Performance & Convergence)
 
-- **WASM SIMD128:** Refactored the internal data layout from packed `Vec3` to 16-byte aligned `Vec4`. Configured the build pipeline to emit native 128-bit vector instructions, processing 4 floating-point operations per CPU cycle.
-- **Chebyshev Acceleration:** Integrated a semi-iterative solver using dynamic relaxation factors ($\omega$). This allowed a reduction in solver iterations from 25 to 15 while maintaining identical visual stiffness, a ~40% gain in CPU efficiency.
-- **Zero-Copy Rendering:** Migrated the frontend to `InterleavedBufferAttribute`. Three.js now reads vertex positions directly from the WASM heap, removing the per-frame `Float32Array` copy/repack bottleneck.
-- **Memory Hygiene:** Eliminated the `WASM Memory resized` stutters by implementing eager allocation. Subsystems now pre-reserve 128MB of initial memory and use CSR (Compressed Sparse Row) adjacency lists instead of dynamic HashSets.
+- [ ] **Visuals:** The cloth rendering is currently basic (standard material). It lacks the anisotropic sheen of real fabric.
+- [ ] **Self-Collision:** While implemented, it is computationally expensive and disabled by default in the main loop for performance reasons.
 
-### 🧶 Physics & Stability
+### 3. Observations / Notes (Performance & Convergence)
 
-- **Speculative Contacts:** Implemented a hybrid discrete/continuous collision resolver. The engine now predicts penetrations before they occur, effectively eliminating "tunneling" during fast motion or high-velocity interactions.
-- **Area Conservation:** Added constraints to preserve triangle surface area. This provides fabric-like shear resistance, preventing the "chainmail" look and allowing for natural cotton/denim draping.
-- **Stabilized Solver:** Introduced global damping and selective Chebyshev acceleration (internal constraints only) to prevent energy accumulation and jitter.
+- **Performance ROI:** The shift to SIMD and Zero-Copy has been transformative. We are now bounded by the GPU (Fill Rate) rather than the CPU (Physics).
+- **Solver Tuning:** Chebyshev acceleration acts as a "multiplier" for iterations. 15 accelerated iterations feel like 40 standard ones.
 
-### 📐 Asset Intelligence
+### 4. Next Steps / Plan (Performance & Convergence)
 
-- **Smart Welding:** Developed a normal-aware vertex merger. This closes wide UV seams (up to 1.5cm) without collapsing the garment's 3D volume or scrambling textures.
-- **Adaptive Body Measurer:** Implemented a multi-threshold clustering algorithm. The system now robustly isolates the torso from the arms in A-Poses, providing accurate real-world centimeter measurements for grading.
-
-### 📊 Performance Metrics
-
-- **Baseline:** 60 FPS (Paused) / ~20 FPS (Running)
-- **Current:** 60 FPS (Paused) / 60 FPS (Running) @ 5k-10k tris.
-- **Stability:** Zero jitter, zero memory resizing events, zero console warnings.
+- [ ] **Visual Polish:** Implement custom shaders for fabric rendering (Anisotropic lighting).
+- [ ] **Fitting Pipeline:** Implement the "Hulk" growth strategy for tight-fitting garments.
 
 ## [2026-01-28] - Refactoring Complete & Rebranding
 
-### 🚀 Major Milestone: Vestra Physics Engine (v0.5.0)
+### 1. Current State (Refactoring & Rebranding)
 
-Completed a comprehensive refactor of the entire codebase to align with enterprise software engineering standards. The project has been renamed from "try-on-xr" to **Vestra Physics**.
+- [x] **Architecture:** Migrated frontend to Clean Architecture (Hexagonal) with distinct Layers:
+  - **Core (Domain):** Entities and Interfaces.
+  - **Application:** Use Cases and Pipelines (`AssetPreparationPipeline`, `GradingPipeline`).
+  - **Infrastructure:** Adapters (WASM, Three.js) and Geometry Analysis.
+  - **Presentation:** React Components and Zustand Stores.
+- [x] **Backend (Rust):** Adopted Data-Oriented Design.
+  - Split systems into `Engine`, `Systems`, and `Collision`.
+- [x] **UI/UX:** Implemented modular UI, Loading Screen, and Status Panel.
+- [x] **Branding:** Renamed project to **Vestra Physics**.
 
-### 🔧 Architectural Changes
+### 2. Not Working / Issues (Refactoring & Rebranding)
 
-- **Frontend (TypeScript):**
-  - Migrated to **Clean Architecture** (Hexagonal).
-  - Separated concerns into `Core` (Domain), `Application` (Use Cases), `Infrastructure` (Adapters), and `Presentation` (UI).
-  - Decoupled React logic from Physics logic using specific Pipelines (`AssetPreparationPipeline`, `GradingPipeline`).
-- **Backend (Rust):**
-  - Adopted **Data-Oriented Design**.
-  - Split monolithic files into modular subsystems: `Engine` (State), `Systems` (Dynamics/Forces), and `Collision` (Spatial Hashing).
-  - Preserved all core algorithms (XPBD, Interleaved Solver, Anisotropic Bending) with 100% feature parity.
+- [ ] **Legacy Docs:** Documentation needs to be updated to reflect the new architecture (In Progress).
 
-### 🎨 UI & UX
+### 3. Observations / Notes (Refactoring & Rebranding)
 
-- Implemented a modular UI system with `Zustand` slices.
-- Added a dedicated Loading Screen and Status Panel.
-- Updated branding to "Vestra Physics".
+- **Modularity:** The separation of concerns has made it significantly easier to test individual components like the `BodyMeasurer` without spinning up the entire React app.
+- **Scalability:** The pipeline approach allows us to easily inject new processing steps (like Auto-Rigging) in the future.
 
-### 📦 Repository Migration
+### 4. Next Steps / Plan (Refactoring & Rebranding)
 
-Renaming the GitHub repository to reflect the new identity.
+- [ ] **Documentation:** Update README and inline comments.
+- [ ] **Repository:** Rename GitHub repository to `vestra-physics`.
 
 ## [2026-01-27] Measurement System & Physics Tuning
 
@@ -352,13 +349,26 @@ Renaming the GitHub repository to reflect the new identity.
 
 ### 1. Current State (Self Collision Implementation)
 
-- [x] **Self Collision:** Implemented a basic self-collision system using a spatial hash and adjacency list to ignore connected neighbors.
-- [x] **Interaction Isolation** Implemented `OrbitControls` toggle. When the user grabs the cloth, camera rotation should lock.
-- [x] **Anisotropic Bending** Real fabric bends easily along the weft/warp lines but resists diagonal bending. We upgraded the Bending Constraint to respect the UV directions of the mesh.
+- [x] **Self Collision:** Implemented `SelfCollision` system using a `DynamicSpatialHash`.
+  - **Logic:** Rebuilds hash each frame, queries neighbors within `thickness`, applies repulsive force.
+  - **Exclusion:** Ignores immediate topology neighbors (connected vertices) to prevent self-explosion.
+- [x] **Interaction Isolation:** Implemented `OrbitControls` toggle. When grabbing cloth, camera locks.
+- [x] **Anisotropic Bending:** Upgraded Bending Constraint to respect UV directions (Warp/Weft).
 
 ### 2. Not Working / Issues (Self Collision Implementation)
 
-- [ ] **Penetration:** The cloth can penetrate the body mesh. We need to implement a proper collision system.
+- [ ] **Performance:** The dynamic hash rebuild is $O(N)$ and currently runs on the main thread. It is disabled by default to maintain 60FPS.
+- [ ] **Entanglement:** Complex folding can still cause entrapment if the repulsive force is overwhelmed by external forces.
+
+### 3. Observations / Notes (Self Collision Implementation)
+
+- **Spatial Hashing:** A `thickness` of 2.0x the collision radius is the sweet spot for the hash cell size.
+- **Topology Awareness:** Simply checking distance is insufficient; we must traverse the adjacency list to ignore "structural" neighbors.
+
+### 4. Next Steps / Plan (Self Collision Implementation)
+
+- [ ] **Optimization:** Move Self-Collision to a web worker or compute shader.
+- [ ] **Layering:** Implement "Layers" to handle multi-garment collisions (Shirt vs Jacket).
 
 ## [2026-01-16] Architecture Migration & Physics Stabilization
 

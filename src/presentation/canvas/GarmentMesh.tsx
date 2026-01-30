@@ -7,6 +7,10 @@ import { useSimulationStore } from '../state/useSimulationStore';
 import { useGarmentInteraction } from '../hooks/useGarmentInteraction';
 import { FabricMaterial } from '../materials/FabricMaterial';
 
+/**
+ * Renders the garment mesh and synchronizes it with the physics simulation.
+ * Handles the "Zero-Copy" memory binding between WASM and WebGL.
+ */
 export const GarmentMesh: React.FC = () => {
     const meshRef = useRef<THREE.Mesh>(null);
     const { assets, scaledVertices, engine, step, isRunning } = useSimulationStore();

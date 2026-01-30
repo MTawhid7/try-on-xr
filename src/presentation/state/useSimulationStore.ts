@@ -10,9 +10,9 @@ import { createInteractionSlice } from './interactionSlice';
  * The Global Store for the Simulation.
  *
  * Architecture:
- * - Uses the "Slice Pattern" to organize logic.
- * - Acts as the Controller, calling Application Use Cases.
- * - Holds the "Single Source of Truth" for the UI.
+ * - Uses the "Slice Pattern" to organize logic into distinct domains (Lifecycle, Simulation, Interaction).
+ * - Acts as the Controller, acting as the glue between the UI and the Application Use Cases.
+ * - Holds the "Single Source of Truth" for the UI state.
  */
 export const useSimulationStore = create<SimulationStore>()((...a) => ({
     ...createLifecycleSlice(...a),

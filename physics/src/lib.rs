@@ -7,6 +7,8 @@ mod utils;
 use wasm_bindgen::prelude::*;
 use engine::Simulation;
 
+/// The main WASM entry point for the physics engine.
+/// Wraps the internal Rust Simulation struct and exposes a JS-friendly API.
 #[wasm_bindgen]
 pub struct PhysicsEngine {
     sim: Simulation,

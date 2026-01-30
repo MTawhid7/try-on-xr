@@ -3,6 +3,10 @@
 import React from 'react';
 import { useSimulationStore } from '../state/useSimulationStore';
 
+/**
+ * Renders the high-resolution visual mesh of the mannequin.
+ * This mesh is purely for display and shadows; the physics engine uses a separate low-poly collider.
+ */
 export const MannequinMesh: React.FC = () => {
     const { assets } = useSimulationStore();
 

@@ -9,6 +9,11 @@ import { CameraRig } from './CameraRig';
 import { MannequinMesh } from './MannequinMesh';
 import { GarmentMesh } from './GarmentMesh';
 
+/**
+ * The main 3D scene container.
+ * Sets up the Canvas, Lights, Camera, and renders the simulation objects (Mannequin, Garment).
+ * Also handles initial data loading via the SimulationStore.
+ */
 export const Scene: React.FC = () => {
     const { loadAndInitialize, isReady, isInteracting } = useSimulationStore();
 

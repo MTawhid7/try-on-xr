@@ -7,6 +7,11 @@ import { SimulationControls } from '../controls/SimulationControls';
 import { SizeSelector } from '../controls/SizeSelector';
 import { useSimulationStore } from '../../state/useSimulationStore';
 
+/**
+ * The main UI overlay layer.
+ * Positions the control panels and legends on top of the 3D canvas.
+ * Manages pointer events to ensure clicks pass through to the canvas where appropriate.
+ */
 export const Overlay: React.FC = () => {
     const { error } = useSimulationStore();
 

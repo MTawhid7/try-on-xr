@@ -1,7 +1,10 @@
 // physics/src/utils/coloring.rs
 
-/// Organizes constraints into batches using a CSR (Compressed Sparse Row)
-/// adjacency structure. This is zero-allocation during the solve phase.
+/// Organizes constraints into batches such that no two constraints in the same batch
+/// share a particle. This allows for parallel solving (if multi-threaded) or
+/// simply ensures stable sequential solving order.
+///
+/// Uses a greedy graph coloring algorithm with a CSR (Compressed Sparse Row) adjacency structure.
 pub fn color_constraints(
     constraints: &[[usize; 2]],
     particle_count: usize

@@ -70,6 +70,11 @@ export class BodyMeasurer {
         return 100.0; // Safe default (Size M)
     }
 
+    /**
+     * Calculates the perimeter of a polygon defined by a set of 3D points.
+     * Projects points to 2D (XZ plane), sorts them angularly around the centroid to form a closed loop,
+     * and sums the edge lengths.
+     */
     private static calculatePerimeter(points: THREE.Vector3[]): number {
         const points2D = points.map(p => new THREE.Vector2(p.x, p.z));
 

@@ -4,6 +4,10 @@ import React from 'react';
 import { useSimulationStore } from '../../state/useSimulationStore';
 import { Button } from '../common/Button';
 
+/**
+ * The main control panel for the physics simulation.
+ * Allows the user to Start/Stop the simulation and displays current state.
+ */
 export const SimulationControls: React.FC = () => {
     const { isReady, isRunning, toggleSimulation } = useSimulationStore();
 

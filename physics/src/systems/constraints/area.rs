@@ -4,6 +4,8 @@ use crate::engine::state::PhysicsState;
 use crate::utils::coloring;
 use glam::Vec4;
 
+/// Enforces triangle area preservation.
+/// Prevents the mesh from shearing or collapsing, simulating the material's resistance to planar deformation.
 pub struct AreaConstraint {
     indices: Vec<[usize; 3]>,
     rest_areas: Vec<f32>,
@@ -11,6 +13,7 @@ pub struct AreaConstraint {
 }
 
 impl AreaConstraint {
+    /// Computes the rest area of every triangle in the mesh.
     pub fn new(state: &PhysicsState) -> Self {
         let num_triangles = state.indices.len() / 3;
         let mut raw_indices = Vec::with_capacity(num_triangles);
@@ -55,6 +58,10 @@ impl AreaConstraint {
         }
     }
 
+    /// Solves the area constraint using XPBD.
+    /// 1. Computes the current area of each triangle.
+    /// 2. Compares it to the rest area.
+    /// 3. Applies positional corrections (gradients) to restore the original area.
     pub fn solve(&self, state: &mut PhysicsState, compliance: f32, omega: f32, dt: f32) {
         let alpha = compliance / (dt * dt);
 

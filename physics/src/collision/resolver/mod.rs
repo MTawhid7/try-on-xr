@@ -7,6 +7,7 @@ use crate::engine::state::PhysicsState;
 use crate::engine::config::PhysicsConfig;
 use super::collider::MeshCollider;
 
+/// Represents a single point of contact between a particle and a collider.
 #[derive(Clone, Copy)]
 pub struct Contact {
     pub particle_index: usize,
@@ -14,8 +15,12 @@ pub struct Contact {
     pub surface_point: Vec3,
 }
 
+/// Manages collision detection and resolution.
+/// Stores contact constraints and solver buffers to avoid per-frame allocations.
 pub struct CollisionResolver {
     pub(crate) contacts: Vec<Contact>,
+
+    // Spatial Hashing Buffers
     pub(crate) query_buffer: Vec<usize>,
     pub(crate) candidate_indices: Vec<usize>,
     pub(crate) candidate_offsets: Vec<usize>,

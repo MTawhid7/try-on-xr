@@ -1,6 +1,7 @@
 // src/core/entities/Garment.ts
 /**
  * Represents the available standard sizes for garments.
+ * These correspond to the keys in the sizing standards table.
  */
 export type ShirtSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 

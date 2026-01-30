@@ -39,9 +39,25 @@ export interface IPhysicsEngine {
 
     // --- Interaction Methods ---
 
+    /**
+     * strict: Begins a user interaction (drag) at a specific vertex index.
+     * @param index - The index of the vertex being grabbed.
+     * @param x - The x coordinate of the drag content.
+     * @param y - The y coordinate of the drag content.
+     * @param z - The z coordinate of the drag content.
+     */
     startInteraction(index: number, x: number, y: number, z: number): void;
 
+    /**
+     * Updates the current interaction target position.
+     * @param x - New target x position.
+     * @param y - New target y position.
+     * @param z - New target z position.
+     */
     updateInteraction(x: number, y: number, z: number): void;
 
+    /**
+     * Ends the current user interaction, releasing the grabbed vertex.
+     */
     endInteraction(): void;
 }

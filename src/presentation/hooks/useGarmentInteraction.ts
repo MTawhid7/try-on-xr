@@ -19,6 +19,7 @@ export function useGarmentInteraction(meshRef: React.RefObject<THREE.Mesh | null
 
     // A virtual plane that faces the camera. We project mouse movements onto this plane
     // to determine where the particle should move in 3D space.
+    // This provides a consistent "depth" for the drag relative to the view.
     const dragPlane = useRef(new THREE.Plane());
     const intersectPoint = new THREE.Vector3();
 

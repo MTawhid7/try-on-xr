@@ -3,6 +3,10 @@
 import React from 'react';
 import { useSimulationStore } from '../../state/useSimulationStore';
 
+/**
+ * Displays the current status of the simulation (Loading, Running, Paused).
+ * Uses a visual indicator light and text label.
+ */
 export const StatusPanel: React.FC = () => {
     const { isReady, isRunning, isLoading } = useSimulationStore();
 

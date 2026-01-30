@@ -3,6 +3,11 @@
 import React from 'react';
 import { Environment } from '@react-three/drei';
 
+/**
+ * Defines the lighting setup for the scene.
+ * Includes a Key Light (Directional) for shadows, Fill Light (Hemisphere) for ambience,
+ * and an Environment map for PBR reflections.
+ */
 export const Lights: React.FC = () => {
     return (
         <>

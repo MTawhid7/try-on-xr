@@ -2,11 +2,21 @@
 
 import React from 'react';
 
+/**
+ * Props for the Button component.
+ */
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    /** The visual style variant of the button. Defaults to 'neutral'. */
     variant?: 'primary' | 'danger' | 'success' | 'neutral';
+
+    /** Whether the button is currently in an active/toggled state. */
     isActive?: boolean;
 }
 
+/**
+ * A reusable button component with standard styling variants.
+ * Supports primary, danger, success, and neutral themes.
+ */
 export const Button: React.FC<ButtonProps> = ({
     children,
     variant = 'neutral',

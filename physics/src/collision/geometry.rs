@@ -1,6 +1,7 @@
 // physics/src/collision/geometry.rs
 use glam::Vec3;
 
+/// A simple geometric Triangle struct used for collision testing.
 #[derive(Clone, Copy, Debug)]
 pub struct Triangle {
     pub v0: Vec3,
@@ -15,6 +16,7 @@ impl Triangle {
         Self { v0, v1, v2, index }
     }
 
+    /// Computes the Axis-Aligned Bounding Box (AABB) of the triangle.
     pub fn aabb(&self) -> (Vec3, Vec3) {
         let min = self.v0.min(self.v1).min(self.v2);
         let max = self.v0.max(self.v1).max(self.v2);
@@ -23,6 +25,7 @@ impl Triangle {
 
     /// Finds the closest point on this triangle to a given point `p`.
     /// Returns the point and the barycentric coordinates (u, v, w).
+    /// Uses Voronoi regions to determine feature (vertex, edge, face) proximity.
     pub fn closest_point(&self, p: Vec3) -> (Vec3, [f32; 3]) {
         let ab = self.v1 - self.v0;
         let ac = self.v2 - self.v0;

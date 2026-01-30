@@ -4,6 +4,9 @@ use super::spatial::DynamicSpatialHash;
 use glam::Vec4;
 
 // Suppress warnings while this feature is disabled in the main loop
+/// Handles cloth-on-cloth collision detection.
+/// Uses a dynamic spatial hash to find particles that are too close to each other.
+/// Applies a repulsive force to separate them, preventing the cloth from passing through itself.
 #[allow(dead_code)]
 pub struct SelfCollision {
     hash: DynamicSpatialHash,
@@ -43,6 +46,10 @@ impl SelfCollision {
         if !map[b].contains(&a) { map[b].push(a); }
     }
 
+    /// Detects and resolves collisions between particles of the same cloth object.
+    /// 1. Rebuilds the dynamic spatial hash with current positions.
+    /// 2. Queries for neighbors within `thickness`.
+    /// 3. Applies a penalty force to separate overlapping particles (excluding connected topology neighbors).
     pub fn solve(&mut self, state: &mut PhysicsState) {
         // 1. Rebuild Hash
         self.hash.clear();

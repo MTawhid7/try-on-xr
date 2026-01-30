@@ -2,6 +2,10 @@
 
 import * as THREE from 'three';
 
+/**
+ * Generates procedural textures for materials using HTML5 Canvas.
+ * Useful for creating lightweight assets without external image files.
+ */
 export class TextureGenerator {
     /**
      * Generates a "Cotton Weave" Normal Map using HTML5 Canvas.

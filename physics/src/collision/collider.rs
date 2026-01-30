@@ -4,6 +4,9 @@ use super::geometry::Triangle;
 use super::spatial::StaticSpatialHash;
 use super::preprocessing;
 
+/// Represents a static collider mesh (e.g., the Mannequin).
+/// Uses a Spatial Hash for efficient broad-phase collision detection.
+/// Stores both raw geometry (for narrow phase) and acceleration structures.
 pub struct MeshCollider {
     #[allow(dead_code)]
     pub vertices: Vec<Vec3>,

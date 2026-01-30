@@ -6,13 +6,22 @@ use crate::systems::dynamics::{Solver, Integrator};
 use crate::systems::forces::Aerodynamics;
 use crate::systems::constraints::MouseConstraint;
 
+/// The core physics simulation state and logic container.
+/// Holds all subsystems (solver, collider, aerodynamics, etc.) and orchestrates the time step.
 pub struct Simulation {
+    /// The raw particle data (Position, Velocity, Mass).
     pub state: PhysicsState,
+    /// Configuration parameters for the solver.
     pub config: PhysicsConfig,
+    /// The static collision geometry (e.g., the Mannequin).
     pub collider: MeshCollider,
+    /// Handles collision detection and response.
     pub resolver: CollisionResolver,
+    /// Solves internal constraints (Distance, Bending, etc.).
     pub solver: Solver,
+    /// Calculates external wind/drag forces.
     pub aerodynamics: Aerodynamics,
+    /// Handles user interaction (Mouse dragging).
     pub mouse: MouseConstraint,
 }
 
@@ -59,6 +68,8 @@ impl Simulation {
         }
     }
 
+    /// Advances the simulation by `dt` seconds.
+    /// Uses a sub-stepping approach for stability (e.g., 5-10 substeps per frame).
     pub fn step(&mut self, dt: f32) {
         let sdt = dt / self.config.substeps as f32;
 

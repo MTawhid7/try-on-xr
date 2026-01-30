@@ -7,6 +7,12 @@ import { SliceAnalyzer } from '../slice/SliceAnalyzer';
 
 // --- VOTERS (Internal Logic) ---
 
+// --- VOTERS (Internal Logic) ---
+
+/**
+ * Heuristic: The chest mass center is typically pushed 'forward' relative to the geometric center
+ * due to the pectoral muscles/bust.
+ */
 class ChestVoter {
     static vote(geometry: THREE.BufferGeometry, box: THREE.Box3): { forward: number, backward: number } {
         const height = box.max.y - box.min.y;
@@ -26,6 +32,9 @@ class ChestVoter {
     }
 }
 
+/**
+ * Heuristic: Feet typically protrude significantly 'forward' from the body's core axis.
+ */
 class FeetVoter {
     static vote(geometry: THREE.BufferGeometry, box: THREE.Box3, coreZ: number): { forward: number, backward: number } {
         const height = box.max.y - box.min.y;
@@ -44,6 +53,9 @@ class FeetVoter {
     }
 }
 
+/**
+ * Heuristic: The face/head typically protrudes 'forward' relative to the neck.
+ */
 class HeadVoter {
     static vote(geometry: THREE.BufferGeometry, box: THREE.Box3, coreZ: number): { forward: number, backward: number } {
         const height = box.max.y - box.min.y;

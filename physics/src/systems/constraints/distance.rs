@@ -4,6 +4,9 @@ use crate::engine::state::PhysicsState;
 use crate::utils::coloring;
 use std::collections::HashMap;
 
+/// Enforces edge length preservation (Stretch Resistance).
+/// Uses XPBD (Extended Position Based Dynamics) to handle stiffness compliance.
+/// Constraints are colored (batched) to allow stable sequential solving.
 pub struct DistanceConstraint {
     pub constraints: Vec<[usize; 2]>,
     pub rest_lengths: Vec<f32>,
@@ -12,6 +15,7 @@ pub struct DistanceConstraint {
 }
 
 impl DistanceConstraint {
+    /// Builds distance constraints for every unique edge in the mesh.
     pub fn new(state: &PhysicsState) -> Self {
         let mut raw_constraints = Vec::new();
         let mut raw_rest_lengths = Vec::new();
@@ -64,6 +68,9 @@ impl DistanceConstraint {
         }
     }
 
+    /// Solves distance constraints (Edge Springs).
+    /// This gives the cloth its "tensile strength".
+    /// Uses infinite stiffness (compliance = 0.0) by default to prevent stretching like rubber.
     pub fn solve(&self, state: &mut PhysicsState, omega: f32, dt: f32) {
         for b in 0..(self.batch_offsets.len() - 1) {
             let start = self.batch_offsets[b];

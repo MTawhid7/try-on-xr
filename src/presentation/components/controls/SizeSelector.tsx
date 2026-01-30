@@ -7,6 +7,11 @@ import type { ShirtSize } from '../../../core/entities/Garment';
 
 const SIZES: ShirtSize[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
+/**
+ * UI Component for selecting the garment size (XS - XXL).
+ * Interacts with the `SimulationStore` to trigger a garment reload when changed.
+ * Automatically disables itself while the simulation is loading or initializing.
+ */
 export const SizeSelector: React.FC = () => {
     const { shirtSize, setShirtSize, isReady } = useSimulationStore();
 

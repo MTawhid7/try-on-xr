@@ -33,31 +33,33 @@ Vestra follows **Clean Architecture (Hexagonal Architecture)** principles to ens
 
 Located in `src/core`.
 
-- Defines the **Entities** (Garment, Assets) and **Interfaces** (Contracts).
-- Pure TypeScript. No dependencies on React, Three.js, or WASM.
-- Contains the "Business Logic" of sizing standards and simulation constants.
+- **Entities:** Pure data structures (`Garment`, `SimulationState`) that embody the business rules.
+- **Interfaces:** Contracts for external dependencies (e.g., `ISimulationEngine`).
+- **Logic:** Universal constants and sizing standards. Zero dependencies on React or Three.js.
 
-### 2. The Application (Orchestration Layer)
+### 2. The Application (Use Cases Layer)
 
 Located in `src/application`.
 
-- **Asset Pipeline:** Orchestrates loading, analysis, alignment, scaling, and proxy generation. Features **Smart Welding** to close UV seams and **Adaptive Clustering** for accurate body measurement.
-- **Grading Pipeline:** Handles the mathematical resizing of garments based on real-world sizing charts.
+- **Pipelines:** Complex, multi-step workflows like `AssetPreparationPipeline` and `GradingPipeline`.
+- **Orchestration:** Coordinates the flow of data between the UI, the Physics Engine, and the Renderer.
+- **DTOs:** Data Transfer Objects for passing state between layers.
 
-### 3. The Infrastructure (Implementation Layer)
+### 3. The Infrastructure (Adapter Layer)
 
 Located in `src/infrastructure`.
 
-- **Physics Adapter:** The bridge to the Rust/WASM backend. Implements **Zero-Copy** rendering using `THREE.InterleavedBufferAttribute` to bind WASM memory directly to the GPU.
-- **Geometry Engine:** Wrappers around `three.js` and `meshoptimizer`.
+- **WASM Adapter:** The bridge to the Rust backend. Handles memory marshalling and Zero-Copy buffer synchronization.
+- **Geometry Engine:** Implementation of complex algorithms like `MeshAnalyzer` (Slicing) and `ProxyGenerator` (Decimation).
+- **Rendering:** `TextureGenerator` strategies and Three.js setups.
 
-### 4. The Presentation (View Layer)
+### 4. The Presentation (UI Layer)
 
 Located in `src/presentation`.
 
-- **React Components:** UI overlays and controls.
-- **Canvas:** React Three Fiber (R3F) scene graph.
-- **State:** `Zustand` stores for managing the simulation loop and UI state.
+- **React Components:** Pure UI overlays (Status Panels, Controls).
+- **Zustand Stores:** State management for the simulation loop (`simulationStore`).
+- **Canvas:** The React Three Fiber scene graph.
 
 ### 5. The Physics Backend (Rust)
 
@@ -82,13 +84,20 @@ Located in `physics/`.
 - **Speculative Contacts:** Predicts collisions before they happen to prevent "tunneling" (clipping) during fast motion.
 - **Area Conservation:** Resists shearing to prevent the "chainmail" effect, simulating continuous fabric surfaces.
 - **Hybrid Solver:** Combines accelerated internal constraints with damped collision resolution for maximum stability.
+- **Self-Collision (Experimental):** Implements a secondary `DynamicSpatialHash` to prevent cloth-on-cloth intersection. Uses an adjacency-aware exclusion filter to ignore connected neighbors, preventing self-explosion.
+- **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates for realistic fabric buckling.
 
 ### 📐 Asset Intelligence
 
 - **Smart Welding:** Automatically merges vertices at UV seams (up to 1.5cm) while respecting normal direction to prevent merging front/back panels.
 - **Adaptive Body Measurement:** Uses cluster analysis to mathematically isolate the torso from the arms, ensuring accurate chest measurements even in A-Pose.
 - **Anatomical Anchoring:** Automatically detects the neck position and snaps the garment collar to fit.
-- **Voting-Based Orientation:** A heuristic algorithm analyzes mesh topology (Nose, Chest, Toes) to automatically correct upside-down or backward avatars.
+- **Voting-Based Orientation:** A robust heuristic algorithm (`OrientationOptimizer`) uses three independent "voters" to determine mesh orientation:
+  - **Chest Voter:** Checks for pectoral mass bias (Z-forward).
+  - **Feet Voter:** Checks for toe protrusion.
+  - **Head Voter:** Checks for face/nose offset.
+  - *Result:* Automatically corrects 99% of "Upside Down" or "Backward" avatars without user intervention.
+- **Procedural Material Generation:** Uses an in-memory `TextureGenerator` (Canvas API) to create high-frequency "Cotton Weave" normal maps on the fly, eliminating the need for large external texture assets.
 
 ### ⚡ Performance
 

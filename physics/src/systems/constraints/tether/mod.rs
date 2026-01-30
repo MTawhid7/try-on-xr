@@ -6,6 +6,9 @@ mod horizontal;
 use crate::engine::state::PhysicsState;
 use crate::utils::coloring;
 
+/// Enforces global length limits (Long-Range Attachment).
+/// "Tethers" particles to stable anchor points to prevent excessive stretching
+/// that local distance constraints cannot prevent alone (the "Super-Elastic" effect).
 pub struct TetherConstraint {
     pub constraints: Vec<[usize; 2]>,
     pub rest_lengths: Vec<f32>,
@@ -13,6 +16,7 @@ pub struct TetherConstraint {
 }
 
 impl TetherConstraint {
+    /// Generates Vertical and Horizontal tethers based on UV coordinates or topology.
     pub fn new(state: &PhysicsState) -> Self {
         let (v_constraints, v_lengths) = vertical::generate(state);
         let (h_constraints, h_lengths) = horizontal::generate(state);

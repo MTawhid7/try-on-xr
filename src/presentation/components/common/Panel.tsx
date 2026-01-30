@@ -7,6 +7,10 @@ interface PanelProps {
     style?: React.CSSProperties;
 }
 
+/**
+ * A reusable UI container with a distinct "Glassmorphism" look.
+ * Used for floating panels like the Status Panel and Controls.
+ */
 export const Panel: React.FC<PanelProps> = ({ children, style }) => {
     return (
         <div style={{
