@@ -12,6 +12,7 @@
 │   └── src
 │       ├── collision
 │       │   ├── collider.rs
+│       │   ├── exclusion.rs
 │       │   ├── geometry.rs
 │       │   ├── mod.rs
 │       │   ├── preprocessing.rs
@@ -51,7 +52,8 @@
 │       │   └── mod.rs
 │       └── utils
 │           ├── coloring.rs
-│           └── mod.rs
+│           ├── mod.rs
+│           └── normals.rs
 ├── project-structure.txt
 ├── public
 │   ├── models
@@ -165,4 +167,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-47 directories, 119 files
+47 directories, 121 files

@@ -20,6 +20,7 @@ export class WasmAdapter implements IPhysicsEngine {
     private cachedPositionAttribute: THREE.InterleavedBufferAttribute | null = null;
     private cachedNormalAttribute: THREE.InterleavedBufferAttribute | null = null;
     private vertexCount: number = 0;
+    private memoryResizeLogged: boolean = false;
 
     async init(
         garmentVerts: Float32Array,
@@ -50,6 +51,7 @@ export class WasmAdapter implements IPhysicsEngine {
         // Reset cache on init
         this.cachedPositionAttribute = null;
         this.cachedNormalAttribute = null;
+        this.memoryResizeLogged = false;
 
         console.log(`[WasmAdapter] Initialized. Vertices: ${this.vertexCount} (Aligned Vec4)`);
     }
@@ -82,7 +84,11 @@ export class WasmAdapter implements IPhysicsEngine {
                 this.cachedPositionAttribute.data.needsUpdate = true;
                 return this.cachedPositionAttribute;
             } else {
-                console.warn("[WasmAdapter] WASM Memory resized. Recreating views.");
+                // Memory resized (buffer detached) - only log once to reduce console spam
+                if (!this.memoryResizeLogged) {
+                    console.debug("[WasmAdapter] WASM Memory resized. Recreating buffer views.");
+                    this.memoryResizeLogged = true;
+                }
             }
         }
 
@@ -124,7 +130,7 @@ export class WasmAdapter implements IPhysicsEngine {
                 this.cachedNormalAttribute.data.needsUpdate = true;
                 return this.cachedNormalAttribute;
             } else {
-                console.warn("[WasmAdapter] WASM Memory resized. Recreating normal views.");
+                // Memory resized - views are recreated silently (already logged above)
             }
         }
 

@@ -1,7 +1,8 @@
 // physics/src/engine/simulation.rs
 
 use crate::engine::{PhysicsState, PhysicsConfig};
-use crate::collision::{MeshCollider, CollisionResolver};
+use crate::collision::{MeshCollider, CollisionResolver, SelfCollision};
+use crate::collision::self_collision::SelfCollisionConfig;
 use crate::systems::dynamics::{Solver, Integrator};
 use crate::systems::forces::Aerodynamics;
 use crate::systems::constraints::MouseConstraint;
@@ -24,6 +25,10 @@ pub struct Simulation {
     pub aerodynamics: Aerodynamics,
     /// Handles user interaction (Mouse dragging).
     pub mouse: MouseConstraint,
+    /// Handles cloth-on-cloth self-collision.
+    pub self_collision: SelfCollision,
+    /// Substep counter for reduced-frequency self-collision.
+    substep_counter: u32,
 }
 
 impl Simulation {
@@ -58,6 +63,15 @@ impl Simulation {
         let solver = Solver::new(&state, scale_factor);
         let mouse = MouseConstraint::new();
 
+        // Initialize self-collision with config from PhysicsConfig
+        let self_collision_config = SelfCollisionConfig {
+            thickness: config.self_collision_thickness,
+            stiffness: config.self_collision_stiffness,
+            frequency: config.self_collision_frequency,
+            max_pairs: 10000,
+        };
+        let self_collision = SelfCollision::new(&state, self_collision_config);
+
         Self {
             state,
             config,
@@ -66,6 +80,8 @@ impl Simulation {
             solver,
             aerodynamics,
             mouse,
+            self_collision,
+            substep_counter: 0,
         }
     }
 
@@ -82,6 +98,15 @@ impl Simulation {
             self.mouse.solve(&mut self.state, sdt);
             self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
             self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
+
+            // Self-collision at reduced frequency for performance
+            if self.config.self_collision_enabled {
+                let freq = self.self_collision.config.frequency as u32;
+                if freq == 0 || self.substep_counter % freq == 0 {
+                    self.self_collision.solve(&mut self.state);
+                }
+            }
+            self.substep_counter = self.substep_counter.wrapping_add(1);
         }
 
         // Compute vertex normals in WASM (moved from JavaScript for performance)

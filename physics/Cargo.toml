@@ -12,3 +12,4 @@ js-sys = "0.3"
 console_error_panic_hook = "0.1"
 glam = { version = "0.24", features = ["scalar-math"] }
 rustc-hash = "2.0"
+smallvec = "1.11"

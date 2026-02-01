@@ -34,6 +34,16 @@ pub struct PhysicsConfig {
     pub static_friction: f32,
     pub dynamic_friction: f32,
     pub collision_stiffness: f32,
+
+    // --- Self-Collision ---
+    /// Enable cloth self-collision detection
+    pub self_collision_enabled: bool,
+    /// Minimum separation between cloth layers (meters)
+    pub self_collision_thickness: f32,
+    /// Self-collision repulsion strength (0.0 - 1.0)
+    pub self_collision_stiffness: f32,
+    /// Solve self-collision every N substeps (performance optimization)
+    pub self_collision_frequency: u8,
 }
 
 impl PhysicsConfig {
@@ -64,6 +74,12 @@ impl PhysicsConfig {
             static_friction: 0.3,
             dynamic_friction: 0.2,
             collision_stiffness: 0.9,
+
+            // Self-Collision: Enabled by default with balanced settings
+            self_collision_enabled: true,
+            self_collision_thickness: 0.005,  // 5mm
+            self_collision_stiffness: 0.5,
+            self_collision_frequency: 2,       // Every other substep
         }
     }
 }

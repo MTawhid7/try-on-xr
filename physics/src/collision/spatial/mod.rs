@@ -4,4 +4,4 @@ pub mod static_grid;
 pub mod dynamic;
 
 pub use static_grid::StaticSpatialHash;
-pub use dynamic::DynamicSpatialHash;
+pub use dynamic::HierarchicalSpatialHash;

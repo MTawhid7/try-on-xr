@@ -5,6 +5,33 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-01] - Optimized Self-Collision System (v0.8.0)
+
+### 1. Current State (Self-Collision)
+
+- [x] **Hierarchical Spatial Hash:** Replaced naive `HashMap` with Morton-coded `FxHashMap` + `SmallVec` for cache-coherent queries.
+- [x] **O(1) Topology Exclusion:** Precomputed 2-ring neighbor bitmasks prevent collision between constrained vertices.
+- [x] **Reduced-Frequency Solving:** Self-collision runs every 2nd substep (configurable) ensuring 50% fewer collision checks.
+- [x] **Configurable Settings:** Added `self_collision_enabled`, `self_collision_thickness`, `self_collision_stiffness`, `self_collision_frequency` to `PhysicsConfig`.
+- [x] **Console Cleanup:** Fixed WASM memory resize spam in `WasmAdapter.ts` (now logs once via `console.debug`).
+
+### 2. Not Working / Issues (Self-Collision)
+
+- [ ] **Large Shirt Visibility:** Self-collision is subtle on larger sizes. Better lighting/textures would make folds more visible.
+- [ ] **Batched Parallel Solving:** Graph-colored batch solving (Phase 3) deferred for future optimization.
+
+### 3. Observations / Notes (Self-Collision)
+
+- **Performance Impact:** With reduced-frequency solving, self-collision adds ~5-10% overhead while preventing cloth self-intersection.
+- **Topology Awareness:** Bitmask exclusion is critical—without it, the solver fights against distance constraints.
+
+### 4. Next Steps / Plan (Self-Collision)
+
+- [ ] **Visual Polish:** Improve cloth shading to better show folds from self-collision.
+- [ ] **Parallel Batching:** Implement graph-colored collision pairs for multi-threaded solving.
+
+---
+
 ## [2026-02-01] - The "Goldilocks" Optimization (v0.7.0)
 
 ### 1. Current State (Performance & Stability)

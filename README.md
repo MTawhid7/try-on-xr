@@ -1,6 +1,6 @@
 # Vestra Physics Engine
 
-![Version](https://img.shields.io/badge/Version-0.7.0_(Goldilocks)-blue)
+![Version](https://img.shields.io/badge/Version-0.8.0_(Self--Collision)-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 ![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD_%7C_React_Three_Fiber-orange)
@@ -76,17 +76,18 @@ Located in `physics/`.
 ### 🧶 Physics & Simulation
 
 - **XPBD Solver:** Stable simulation of stiff constraints (non-stretchy fabrics) using compliance-based solving.
-- **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates.
+- **Optimized Self-Collision:** A high-performance collision system that prevents the cloth from passing through itself.
+  - **Hierarchical Spatial Hash:** Uses Morton codes and a multi-level grid for cache-coherent O(1) lookups.
+  - **Topology-Aware Exclusion:** Precomputed bitmasks filter out connected vertices in O(1) time, preventing self-explosion.
+  - **Reduced frequency solving:** Configurable update frequency (e.g., every 2nd substep) to maintain high FPS.
+- **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates for realistic fabric buckling.
 - **Coulomb Friction:** Physically based friction model distinguishing between static (sticking) and kinetic (sliding) friction.
 - **Aerodynamics:** Real-time lift and drag forces based on relative velocity and wind vectors.
 - **SIMD Vectorization:** Core constraints and normal computation are implemented with loop unrolling and 128-bit vector instructions, processing 4 operations per cycle.
-- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega = 0.92$) to converge to a stiff solution in fewer iterations (12 vs 20), boosting FPS significantly.
+- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega = 0.92$) to converge to a stiff solution in fewer iterations, boosting FPS significantly.
 - **Speculative Contacts:** Predicts collisions before they happen to prevent "tunneling" (clipping) during fast motion.
 - **Area Conservation:** Resists shearing to prevent the "chainmail" effect, simulating continuous fabric surfaces.
-- **Hybrid Solver:** Combines accelerated internal constraints with damped collision resolution for maximum stability.
 - **WASM Normal Computation:** Vertex normals are computed in Rust after every physics step, eliminating the O(N) JavaScript bottleneck on the main thread.
-- **Self-Collision (Experimental):** Implements a secondary `DynamicSpatialHash` to prevent cloth-on-cloth intersection. Uses an adjacency-aware exclusion filter to ignore connected neighbors, preventing self-explosion.
-- **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates for realistic fabric buckling.
 
 ### 📐 Asset Intelligence
 
@@ -102,9 +103,9 @@ Located in `physics/`.
 
 ### ⚡ Performance
 
-- **Zero-Copy Rendering:** The Three.js geometry reads vertex positions directly from WASM memory. No data copying occurs between CPU and GPU.
-- **Zero-Allocation Loop:** The physics step generates zero garbage, eliminating micro-stutters caused by the Garbage Collector.
-- **Static Spatial Hashing:** Optimized broad-phase collision detection for static bodies.
+- **Zero-Copy Rendering:** Three.js reads directly from WASM memory. No data copying between CPU and GPU.
+- **Zero-Allocation Loop:** No garbage collection spikes during simulation.
+- **Static Spatial Hashing:** O(1) broad-phase collision detection for static mannequins.
 
 ---
 
@@ -116,7 +117,7 @@ root/
 │   ├── src/
 │   │   ├── engine/             # State, Config, Simulation Loop
 │   │   ├── systems/            # Constraints (Distance, Area, Bending), Forces
-│   │   ├── collision/          # Spatial Hashing, Resolvers, Geometry
+│   │   ├── collision/          # Spatial Hashing, Resolvers, Geometry, Exclusion
 │   │   └── utils/              # Graph Coloring, CSR Adjacency
 │   └── Cargo.toml
 │
@@ -170,46 +171,38 @@ root/
     npm run dev
     ```
 
-    Open `http://localhost:5173` in your browser.
-
 ---
 
 ## ⚙️ Configuration and Tuning
 
-Vestra is designed to be tunable. Modify `physics/src/engine/config.rs` to adjust behavior.
+Modify `physics/src/engine/config.rs` to adjust behavior.
 
-- `substeps`: (Default: 6) Higher = more accurate, more CPU usage.
-- `solver_iterations`: (Default: 12) Lowered thanks to Chebyshev acceleration and SIMD.
-- `spectral_radius`: (Default: 0.92) Controls the aggressiveness of Chebyshev acceleration.
-- `area_compliance`: (Default: 2.0e-4) Controls shear resistance.
-- `damping`: (Default: 0.985) Global energy loss per frame.
+- `substeps`: (Default: 6) Higher = more accurate.
+- `solver_iterations`: (Default: 12) Controls constraint stiffness.
+- `spectral_radius`: (Default: 0.92) Aggressiveness of Chebyshev acceleration.
+- `self_collision_enabled`: (Default: true) Master toggle for cloth-on-cloth collision.
+- `self_collision_thickness`: (Default: 0.005) Minimum separation between cloth layers.
+- `self_collision_frequency`: (Default: 2) Update every N substeps.
+- `area_compliance`: (Default: 2.0e-4) Shear resistance.
 
 ---
 
 ## 🛠 Development Workflow
 
-The project uses a hybrid workflow.
-
-1. **Frontend Changes:**
-    - Modify files in `src/`.
-    - Vite HMR (Hot Module Replacement) updates the browser instantly.
-
-2. **Physics Changes:**
-    - Modify files in `physics/src/`.
-    - Run the `wasm-pack` build command.
-    - Vite will detect the change in `src/physics-pkg` and reload the page.
+1. **Frontend Changes:** Vite HMR updates the browser instantly.
+2. **Physics Changes:** Run the `wasm-pack` command above; Vite will reload the page automatically.
 
 ---
 
 ## 🔮 Roadmap
 
-- [ ] **Self-Collision:** Implement a Linear BVH (LBVH) to handle cloth-on-cloth collisions efficiently.
-- [ ] **User Input:** UI for users to input custom height/weight measurements to morph the mannequin.
-- [ ] **WebGPU:** Explore porting the solver logic to WGSL Compute Shaders for massive particle counts (>50k).
-- [ ] **Multi-Layering:** Support for tucking shirts into pants or layering jackets.
+- [ ] **Parallel Batch Solving:** Implement graph-colored collision pairs for multi-threaded resolution.
+- [ ] **WebGPU:** Port the solver logic to WGSL Compute Shaders for massive particle counts (>50k).
+- [ ] **User Input:** UI for custom anatomical measurements to morph the mannequin.
+- [ ] **Multi-Layering:** Support for complex garment layering (e.g., blazer over hoodie).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.

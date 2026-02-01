@@ -4,10 +4,12 @@ pub mod spatial;
 pub mod collider;
 pub mod resolver;
 pub mod self_collision;
+pub mod exclusion;
 mod preprocessing;
 
 pub use collider::MeshCollider;
 pub use resolver::CollisionResolver;
+// TopologyExclusion is used internally by SelfCollision
 
 // FIX: Suppress warning since we aren't using this in the main loop yet
 #[allow(unused_imports)]
