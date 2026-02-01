@@ -39,15 +39,17 @@ pub struct PhysicsConfig {
 impl PhysicsConfig {
     pub fn default() -> Self {
         Self {
-            substeps: 8,
-            solver_iterations: 15,
+            // OPTIMIZED: 6 substeps x 12 iterations = 72 solves/frame (was 120)
+            substeps: 6,
+            solver_iterations: 12,
 
-            // Reduced to 0.85 to prevent "locking" the mesh into a rigid shape.
-            spectral_radius: 0.85,
+            // Increased to 0.92 for more aggressive Chebyshev acceleration
+            spectral_radius: 0.92,
 
             gravity: Vec3::new(0.0, -9.81, 0.0),
             wind: Vec3::new(0.0, 0.0, 0.0),
-            damping: 0.99,
+            // Slightly increased damping to reduce jitter
+            damping: 0.985,
 
             // Reduced drag so the cloth falls naturally instead of floating
             drag_coeff: 0.5,

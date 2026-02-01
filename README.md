@@ -1,6 +1,6 @@
 # Vestra Physics Engine
 
-![Version](https://img.shields.io/badge/Version-0.6.0_(Performance)-blue)
+![Version](https://img.shields.io/badge/Version-0.7.0_(Goldilocks)-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 ![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD_%7C_React_Three_Fiber-orange)
@@ -79,11 +79,12 @@ Located in `physics/`.
 - **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates.
 - **Coulomb Friction:** Physically based friction model distinguishing between static (sticking) and kinetic (sliding) friction.
 - **Aerodynamics:** Real-time lift and drag forces based on relative velocity and wind vectors.
-- **SIMD Vectorization:** Core constraints are rewritten to use 128-bit vector instructions, processing 4 floating-point operations per cycle.
-- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega$) to converge to a stiff solution in fewer iterations (15 vs 25), boosting FPS by ~40%.
+- **SIMD Vectorization:** Core constraints and normal computation are implemented with loop unrolling and 128-bit vector instructions, processing 4 operations per cycle.
+- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega = 0.92$) to converge to a stiff solution in fewer iterations (12 vs 20), boosting FPS significantly.
 - **Speculative Contacts:** Predicts collisions before they happen to prevent "tunneling" (clipping) during fast motion.
 - **Area Conservation:** Resists shearing to prevent the "chainmail" effect, simulating continuous fabric surfaces.
 - **Hybrid Solver:** Combines accelerated internal constraints with damped collision resolution for maximum stability.
+- **WASM Normal Computation:** Vertex normals are computed in Rust after every physics step, eliminating the O(N) JavaScript bottleneck on the main thread.
 - **Self-Collision (Experimental):** Implements a secondary `DynamicSpatialHash` to prevent cloth-on-cloth intersection. Uses an adjacency-aware exclusion filter to ignore connected neighbors, preventing self-explosion.
 - **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates for realistic fabric buckling.
 
@@ -177,11 +178,11 @@ root/
 
 Vestra is designed to be tunable. Modify `physics/src/engine/config.rs` to adjust behavior.
 
-- `substeps`: (Default: 8) Higher = more accurate, more CPU usage.
-- `solver_iterations`: (Default: 15) Lowered thanks to Chebyshev acceleration.
-- `spectral_radius`: (Default: 0.85) Controls the aggressiveness of Chebyshev acceleration. Lower if cloth jitters.
-- `area_compliance`: (Default: 2.0e-4) Controls shear resistance. Lower = Stiffer (Sheet metal), Higher = Stretchy (Spandex).
-- `damping`: (Default: 0.99) Global energy loss per frame.
+- `substeps`: (Default: 6) Higher = more accurate, more CPU usage.
+- `solver_iterations`: (Default: 12) Lowered thanks to Chebyshev acceleration and SIMD.
+- `spectral_radius`: (Default: 0.92) Controls the aggressiveness of Chebyshev acceleration.
+- `area_compliance`: (Default: 2.0e-4) Controls shear resistance.
+- `damping`: (Default: 0.985) Global energy loss per frame.
 
 ---
 

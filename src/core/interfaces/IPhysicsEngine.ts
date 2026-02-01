@@ -33,6 +33,12 @@ export interface IPhysicsEngine {
     getPositions(): any;
 
     /**
+     * Returns a view into the memory buffer representing the computed vertex normals.
+     * Normals are computed in WASM after physics step for performance.
+     */
+    getNormals(): any;
+
+    /**
      * Frees any unmanaged resources (e.g., WASM memory).
      */
     dispose(): void;

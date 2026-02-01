@@ -58,31 +58,34 @@ export const GarmentMesh: React.FC = () => {
         // B. Sync Physics -> Visuals (Zero-Copy)
         // The engine returns a direct view into WASM memory (InterleavedBufferAttribute)
         const physicsAttribute = engine.getPositions() as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+        const normalsAttribute = engine.getNormals() as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
-        // Check if we need to bind the Zero-Copy buffer
+        // Check if we need to bind the Zero-Copy position buffer
         // This happens on the first frame of simulation, or if WASM memory resized.
         if (geometry.attributes.position !== physicsAttribute) {
             geometry.setAttribute('position', physicsAttribute);
-
-            // CRITICAL: When swapping attributes, we must ensure the new one is flagged for upload
-            if (physicsAttribute instanceof THREE.InterleavedBufferAttribute) {
-                physicsAttribute.data.needsUpdate = true;
-            } else {
-                physicsAttribute.needsUpdate = true;
-            }
-        } else {
-            // If already bound, just flag for update
-            if (physicsAttribute instanceof THREE.InterleavedBufferAttribute) {
-                physicsAttribute.data.needsUpdate = true;
-            } else {
-                physicsAttribute.needsUpdate = true;
-            }
         }
 
-        // C. Recompute Normals
-        // Necessary because the cloth deforms.
-        // Three.js computeVertexNormals supports InterleavedBufferAttribute.
-        geometry.computeVertexNormals();
+        // Bind Zero-Copy normal buffer (computed in WASM for performance)
+        if (geometry.attributes.normal !== normalsAttribute) {
+            geometry.setAttribute('normal', normalsAttribute);
+        }
+
+        // Flag buffers for GPU upload
+        if (physicsAttribute instanceof THREE.InterleavedBufferAttribute) {
+            physicsAttribute.data.needsUpdate = true;
+        } else {
+            physicsAttribute.needsUpdate = true;
+        }
+
+        if (normalsAttribute instanceof THREE.InterleavedBufferAttribute) {
+            normalsAttribute.data.needsUpdate = true;
+        } else {
+            normalsAttribute.needsUpdate = true;
+        }
+
+        // NOTE: computeVertexNormals() has been moved to WASM (Rust)
+        // to free up the main thread and achieve a smooth 60 FPS.
     });
 
     if (!geometry) return null;

@@ -91,39 +91,53 @@ impl BendingConstraint {
     }
 
     /// Solves bending constraints between two non-adjacent particles.
-    /// 1. Checks current distance vs rest distance for the "bending edge".
-    /// 2. Applies correction using `compliance` (stiffness) and `dt`.
-    /// 3. Standard XPBD limits are applied.
+    /// OPTIMIZATION: Uses 4x loop unrolling for better instruction-level parallelism.
+    #[inline(never)]
     pub fn solve(&self, state: &mut PhysicsState, omega: f32, dt: f32) {
+        let dt_sq_inv = 1.0 / (dt * dt);
+
         for b in 0..(self.batch_offsets.len() - 1) {
             let start = self.batch_offsets[b];
             let end = self.batch_offsets[b + 1];
+            let count = end - start;
 
-            for k in start..end {
-                let [i1, i2] = self.constraints[k];
-                let w1 = state.inv_mass[i1];
-                let w2 = state.inv_mass[i2];
-                let w_sum = w1 + w2;
-                if w_sum == 0.0 { continue; }
+            let chunks = count / 4;
+            let remainder = count % 4;
 
-                let alpha = self.compliances[k] / (dt * dt);
-                let p1 = state.positions[i1];
-                let p2 = state.positions[i2];
-                let delta = p1 - p2;
-                let len = delta.length();
-                if len < 1e-6 { continue; }
+            for chunk in 0..chunks {
+                let base = start + chunk * 4;
+                Self::solve_single(state, &self.constraints[base], self.rest_lengths[base], self.compliances[base] * dt_sq_inv, omega);
+                Self::solve_single(state, &self.constraints[base + 1], self.rest_lengths[base + 1], self.compliances[base + 1] * dt_sq_inv, omega);
+                Self::solve_single(state, &self.constraints[base + 2], self.rest_lengths[base + 2], self.compliances[base + 2] * dt_sq_inv, omega);
+                Self::solve_single(state, &self.constraints[base + 3], self.rest_lengths[base + 3], self.compliances[base + 3] * dt_sq_inv, omega);
+            }
 
-                let rest = self.rest_lengths[k];
-                let c = len - rest;
-
-                let delta_lambda = -c / (w_sum + alpha);
-                let correction_vector = (delta / len) * delta_lambda;
-
-                let accelerated_correction = correction_vector * omega;
-
-                if w1 > 0.0 { state.positions[i1] += accelerated_correction * w1; }
-                if w2 > 0.0 { state.positions[i2] -= accelerated_correction * w2; }
+            for k in (start + chunks * 4)..(start + chunks * 4 + remainder) {
+                Self::solve_single(state, &self.constraints[k], self.rest_lengths[k], self.compliances[k] * dt_sq_inv, omega);
             }
         }
+    }
+
+    #[inline(always)]
+    fn solve_single(state: &mut PhysicsState, constraint: &[usize; 2], rest_length: f32, alpha: f32, omega: f32) {
+        let [i1, i2] = *constraint;
+        let w1 = state.inv_mass[i1];
+        let w2 = state.inv_mass[i2];
+        let w_sum = w1 + w2;
+        if w_sum == 0.0 { return; }
+
+        let p1 = state.positions[i1];
+        let p2 = state.positions[i2];
+        let delta = p1 - p2;
+        let len = delta.length();
+        if len < 1e-6 { return; }
+
+        let c = len - rest_length;
+        let delta_lambda = -c / (w_sum + alpha);
+        let correction_vector = (delta / len) * delta_lambda;
+        let accelerated_correction = correction_vector * omega;
+
+        if w1 > 0.0 { state.positions[i1] += accelerated_correction * w1; }
+        if w2 > 0.0 { state.positions[i2] -= accelerated_correction * w2; }
     }
 }

@@ -59,63 +59,75 @@ impl AreaConstraint {
     }
 
     /// Solves the area constraint using XPBD.
-    /// 1. Computes the current area of each triangle.
-    /// 2. Compares it to the rest area.
-    /// 3. Applies positional corrections (gradients) to restore the original area.
+    /// OPTIMIZATION: Uses 4x loop unrolling for better instruction-level parallelism.
+    #[inline(never)]
     pub fn solve(&self, state: &mut PhysicsState, compliance: f32, omega: f32, dt: f32) {
         let alpha = compliance / (dt * dt);
 
         for b in 0..(self.batch_offsets.len() - 1) {
             let start = self.batch_offsets[b];
             let end = self.batch_offsets[b + 1];
+            let count = end - start;
 
-            for k in start..end {
-                let [i0, i1, i2] = self.indices[k];
+            let chunks = count / 4;
+            let remainder = count % 4;
 
-                let w0 = state.inv_mass[i0];
-                let w1 = state.inv_mass[i1];
-                let w2 = state.inv_mass[i2];
-                let w_sum = w0 + w1 + w2;
-                if w_sum == 0.0 { continue; }
+            for chunk in 0..chunks {
+                let base = start + chunk * 4;
+                Self::solve_single(state, &self.indices[base], self.rest_areas[base], alpha, omega);
+                Self::solve_single(state, &self.indices[base + 1], self.rest_areas[base + 1], alpha, omega);
+                Self::solve_single(state, &self.indices[base + 2], self.rest_areas[base + 2], alpha, omega);
+                Self::solve_single(state, &self.indices[base + 3], self.rest_areas[base + 3], alpha, omega);
+            }
 
-                let p0 = state.positions[i0];
-                let p1 = state.positions[i1];
-                let p2 = state.positions[i2];
-
-                let u = p1 - p0;
-                let v = p2 - p0;
-                let u3 = u.truncate();
-                let v3 = v.truncate();
-                let cross = u3.cross(v3);
-                let current_area = 0.5 * cross.length();
-
-                let rest_area = self.rest_areas[k];
-                let c = current_area - rest_area;
-
-                if c.abs() < 1e-6 { continue; }
-                if current_area < 1e-9 { continue; }
-
-                let n = cross / (2.0 * current_area);
-
-                let grad0 = 0.5 * (p2.truncate() - p1.truncate()).cross(n);
-                let grad1 = 0.5 * (p0.truncate() - p2.truncate()).cross(n);
-                let grad2 = 0.5 * (p1.truncate() - p0.truncate()).cross(n);
-
-                let denom = w0 * grad0.length_squared() +
-                            w1 * grad1.length_squared() +
-                            w2 * grad2.length_squared();
-
-                if denom < 1e-9 { continue; }
-
-                let delta_lambda = -c / (denom + alpha);
-
-                // Chebyshev Scaling
-                let lambda_omega = delta_lambda * omega;
-
-                if w0 > 0.0 { state.positions[i0] += Vec4::from((grad0 * (lambda_omega * w0), 0.0)); }
-                if w1 > 0.0 { state.positions[i1] += Vec4::from((grad1 * (lambda_omega * w1), 0.0)); }
-                if w2 > 0.0 { state.positions[i2] += Vec4::from((grad2 * (lambda_omega * w2), 0.0)); }
+            for k in (start + chunks * 4)..(start + chunks * 4 + remainder) {
+                Self::solve_single(state, &self.indices[k], self.rest_areas[k], alpha, omega);
             }
         }
+    }
+
+    #[inline(always)]
+    fn solve_single(state: &mut PhysicsState, indices: &[usize; 3], rest_area: f32, alpha: f32, omega: f32) {
+        let [i0, i1, i2] = *indices;
+
+        let w0 = state.inv_mass[i0];
+        let w1 = state.inv_mass[i1];
+        let w2 = state.inv_mass[i2];
+        let w_sum = w0 + w1 + w2;
+        if w_sum == 0.0 { return; }
+
+        let p0 = state.positions[i0];
+        let p1 = state.positions[i1];
+        let p2 = state.positions[i2];
+
+        let u = p1 - p0;
+        let v = p2 - p0;
+        let u3 = u.truncate();
+        let v3 = v.truncate();
+        let cross = u3.cross(v3);
+        let current_area = 0.5 * cross.length();
+
+        let c = current_area - rest_area;
+        if c.abs() < 1e-6 { return; }
+        if current_area < 1e-9 { return; }
+
+        let n = cross / (2.0 * current_area);
+
+        let grad0 = 0.5 * (p2.truncate() - p1.truncate()).cross(n);
+        let grad1 = 0.5 * (p0.truncate() - p2.truncate()).cross(n);
+        let grad2 = 0.5 * (p1.truncate() - p0.truncate()).cross(n);
+
+        let denom = w0 * grad0.length_squared() +
+                    w1 * grad1.length_squared() +
+                    w2 * grad2.length_squared();
+
+        if denom < 1e-9 { return; }
+
+        let delta_lambda = -c / (denom + alpha);
+        let lambda_omega = delta_lambda * omega;
+
+        if w0 > 0.0 { state.positions[i0] += Vec4::from((grad0 * (lambda_omega * w0), 0.0)); }
+        if w1 > 0.0 { state.positions[i1] += Vec4::from((grad1 * (lambda_omega * w1), 0.0)); }
+        if w2 > 0.0 { state.positions[i2] += Vec4::from((grad2 * (lambda_omega * w2), 0.0)); }
     }
 }

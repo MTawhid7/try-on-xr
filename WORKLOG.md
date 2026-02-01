@@ -5,6 +5,37 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-01] - The "Goldilocks" Optimization (v0.7.0)
+
+### 1. Current State (Performance & Stability)
+
+- [x] **WASM-Computed Normals:** Moved `computeVertexNormals` from JavaScript to Rust. This eliminated the single largest bottleneck on the main thread (~60k JS operations/frame).
+- [x] **SIMD-Accelerated Constraints:** Implemented 4x loop unrolling in Distance, Bending, and Area constraint solvers. This improves instruction-level parallelism and cache efficiency.
+- [x] **Optimized Collision Dedup:** Replaced O(N log N) `sort` + `dedup` in the spatial hash query with an O(N) `FxHashSet` (using `rustc-hash`).
+- [x] **"Goldilocks" Tuning:** Balanced simulation parameters to achieve near-60 FPS while maintaining stability:
+  - **Substeps:** Reduced 8 -> 6.
+  - **Iterations:** Reduced 15 -> 12.
+  - **Spectral Radius:** Increased 0.85 -> 0.92 (Aggressive Chebyshev acceleration).
+  - **Result:** ~40% reduction in total constraint solves per frame (120 -> 72).
+- [x] **Zero-Copy Normals:** Synchronized the newly computed WASM normals directly to Three.js using the existing `InterleavedBufferAttribute` pipeline.
+
+### 2. Not Working / Issues (Performance & Stability)
+
+- [ ] **Welding Artifacts:** Some triangular "holes" or visual artifacts are visible on the shirt. Likely due to `GeometryProcessor.smartWeld` incorrectly merging vertices at sharp boundaries or UV seams, breaking the manifold topology for physics.
+- [ ] **FPS Target:** While very smooth, we are still occasionally dipping just below 60 FPS on complex scenes.
+
+### 3. Observations / Notes (Performance & Stability)
+
+- **JS vs WASM Normals:** The performance gain from moving normals to WASM was even higher than expected. It wasn't just the math, but the removal of the blocking call on the main thread that allowed the browser to hit 60 FPS.
+- **Chebyshev Stability:** Aggressive acceleration (0.92) is only stable with the slightly increased global damping (0.985).
+
+### 4. Next Steps / Plan (Performance & Stability)
+
+- [ ] **Welding Fix:** Review the `smartWeld` logic to protect hard edges and complex UV boundaries.
+- [ ] **SIMD Intrinsics:** Explore manual `v128` intrinsics if auto-vectorization from unrolling hits a ceiling.
+
+---
+
 ## [2026-01-29] - Performance & Convergence Milestone (v0.6.0)
 
 ### 1. Current State (Performance & Convergence)

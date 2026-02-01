@@ -1,6 +1,7 @@
 // physics/src/utils/mod.rs
 
 pub mod coloring;
+pub mod normals;
 
 use wasm_bindgen::prelude::*;
 

@@ -39,7 +39,7 @@ impl CollisionResolver {
         }
     }
 
-    pub fn broad_phase(&mut self, state: &PhysicsState, collider: &MeshCollider) {
+    pub fn broad_phase(&mut self, state: &PhysicsState, collider: &mut MeshCollider) {
         broad::perform_broad_phase(self, state, collider);
     }
 

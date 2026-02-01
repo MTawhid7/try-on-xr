@@ -1,6 +1,7 @@
 // physics/src/collision/spatial/static_grid.rs
 
 use glam::Vec3;
+use rustc_hash::FxHashSet;
 
 /// A fixed-size 3D grid for spatial partitioning.
 /// Optimized for static geometry (like the mannequin) where objects do not move.
@@ -13,6 +14,9 @@ pub struct StaticSpatialHash {
     height: usize,
     depth: usize,
     cells: Vec<Vec<usize>>,
+    /// Reusable hash set for deduplication (avoids allocation in hot path)
+    /// Using FxHashSet from rustc-hash for maximum performance in O(1) operations.
+    dedup_set: FxHashSet<usize>,
 }
 
 impl StaticSpatialHash {
@@ -42,6 +46,7 @@ impl StaticSpatialHash {
             height: safe_height,
             depth: safe_depth,
             cells: vec![Vec::new(); total_cells],
+            dedup_set: FxHashSet::with_capacity_and_hasher(256, Default::default()),
         }
     }
 
@@ -78,8 +83,12 @@ impl StaticSpatialHash {
 
     /// Retrieves all triangles in cells overlapping the query radius.
     /// Used during Broad Phase Collision Detection.
-    pub fn query(&self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
+    /// OPTIMIZATION: Uses FxHashSet for O(N) deduplication instead of O(N log N) sort.
+    /// This is critical because broad phase is called for every active particle.
+    pub fn query(&mut self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
         buffer.clear();
+        self.dedup_set.clear();
+
         let min = p - Vec3::splat(radius);
         let max = p + Vec3::splat(radius);
 
@@ -102,12 +111,13 @@ impl StaticSpatialHash {
             for y in min_y..=max_y {
                 for x in min_x..=max_x {
                     let idx = x + y * self.width + z * self.width * self.height;
-                    buffer.extend_from_slice(&self.cells[idx]);
+                    for &triangle_id in &self.cells[idx] {
+                        if self.dedup_set.insert(triangle_id) {
+                            buffer.push(triangle_id);
+                        }
+                    }
                 }
             }
         }
-
-        buffer.sort_unstable();
-        buffer.dedup();
     }
 }

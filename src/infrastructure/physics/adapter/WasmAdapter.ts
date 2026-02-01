@@ -18,6 +18,7 @@ export class WasmAdapter implements IPhysicsEngine {
 
     // CACHE: Store the attribute to avoid GC pressure
     private cachedPositionAttribute: THREE.InterleavedBufferAttribute | null = null;
+    private cachedNormalAttribute: THREE.InterleavedBufferAttribute | null = null;
     private vertexCount: number = 0;
 
     async init(
@@ -48,6 +49,7 @@ export class WasmAdapter implements IPhysicsEngine {
 
         // Reset cache on init
         this.cachedPositionAttribute = null;
+        this.cachedNormalAttribute = null;
 
         console.log(`[WasmAdapter] Initialized. Vertices: ${this.vertexCount} (Aligned Vec4)`);
     }
@@ -103,12 +105,55 @@ export class WasmAdapter implements IPhysicsEngine {
         return this.cachedPositionAttribute;
     }
 
+    getNormals(): THREE.BufferAttribute | THREE.InterleavedBufferAttribute {
+        if (!this.engine || !this.wasmMemory) {
+            throw new Error("Engine not initialized");
+        }
+
+        const ptr = this.engine.get_normals_ptr();
+
+        // OPTIMIZATION: Check if we have a valid cached attribute
+        if (this.cachedNormalAttribute) {
+            const currentBuffer = this.cachedNormalAttribute.data.array.buffer;
+
+            // Check if WASM memory has resized (detached buffer)
+            if (currentBuffer.byteLength > 0) {
+                // The buffer is still valid.
+                // Since it is a view into WASM memory, the data is already updated.
+                // We just need to flag it for upload to GPU.
+                this.cachedNormalAttribute.data.needsUpdate = true;
+                return this.cachedNormalAttribute;
+            } else {
+                console.warn("[WasmAdapter] WASM Memory resized. Recreating normal views.");
+            }
+        }
+
+        // If we are here, either it's the first frame OR memory resized.
+        // We must create a new view.
+
+        // 1. Create view into WASM memory (Zero-Copy)
+        const rawArray = new Float32Array(
+            this.wasmMemory.buffer,
+            ptr,
+            this.vertexCount * 4
+        );
+
+        // 2. Create InterleavedBuffer (Stride = 4)
+        const interleaved = new THREE.InterleavedBuffer(rawArray, 4);
+
+        // 3. Create Attribute and Cache it
+        this.cachedNormalAttribute = new THREE.InterleavedBufferAttribute(interleaved, 3, 0);
+
+        return this.cachedNormalAttribute;
+    }
+
     dispose(): void {
         if (this.engine) {
             this.engine.free();
             this.engine = null;
             this.wasmMemory = null;
             this.cachedPositionAttribute = null;
+            this.cachedNormalAttribute = null;
         }
     }
 

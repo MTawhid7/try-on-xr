@@ -5,6 +5,7 @@ use crate::collision::{MeshCollider, CollisionResolver};
 use crate::systems::dynamics::{Solver, Integrator};
 use crate::systems::forces::Aerodynamics;
 use crate::systems::constraints::MouseConstraint;
+use crate::utils::normals;
 
 /// The core physics simulation state and logic container.
 /// Holds all subsystems (solver, collider, aerodynamics, etc.) and orchestrates the time step.
@@ -73,7 +74,7 @@ impl Simulation {
     pub fn step(&mut self, dt: f32) {
         let sdt = dt / self.config.substeps as f32;
 
-        self.resolver.broad_phase(&self.state, &self.collider);
+        self.resolver.broad_phase(&self.state, &mut self.collider);
 
         for _ in 0..self.config.substeps {
             let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
@@ -82,5 +83,12 @@ impl Simulation {
             self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
             self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
         }
+
+        // Compute vertex normals in WASM (moved from JavaScript for performance)
+        normals::compute_vertex_normals(
+            &self.state.positions,
+            &self.state.indices,
+            &mut self.state.normals
+        );
     }
 }

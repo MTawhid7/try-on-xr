@@ -7,7 +7,7 @@ use super::CollisionResolver;
 /// Executes the Broad Phase of collision detection.
 /// Queries the Spatial Hash to find potential collision candidates (triangles close to particles).
 /// Populates the `candidate_indices` buffer in the resolver.
-pub fn perform_broad_phase(resolver: &mut CollisionResolver, state: &PhysicsState, collider: &MeshCollider) {
+pub fn perform_broad_phase(resolver: &mut CollisionResolver, state: &PhysicsState, collider: &mut MeshCollider) {
     resolver.candidate_indices.clear();
 
     for i in 0..state.count {
