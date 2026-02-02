@@ -8,7 +8,7 @@ import { useSimulationStore } from '../../state/useSimulationStore';
  * Uses a visual indicator light and text label.
  */
 export const StatusPanel: React.FC = () => {
-    const { isReady, isRunning, isLoading } = useSimulationStore();
+    const { isReady, isRunning, isLoading, fps } = useSimulationStore();
 
     let statusText = "WAITING";
     let statusColor = "#aaa";
@@ -27,10 +27,22 @@ export const StatusPanel: React.FC = () => {
     }
 
     return (
-        <div>
-            <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1em', letterSpacing: '1px' }}>
-                VESTRA PHYSICS
-            </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1em', letterSpacing: '1px' }}>
+                    VESTRA PHYSICS
+                </h3>
+                <span style={{
+                    fontSize: '0.7em',
+                    color: fps < 30 ? '#ff4444' : '#888',
+                    fontWeight: 'bold',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '2px 6px',
+                    borderRadius: '4px'
+                }}>
+                    {fps} FPS
+                </span>
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{

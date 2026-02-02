@@ -168,6 +168,7 @@
 │       ├── App.tsx
 │       ├── canvas
 │       │   ├── CameraRig.tsx
+│       │   ├── FpsTracker.tsx
 │       │   ├── GarmentMesh.tsx
 │       │   ├── Lights.tsx
 │       │   ├── MannequinMesh.tsx
@@ -187,7 +188,8 @@
 │       │       └── StatusPanel.tsx
 │       ├── hooks
 │       │   ├── index.ts
-│       │   └── useGarmentInteraction.ts
+│       │   ├── useGarmentInteraction.ts
+│       │   └── useMediaQuery.ts
 │       ├── materials
 │       │   ├── FabricMaterial.tsx
 │       │   └── index.ts
@@ -203,4 +205,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-58 directories, 146 files
+58 directories, 148 files

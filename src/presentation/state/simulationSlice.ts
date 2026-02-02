@@ -10,9 +10,14 @@ import { MAX_PHYSICS_STEP } from '../../core/constants/SimulationConstants';
  */
 export const createSimulationSlice: StateCreator<SimulationStore, [], [], Partial<SimulationStore>> = (set, get) => ({
     isRunning: false,
+    fps: 0,
 
     toggleSimulation: () => {
         set((state) => ({ isRunning: !state.isRunning }));
+    },
+
+    setFps: (fps: number) => {
+        set({ fps });
     },
 
     step: (dt: number) => {

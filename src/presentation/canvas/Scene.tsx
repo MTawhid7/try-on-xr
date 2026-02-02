@@ -8,6 +8,7 @@ import { Lights } from './Lights';
 import { CameraRig } from './CameraRig';
 import { MannequinMesh } from './MannequinMesh';
 import { GarmentMesh } from './GarmentMesh';
+import { FpsTracker } from './FpsTracker';
 
 /**
  * The main 3D scene container.
@@ -28,6 +29,7 @@ export const Scene: React.FC = () => {
             camera={{ position: [0, 1.5, 2.5], fov: 50 }}
             dpr={[1, 2]} // Handle High-DPI screens
         >
+            <FpsTracker />
             <color attach="background" args={['#1a1a1a']} />
 
             <Lights />

@@ -6,6 +6,7 @@ import { StatusPanel } from './StatusPanel';
 import { SimulationControls } from '../controls/SimulationControls';
 import { SizeSelector } from '../controls/SizeSelector';
 import { useSimulationStore } from '../../state/useSimulationStore';
+import { useMediaQuery } from '../../hooks';
 
 /**
  * The main UI overlay layer.
@@ -14,22 +15,23 @@ import { useSimulationStore } from '../../state/useSimulationStore';
  */
 export const Overlay: React.FC = () => {
     const { error } = useSimulationStore();
+    const isMobile = useMediaQuery('(max-width: 600px)');
 
     return (
         <div style={{
             position: 'absolute',
-            top: 20,
-            left: 20,
+            top: isMobile ? 10 : 20,
+            left: isMobile ? 10 : 20,
             zIndex: 10, // Ensure it sits above the Canvas
             pointerEvents: 'none', // Let clicks pass through to Canvas...
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
-            width: '280px'
+            width: isMobile ? 'min(300px, calc(100vw - 20px))' : '280px'
         }}>
             {/* ...but re-enable pointer events for the panel itself */}
             <div style={{ pointerEvents: 'auto' }}>
-                <Panel>
+                <Panel style={{ padding: isMobile ? '12px' : '15px' }}>
                     <StatusPanel />
 
                     {error && (
@@ -51,17 +53,19 @@ export const Overlay: React.FC = () => {
                 </Panel>
             </div>
 
-            <div style={{ pointerEvents: 'auto' }}>
-                <Panel style={{ fontSize: '0.75em', color: '#888' }}>
-                    <p style={{ margin: 0 }}>
-                        <strong>Controls:</strong><br />
-                        • Left Click + Drag to Rotate<br />
-                        • Right Click to Pan<br />
-                        • Scroll to Zoom<br />
-                        • Click & Drag Cloth to Interact
-                    </p>
-                </Panel>
-            </div>
+            {!isMobile && (
+                <div style={{ pointerEvents: 'auto' }}>
+                    <Panel style={{ fontSize: '0.75em', color: '#888' }}>
+                        <p style={{ margin: 0 }}>
+                            <strong>Controls:</strong><br />
+                            • Left Click + Drag to Rotate<br />
+                            • Right Click to Pan<br />
+                            • Scroll to Zoom<br />
+                            • Click & Drag Cloth to Interact
+                        </p>
+                    </Panel>
+                </div>
+            )}
         </div>
     );
 };

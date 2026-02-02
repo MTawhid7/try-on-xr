@@ -5,6 +5,30 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-02] - UI/UX Refinement & Performance Monitoring
+
+### 1. Current State (UI/UX Refinement)
+
+- [x] **FPS Tracker:** Implemented a real-time on-screen FPS tracker.
+  - **Architecture:** Created a `FpsTracker` component using R3F's `useFrame` to calculate render frequency and update the global store.
+  - **UI:** Integrated the FPS counter into the `StatusPanel` with color-coded alerts (red for <30 FPS).
+- [x] **Responsive Overlay:** Refactored the UI overlay to support mobile devices.
+  - **Adaptation:** Implemented a `useMediaQuery` hook to detect screen size.
+  - **Layout:** On small screens (<600px), the overlay width is reduced, padding is condensed, and the "Controls" info panel is hidden to maximize viewport visibility.
+  - **Components:** Adjusted `SimulationControls` and `SizeSelector` to be more compact on mobile.
+
+### 2. Observations / Notes (UI/UX Refinement)
+
+- **Mobile UX:** The original 280px fixed width was too aggressive for portrait mobile views. The new fluid width (`min(300px, calc(100vw - 20px))`) ensures the UI remains usable without obscuring the simulation.
+- **Performance Visibility:** Having a visible FPS counter is crucial for debugging physics stability across different device tiers (mobile vs desktop).
+
+### 3. Next Steps / Plan (UI/UX Refinement)
+
+- [ ] **Collapsible Panels:** Further improve mobile UX by making panels collapsible.
+- [ ] **Touch Optimization:** Refine the `MouseConstraint` to work better with multi-touch gestures.
+
+---
+
 ## [2026-02-02] - Test Suite Refactor & Coverage Expansion
 
 ### 1. Current State (Test Infrastructure)

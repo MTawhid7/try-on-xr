@@ -22,6 +22,7 @@ export interface SimulationState {
     isRunning: boolean;
     isInteracting: boolean;
     error: string | null;
+    fps: number;
 }
 
 export interface SimulationActions {
@@ -41,6 +42,9 @@ export interface SimulationActions {
     grabParticle: (index: number, pos: [number, number, number]) => void;
     moveParticle: (pos: [number, number, number]) => void;
     releaseParticle: () => void;
+
+    /** Updates the current FPS */
+    setFps: (fps: number) => void;
 }
 
 export type SimulationStore = SimulationState & SimulationActions;
