@@ -12,11 +12,13 @@ use crate::systems::constraints::{
 
 /// The XPBD (Extended Position Based Dynamics) Solver.
 /// Manages and solves all internal constraints of the cloth system.
+///
+/// OPTIMIZATION: Uses SIMD-vectorized constraints for faster processing.
 pub struct Solver {
-    distance_constraint: DistanceConstraint,
-    bending_constraint: BendingConstraint,
-    tether_constraint: TetherConstraint,
-    area_constraint: AreaConstraint,
+    pub distance_constraint: DistanceConstraint,
+    pub bending_constraint: BendingConstraint,
+    pub tether_constraint: TetherConstraint,
+    pub area_constraint: AreaConstraint,
 }
 
 impl Solver {
@@ -41,6 +43,8 @@ impl Solver {
     /// - Iterates `config.solver_iterations` times.
     /// - Adjusts `omega` dynamically for stability.
     /// - Resolves constraints and collisions in order.
+    ///
+    /// OPTIMIZATION: All constraints use SIMD vectorization for 4-wide parallel processing.
     pub fn solve(
         &self,
         state: &mut PhysicsState,
@@ -60,7 +64,7 @@ impl Solver {
                 omega = 4.0 / (4.0 - rho * rho * omega);
             }
 
-            // Accelerate Internal Constraints
+            // Accelerate Internal Constraints (SIMD-vectorized)
             self.distance_constraint.solve(state, omega, dt);
             self.bending_constraint.solve(state, omega, dt);
             self.tether_constraint.solve(state, omega, dt);

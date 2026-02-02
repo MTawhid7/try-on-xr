@@ -13,8 +13,6 @@ pub struct PhysicsState {
     /// Previous position (xyz) + Padding (w) - for Verlet integration.
     pub prev_positions: Vec<Vec4>,
     /// Calculated velocity (for damping/aerodynamics).
-    pub velocities: Vec<Vec4>,
-    /// Vertex normals for rendering and aerodynamics.
     pub normals: Vec<Vec4>,
 
     pub inv_mass: Vec<f32>,
@@ -35,7 +33,6 @@ impl PhysicsState {
 
         let mut positions = Vec::with_capacity(count);
         let mut prev_positions = Vec::with_capacity(count);
-        let velocities = vec![Vec4::ZERO; count];
         let normals = vec![Vec4::Y; count];
         let mut uvs = Vec::with_capacity(count);
 
@@ -64,7 +61,6 @@ impl PhysicsState {
             count,
             positions,
             prev_positions,
-            velocities,
             inv_mass,
             normals,
             uvs,

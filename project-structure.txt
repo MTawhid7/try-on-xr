@@ -53,7 +53,8 @@
 │       └── utils
 │           ├── coloring.rs
 │           ├── mod.rs
-│           └── normals.rs
+│           ├── normals.rs
+│           └── simd.rs
 ├── project-structure.txt
 ├── public
 │   ├── models
@@ -167,4 +168,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-47 directories, 121 files
+47 directories, 122 files

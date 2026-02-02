@@ -6,6 +6,9 @@ use glam::Vec4;
 
 /// Enforces triangle area preservation.
 /// Prevents the mesh from shearing or collapsing, simulating the material's resistance to planar deformation.
+///
+/// NOTE: Area constraints involve 3-body interactions with complex gradient computations.
+/// Full SIMD is less beneficial here due to data dependencies.
 pub struct AreaConstraint {
     indices: Vec<[usize; 3]>,
     rest_areas: Vec<f32>,
@@ -59,7 +62,7 @@ impl AreaConstraint {
     }
 
     /// Solves the area constraint using XPBD.
-    /// OPTIMIZATION: Uses 4x loop unrolling for better instruction-level parallelism.
+    /// Uses 4x loop unrolling for instruction-level parallelism.
     #[inline(never)]
     pub fn solve(&self, state: &mut PhysicsState, compliance: f32, omega: f32, dt: f32) {
         let alpha = compliance / (dt * dt);

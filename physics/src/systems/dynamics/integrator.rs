@@ -1,6 +1,6 @@
 // physics/src/systems/dynamics/integrator.rs
 
-use glam::{Vec3, Vec4};
+use glam::Vec3;
 use crate::engine::state::PhysicsState;
 use crate::engine::config::PhysicsConfig;
 
@@ -12,6 +12,8 @@ pub struct Integrator;
 impl Integrator {
     /// Updates position based on velocity and external forces (Gravity + Aerodynamics).
     /// P(new) = P(curr) + V * dt + 0.5 * A * dt^2
+    ///
+    /// OPTIMIZATION: Uses 4x loop unrolling for instruction-level parallelism.
     pub fn integrate(
         state: &mut PhysicsState,
         config: &PhysicsConfig,
@@ -19,36 +21,33 @@ impl Integrator {
         dt: f32
     ) {
         let dt_sq = dt * dt;
-        let gravity = Vec4::from((config.gravity, 0.0));
-        let count = state.count;
 
-        let mut i = 0;
-        while i + 4 <= count {
-            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i);
-            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+1);
-            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+2);
-            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i+3);
-            i += 4;
+        // Process particles with 4x unrolling
+        let count = state.count;
+        let chunks = count / 4;
+        let remainder = count % 4;
+
+        for chunk in 0..chunks {
+            let base = chunk * 4;
+            Self::integrate_single(state, config, external_forces, dt_sq, base);
+            Self::integrate_single(state, config, external_forces, dt_sq, base + 1);
+            Self::integrate_single(state, config, external_forces, dt_sq, base + 2);
+            Self::integrate_single(state, config, external_forces, dt_sq, base + 3);
         }
 
-        while i < count {
-            Self::integrate_particle(state, config, external_forces, dt, dt_sq, gravity, i);
-            i += 1;
+        // Handle remainder
+        for i in (chunks * 4)..(chunks * 4 + remainder) {
+            Self::integrate_single(state, config, external_forces, dt_sq, i);
         }
     }
 
-    /// Integrates a single particle using Verlet integration.
-    /// - Applies external forces (Gravity + Wind).
-    /// - Damps velocity to simulate air resistance.
-    /// - Updates position based on previous position and acceleration.
+    /// Integrates a single particle.
     #[inline(always)]
-    fn integrate_particle(
+    fn integrate_single(
         state: &mut PhysicsState,
         config: &PhysicsConfig,
         external_forces: &[Vec3],
-        dt: f32,
         dt_sq: f32,
-        gravity: Vec4,
         i: usize
     ) {
         if state.inv_mass[i] == 0.0 { return; }
@@ -56,17 +55,20 @@ impl Integrator {
         let pos = state.positions[i];
         let prev = state.prev_positions[i];
 
-        let f_aero = Vec4::from((external_forces[i], 0.0));
-        let acceleration = gravity + (f_aero * state.inv_mass[i]);
+        // F = ma => a = F * inv_mass
+        // Gravity is constant acceleration.
+        // Aerodynamics is a Force, so we multiply by inv_mass.
+        let f_aero = external_forces[i];
+        let acceleration = config.gravity + (f_aero * state.inv_mass[i]);
 
-        // FIX: Apply Damping
+        // Verlet integration with damping
         // velocity = (pos - prev) * damping
+        // next_pos = pos + velocity + acceleration * dt^2
         let velocity_term = (pos - prev) * config.damping;
-
-        let next_pos = pos + velocity_term + acceleration * dt_sq;
+        let acceleration_term = glam::Vec4::from((acceleration * dt_sq, 0.0));
+        let next_pos = pos + velocity_term + acceleration_term;
 
         state.prev_positions[i] = pos;
         state.positions[i] = next_pos;
-        state.velocities[i] = (next_pos - pos) / dt;
     }
 }

@@ -10,6 +10,8 @@ use crate::utils::normals;
 
 /// The core physics simulation state and logic container.
 /// Holds all subsystems (solver, collider, aerodynamics, etc.) and orchestrates the time step.
+///
+/// OPTIMIZATION: Uses SIMD-accelerated constraint solving.
 pub struct Simulation {
     /// The raw particle data (Position, Velocity, Mass).
     pub state: PhysicsState,
@@ -44,7 +46,7 @@ impl Simulation {
         scale_factor: f32
     ) -> Self {
         let state = PhysicsState::new(&garment_pos, &garment_indices, &garment_uvs);
-        let particle_count = state.count; // Exact count
+        let particle_count = state.count;
 
         let config = PhysicsConfig::default();
 
@@ -56,14 +58,12 @@ impl Simulation {
             collider_inflation
         );
 
-        // Subsystems now initialized with fixed-size buffers
         let resolver = CollisionResolver::new(particle_count);
         let aerodynamics = Aerodynamics::new(particle_count);
 
         let solver = Solver::new(&state, scale_factor);
         let mouse = MouseConstraint::new();
 
-        // Initialize self-collision with config from PhysicsConfig
         let self_collision_config = SelfCollisionConfig {
             thickness: config.self_collision_thickness,
             stiffness: config.self_collision_stiffness,
@@ -86,17 +86,28 @@ impl Simulation {
     }
 
     /// Advances the simulation by `dt` seconds.
-    /// Uses a sub-stepping approach for stability (e.g., 5-10 substeps per frame).
+    /// Uses fixed sub-stepping with SIMD-accelerated constraint solving.
     pub fn step(&mut self, dt: f32) {
+        // Use fixed substeps from config (no adaptive)
         let sdt = dt / self.config.substeps as f32;
 
+        // Broad-phase collision detection (once per frame)
         self.resolver.broad_phase(&self.state, &mut self.collider);
 
         for _ in 0..self.config.substeps {
+            // External forces (aerodynamics)
             let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
+
+            // Integration (updates positions based on velocity and forces)
             Integrator::integrate(&mut self.state, &self.config, forces, sdt);
+
+            // Mouse interaction
             self.mouse.solve(&mut self.state, sdt);
+
+            // Narrow-phase collision detection
             self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
+
+            // SIMD-accelerated constraint solving
             self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
 
             // Self-collision at reduced frequency for performance
@@ -109,7 +120,7 @@ impl Simulation {
             self.substep_counter = self.substep_counter.wrapping_add(1);
         }
 
-        // Compute vertex normals in WASM (moved from JavaScript for performance)
+        // Compute vertex normals in WASM
         normals::compute_vertex_normals(
             &self.state.positions,
             &self.state.indices,

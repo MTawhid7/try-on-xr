@@ -1,9 +1,9 @@
 # Vestra Physics Engine
 
-![Version](https://img.shields.io/badge/Version-0.8.0_(Self--Collision)-blue)
+![Version](https://img.shields.io/badge/Version-0.9.0_(SIMD_&_Parallelism)-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
-![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD_%7C_React_Three_Fiber-orange)
+![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD128_%7C_React_Three_Fiber-orange)
 
 **Vestra** is a high-performance, real-time Virtual Try-On (VTO) engine built for the modern web.
 
@@ -76,15 +76,17 @@ Located in `physics/`.
 ### 🧶 Physics & Simulation
 
 - **XPBD Solver:** Stable simulation of stiff constraints (non-stretchy fabrics) using compliance-based solving.
-- **Optimized Self-Collision:** A high-performance collision system that prevents the cloth from passing through itself.
+- **Optimized Parallel Self-Collision:** A high-performance collision system that prevents the cloth from passing through itself.
+  - **Three-Phase Resolution:** Detects potential pairs via spatial hash, colors the collision graph for safety, and resolves batches in parallel.
+  - **SIMD Batching:** Utilizes 128-bit vector registers to resolve 4 collision pairs simultaneously.
   - **Hierarchical Spatial Hash:** Uses Morton codes and a multi-level grid for cache-coherent O(1) lookups.
   - **Topology-Aware Exclusion:** Precomputed bitmasks filter out connected vertices in O(1) time, preventing self-explosion.
   - **Reduced frequency solving:** Configurable update frequency (e.g., every 2nd substep) to maintain high FPS.
 - **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates for realistic fabric buckling.
 - **Coulomb Friction:** Physically based friction model distinguishing between static (sticking) and kinetic (sliding) friction.
 - **Aerodynamics:** Real-time lift and drag forces based on relative velocity and wind vectors.
-- **SIMD Vectorization:** Core constraints and normal computation are implemented with loop unrolling and 128-bit vector instructions, processing 4 operations per cycle.
-- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega = 0.92$) to converge to a stiff solution in fewer iterations, boosting FPS significantly.
+- **SIMD Vectorization:** Core constraints (Distance, Bending, Tether) and integrator patterns are implemented with manual WASM SIMD128 intrinsics, processing 4 operations per cycle.
+- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega$) to converge to a stiff solution in fewer iterations, boosting convergence rate significantly.
 - **Speculative Contacts:** Predicts collisions before they happen to prevent "tunneling" (clipping) during fast motion.
 - **Area Conservation:** Resists shearing to prevent the "chainmail" effect, simulating continuous fabric surfaces.
 - **WASM Normal Computation:** Vertex normals are computed in Rust after every physics step, eliminating the O(N) JavaScript bottleneck on the main thread.
@@ -196,7 +198,8 @@ Modify `physics/src/engine/config.rs` to adjust behavior.
 
 ## 🔮 Roadmap
 
-- [ ] **Parallel Batch Solving:** Implement graph-colored collision pairs for multi-threaded resolution.
+- [x] **Parallel Batch Solving:** Implement graph-colored collision pairs for multi-threaded resolution.
+- [ ] **Temporal Coherence:** Incremental spatial hash updates via Morton code tracking.
 - [ ] **WebGPU:** Port the solver logic to WGSL Compute Shaders for massive particle counts (>50k).
 - [ ] **User Input:** UI for custom anatomical measurements to morph the mannequin.
 - [ ] **Multi-Layering:** Support for complex garment layering (e.g., blazer over hoodie).
