@@ -1,6 +1,6 @@
 # Vestra Physics Engine
 
-![Version](https://img.shields.io/badge/Version-0.9.0_(SIMD_&_Parallelism)-blue)
+![Version](https://img.shields.io/badge/Version-2.0.0_(SIMD_&_Parallelism)-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 ![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD128_%7C_React_Three_Fiber-orange)
@@ -121,6 +121,11 @@ root/
 │   │   ├── systems/            # Constraints (Distance, Area, Bending), Forces
 │   │   ├── collision/          # Spatial Hashing, Resolvers, Geometry, Exclusion
 │   │   └── utils/              # Graph Coloring, CSR Adjacency
+│   ├── tests/                  # Structured Integration Tests
+│   │   ├── engine/             # Simulation lifecycle and state tests
+│   │   ├── systems/            # Constraint solver and dynamics tests
+│   │   ├── collision/          # Spatial hash and resolution tests
+│   │   └── utils/              # Math and helper utility tests
 │   └── Cargo.toml
 │
 ├── src/                        # TypeScript Frontend
@@ -193,6 +198,18 @@ Modify `physics/src/engine/config.rs` to adjust behavior.
 
 1. **Frontend Changes:** Vite HMR updates the browser instantly.
 2. **Physics Changes:** Run the `wasm-pack` command above; Vite will reload the page automatically.
+3. **Running Tests:**
+    Integration tests are organized into semantic suites. To run all tests:
+
+    ```bash
+    cd physics && cargo test
+    ```
+
+    To run a specific suite:
+
+    ```bash
+    cargo test --test systems
+    ```
 
 ---
 

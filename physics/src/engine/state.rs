@@ -4,6 +4,7 @@ use glam::{Vec4, Vec2}; // Removed Vec3
 /// The core data container for the particle system.
 /// Uses Structure-of-Arrays (SoA) layout for better cache locality and SIMD alignment.
 /// All vectors are 16-byte aligned (Vec4) to support WebAssembly SIMD implementation.
+#[derive(Clone)]
 pub struct PhysicsState {
     pub count: usize,
 

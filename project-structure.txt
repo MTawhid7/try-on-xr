@@ -9,52 +9,87 @@
 ├── physics
 │   ├── Cargo.lock
 │   ├── Cargo.toml
-│   └── src
+│   ├── src
+│   │   ├── collision
+│   │   │   ├── collider.rs
+│   │   │   ├── exclusion.rs
+│   │   │   ├── geometry.rs
+│   │   │   ├── mod.rs
+│   │   │   ├── preprocessing.rs
+│   │   │   ├── resolver
+│   │   │   │   ├── broad.rs
+│   │   │   │   ├── mod.rs
+│   │   │   │   └── narrow.rs
+│   │   │   ├── self_collision
+│   │   │   │   ├── coloring.rs
+│   │   │   │   ├── config.rs
+│   │   │   │   ├── detection.rs
+│   │   │   │   ├── mod.rs
+│   │   │   │   └── resolution.rs
+│   │   │   └── spatial
+│   │   │       ├── dynamic.rs
+│   │   │       ├── mod.rs
+│   │   │       └── static_grid.rs
+│   │   ├── engine
+│   │   │   ├── config.rs
+│   │   │   ├── mod.rs
+│   │   │   ├── simulation.rs
+│   │   │   └── state.rs
+│   │   ├── lib.rs
+│   │   ├── systems
+│   │   │   ├── constraints
+│   │   │   │   ├── area.rs
+│   │   │   │   ├── bending
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   └── solver.rs
+│   │   │   │   ├── distance
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   └── solver.rs
+│   │   │   │   ├── mod.rs
+│   │   │   │   ├── mouse.rs
+│   │   │   │   └── tether
+│   │   │   │       ├── horizontal.rs
+│   │   │   │       ├── mod.rs
+│   │   │   │       └── vertical.rs
+│   │   │   ├── dynamics
+│   │   │   │   ├── integrator.rs
+│   │   │   │   ├── mod.rs
+│   │   │   │   └── solver.rs
+│   │   │   ├── forces
+│   │   │   │   ├── aerodynamics.rs
+│   │   │   │   └── mod.rs
+│   │   │   └── mod.rs
+│   │   └── utils
+│   │       ├── coloring.rs
+│   │       ├── mod.rs
+│   │       ├── normals.rs
+│   │       └── simd
+│   │           ├── f32x4.rs
+│   │           ├── mod.rs
+│   │           └── vec3x4.rs
+│   └── tests
 │       ├── collision
-│       │   ├── collider.rs
 │       │   ├── exclusion.rs
-│       │   ├── geometry.rs
-│       │   ├── mod.rs
+│       │   ├── main.rs
 │       │   ├── preprocessing.rs
-│       │   ├── resolver
-│       │   │   ├── broad.rs
-│       │   │   ├── mod.rs
-│       │   │   └── narrow.rs
 │       │   ├── self_collision.rs
-│       │   └── spatial
-│       │       ├── dynamic.rs
-│       │       ├── mod.rs
-│       │       └── static_grid.rs
+│       │   └── spatial.rs
 │       ├── engine
-│       │   ├── config.rs
-│       │   ├── mod.rs
-│       │   ├── simulation.rs
-│       │   └── state.rs
-│       ├── lib.rs
+│       │   ├── main.rs
+│       │   └── simulation.rs
 │       ├── systems
 │       │   ├── constraints
 │       │   │   ├── area.rs
 │       │   │   ├── bending.rs
 │       │   │   ├── distance.rs
-│       │   │   ├── mod.rs
-│       │   │   ├── mouse.rs
-│       │   │   └── tether
-│       │   │       ├── horizontal.rs
-│       │   │       ├── mod.rs
-│       │   │       └── vertical.rs
+│       │   │   └── mod.rs
 │       │   ├── dynamics
 │       │   │   ├── integrator.rs
-│       │   │   ├── mod.rs
-│       │   │   └── solver.rs
-│       │   ├── forces
-│       │   │   ├── aerodynamics.rs
 │       │   │   └── mod.rs
-│       │   └── mod.rs
+│       │   └── main.rs
 │       └── utils
-│           ├── coloring.rs
-│           ├── mod.rs
-│           ├── normals.rs
-│           └── simd.rs
+│           ├── main.rs
+│           └── normals.rs
 ├── project-structure.txt
 ├── public
 │   ├── models
@@ -168,4 +203,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-47 directories, 122 files
+58 directories, 146 files

@@ -5,7 +5,7 @@ pub mod collider;
 pub mod resolver;
 pub mod self_collision;
 pub mod exclusion;
-mod preprocessing;
+pub mod preprocessing;
 
 pub use collider::MeshCollider;
 pub use resolver::CollisionResolver;

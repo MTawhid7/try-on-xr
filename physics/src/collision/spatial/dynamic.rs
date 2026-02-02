@@ -18,7 +18,7 @@ fn expand_bits(mut v: u64) -> u64 {
 }
 
 #[inline]
-fn morton_encode(x: i32, y: i32, z: i32) -> u64 {
+pub fn morton_encode(x: i32, y: i32, z: i32) -> u64 {
     // Offset to positive range to handle negative coordinates
     let x = (x as i64 + 512) as u64 & 0x3FF;
     let y = (y as i64 + 512) as u64 & 0x3FF;
@@ -146,58 +146,9 @@ impl HierarchicalSpatialHash {
             }
         }
     }
-}
 
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_morton_code_uniqueness() {
-        // Different cells should produce different codes
-        let code1 = morton_encode(0, 0, 0);
-        let code2 = morton_encode(1, 0, 0);
-        let code3 = morton_encode(0, 1, 0);
-        let code4 = morton_encode(0, 0, 1);
-
-        assert_ne!(code1, code2);
-        assert_ne!(code1, code3);
-        assert_ne!(code1, code4);
-        assert_ne!(code2, code3);
-    }
-
-    #[test]
-    fn test_fine_grid_query() {
-        let mut hash = HierarchicalSpatialHash::new(0.01); // 1cm collision radius
-
-        // Insert particles close together
-        hash.insert_point(0, Vec3::new(0.0, 0.0, 0.0));
-        hash.insert_point(1, Vec3::new(0.005, 0.0, 0.0)); // 5mm away
-        hash.insert_point(2, Vec3::new(0.5, 0.0, 0.0));   // 50cm away (far)
-
-        let mut buffer = Vec::new();
-        hash.query(Vec3::ZERO, 0.01, &mut buffer);
-
-        // Should find particles 0 and 1, not 2
-        assert!(buffer.contains(&0));
-        assert!(buffer.contains(&1));
-        assert!(!buffer.contains(&2));
-    }
-
-    #[test]
-    fn test_clear_preserves_capacity() {
-        let mut hash = HierarchicalSpatialHash::new(0.01);
-
-        // Insert and clear
-        for i in 0..100 {
-            hash.insert_point(i, Vec3::new(i as f32 * 0.001, 0.0, 0.0));
-        }
-        let capacity_before = hash.fine_grid.capacity();
-        hash.clear();
-
-        // Capacity should be preserved
-        assert_eq!(hash.fine_grid.capacity(), capacity_before);
+    #[allow(dead_code)]
+    pub fn fine_grid_capacity(&self) -> usize {
+        self.fine_grid.capacity()
     }
 }

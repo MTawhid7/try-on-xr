@@ -71,26 +71,3 @@ pub fn compute_vertex_normals(
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_simple_triangle() {
-        let positions = vec![
-            Vec4::new(0.0, 0.0, 0.0, 0.0),
-            Vec4::new(1.0, 0.0, 0.0, 0.0),
-            Vec4::new(0.0, 1.0, 0.0, 0.0),
-        ];
-        let indices = vec![0, 1, 2];
-        let mut normals = vec![Vec4::ZERO; 3];
-
-        compute_vertex_normals(&positions, &indices, &mut normals);
-
-        // For a triangle in the XY plane, normal should point in +Z
-        for n in &normals {
-            assert!((n.z - 1.0).abs() < 1e-6);
-        }
-    }
-}

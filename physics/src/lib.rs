@@ -1,8 +1,8 @@
 // physics/src/lib.rs
-mod engine;
-mod systems;
-mod collision;
-mod utils;
+pub mod engine;
+pub mod systems;
+pub mod collision;
+pub mod utils;
 
 use wasm_bindgen::prelude::*;
 use engine::Simulation;
