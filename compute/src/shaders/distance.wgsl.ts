@@ -97,8 +97,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     // Δp1 = -λ * w1 * ∇C (move toward p0 when stretched)
     let correction = lambda * gradient;
 
-    let new_p0 = p0 + correction * w0;  // ADD to move toward p1
-    let new_p1 = p1 - correction * w1;  // SUBTRACT to move toward p0
+    let new_p0 = p0 - correction * w0;  // SUBTRACT to move toward p1 (correction points p1->p0)
+    let new_p1 = p1 + correction * w1;  // ADD to move toward p0 (correction points p1->p0)
 
     // Write back (atomic operations not needed with graph coloring)
     positions[i0] = vec4f(new_p0, 0.0);

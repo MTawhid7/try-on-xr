@@ -67,7 +67,7 @@ export class GpuAdapter implements IPhysicsEngine {
         colliderVerts: Float32Array,
         colliderNormals: Float32Array,
         colliderIndices: Uint32Array,
-        _scaleFactor: number
+        scaleFactor: number
     ): Promise<void> {
         this.vertexCount = garmentVerts.length / 3;
 
@@ -82,17 +82,20 @@ export class GpuAdapter implements IPhysicsEngine {
         const stateConfig: GpuEngineStateConfig = {
             particleCount: this.vertexCount,
             initialPositions: garmentVerts,
+            // initialNormals optional, omitted for now since not available in init signatures
             inverseMasses,
             indices: garmentIndices,
             // Pass collider data to engine
             colliderPositions: colliderVerts,
             colliderNormals: colliderNormals,
-            colliderIndices: colliderIndices
+            colliderIndices: colliderIndices,
+            scaleFactor
         };
 
         await this.engine!.initialize(stateConfig);
 
         console.log(`[GpuAdapter] Body collider: ${colliderVerts.length / 3} vertices, ${colliderIndices.length / 3} triangles`);
+        console.log(`[GpuAdapter] Initialized with ${this.vertexCount} vertices, scaleFactor=${scaleFactor}`);
 
         // Allocate CPU-side array for readback
         this.cpuPositions = new Float32Array(this.vertexCount * 3);
@@ -108,6 +111,16 @@ export class GpuAdapter implements IPhysicsEngine {
         );
 
         console.log(`[GpuAdapter] Initialized with ${this.vertexCount} vertices`);
+
+        // Debug: Check for duplicate vertices (unwelded mesh)
+        const uniquePos = new Set();
+        for (let i = 0; i < this.vertexCount; i++) {
+            const x = garmentVerts[i * 3].toFixed(4);
+            const y = garmentVerts[i * 3 + 1].toFixed(4);
+            const z = garmentVerts[i * 3 + 2].toFixed(4);
+            uniquePos.add(`${x},${y},${z}`);
+        }
+        console.log(`[GpuAdapter] Connectivity Check: ${uniquePos.size} unique positions out of ${this.vertexCount} vertices. Ratio: ${(uniquePos.size / this.vertexCount).toFixed(2)}`);
     }
 
     /**
@@ -122,8 +135,21 @@ export class GpuAdapter implements IPhysicsEngine {
         if (this.frameCount === undefined) {
             this.frameCount = 0;
         }
-        if (this.frameCount < 5) {
-            console.log(`[GpuAdapter] Frame ${this.frameCount}: dt=${dt.toFixed(4)}s, sdt=${(dt / 6).toFixed(5)}s`);
+        if (this.frameCount < 60) {
+            const sdt = dt / 6; // Assuming 6 substeps
+            console.log(`[GpuAdapter] Frame ${this.frameCount}: dt=${dt.toFixed(6)}s, sdt=${sdt.toFixed(6)}s`);
+
+            // Periodically check particle 0 status
+            if (this.frameCount % 10 === 0) {
+                this.engine.debugReadParticle(0).then(p => {
+                    if (p) {
+                        console.log(`[Frame ${this.frameCount}] P0: pos=[${p.pos[0].toFixed(4)}, ${p.pos[1].toFixed(4)}, ${p.pos[2].toFixed(4)}]`);
+                        console.log(`    prev=[${p.prev[0].toFixed(4)}, ${p.prev[1].toFixed(4)}, ${p.prev[2].toFixed(4)}]`);
+                        console.log(`    vel=[${p.vel[0].toFixed(4)}, ${p.vel[1].toFixed(4)}, ${p.vel[2].toFixed(4)}]`);
+                        console.log(`    invMass=${p.invMass}`);
+                    }
+                });
+            }
         }
         this.frameCount++;
 

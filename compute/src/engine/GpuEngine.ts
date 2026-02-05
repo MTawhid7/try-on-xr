@@ -44,6 +44,8 @@ export interface GpuEngineStateConfig extends GpuStateConfig {
     readonly colliderNormals?: Float32Array;
     /** Collider triangle indices (optional). */
     readonly colliderIndices?: Uint32Array;
+    /** Scale factor for rest lengths (optional, default 1.0). */
+    readonly scaleFactor?: number;
 }
 
 /**
@@ -114,7 +116,9 @@ export class GpuEngine {
 
     // Cached initial positions for constraint generation
     private initialPositions: Float32Array | null = null;
+    private initialNormals: Float32Array | null = null;
     private meshIndices: Uint32Array | null = null;
+    private scaleFactor: number = 1.0;
 
     /**
      * Creates a new GPU engine instance.
@@ -143,7 +147,9 @@ export class GpuEngine {
 
         // Cache positions and indices for constraint generation
         this.initialPositions = stateConfig.initialPositions;
+        this.initialNormals = stateConfig.initialNormals || null;
         this.meshIndices = stateConfig.indices;
+        this.scaleFactor = stateConfig.scaleFactor ?? 1.0;
 
         // Initialize state
         this.state = new GpuState(this.device, stateConfig);
@@ -249,6 +255,56 @@ export class GpuEngine {
             throw new Error('[GpuEngine] Not initialized');
         }
         return this.state.readPositions();
+    }
+
+    /**
+     * Debug: Reads full state of a single particle.
+     * Extremely slow! Use only for debugging.
+     */
+    async debugReadParticle(index: number): Promise<any> {
+        if (!this.state) return null;
+
+        const posBuffer = this.state.getPositionBuffer();
+        const prevBuffer = this.state.getPrevPositionBuffer();
+        const velBuffer = this.state.getVelocityBuffer();
+        const massBuffer = this.state.getInverseMassBuffer();
+
+        const readBuffer = (buffer: GPUBuffer) => {
+            const temp = this.device.createBuffer({
+                size: 16,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+            });
+            const encoder = this.device.createCommandEncoder();
+            encoder.copyBufferToBuffer(buffer, index * 16, temp, 0, 16);
+            this.device.queue.submit([encoder.finish()]);
+            return temp;
+        };
+
+        const b1 = readBuffer(posBuffer);
+        const b2 = readBuffer(prevBuffer);
+        const b3 = readBuffer(velBuffer);
+        const b4 = readBuffer(massBuffer);
+
+        await Promise.all([
+            b1.mapAsync(GPUMapMode.READ),
+            b2.mapAsync(GPUMapMode.READ),
+            b3.mapAsync(GPUMapMode.READ),
+            b4.mapAsync(GPUMapMode.READ)
+        ]);
+
+        const toVec = (b: GPUBuffer) => {
+            const v = new Float32Array(b.getMappedRange());
+            const res = [v[0], v[1], v[2]];
+            b.unmap();
+            return res;
+        };
+
+        return {
+            pos: toVec(b1),
+            prev: toVec(b2),
+            vel: toVec(b3),
+            invMass: toVec(b4)[0]
+        };
     }
 
     /**
@@ -438,7 +494,10 @@ export class GpuEngine {
         if (this.bodyCollider) {
             const collisionBindGroup = this.bindGroupManager.createCollisionBindGroup(
                 this.bodyCollider.getTriangleBuffer(),
-                this.bodyCollider.getTriangleCountBuffer()
+                this.bodyCollider.getTriangleCountBuffer(),
+                this.bodyCollider.getGridParamsBuffer(),
+                this.bodyCollider.getGridBuffer(),
+                this.bodyCollider.getTriangleRefBuffer()
             );
 
             this.collisionInfo = {
@@ -461,47 +520,168 @@ export class GpuEngine {
             return;
         }
 
-        // Generate distance constraints from edges
-        const distanceConstraints = ConstraintGenerator.generateDistanceConstraints(
+        // Generate distance constraints from edges (partitioned by color)
+        const distanceBatches = ConstraintGenerator.generateColoredDistanceConstraints(
             this.initialPositions,
             this.meshIndices,
-            { distanceCompliance: 0.0001 }
+            {
+                distanceCompliance: 0.0001
+            }
         );
 
-        if (distanceConstraints.length === 0) {
+        if (distanceBatches.length === 0) {
             console.warn('[GpuEngine] No distance constraints generated');
             return;
         }
 
-        // Create GPU buffer for distance constraints
-        const { buffer: constraintBuffer, count } = ConstraintGenerator.createConstraintBuffer(
-            this.device,
-            distanceConstraints,
-            'distance_constraints'
+        console.log(`[GpuEngine] Processing ${distanceBatches.length} distance constraint batches`);
+
+        // Process each batch
+        for (let i = 0; i < distanceBatches.length; i++) {
+            const batchConstraints = distanceBatches[i];
+
+            if (batchConstraints.length === 0) continue;
+
+            // Create GPU buffer for this batch
+            const { buffer: constraintBuffer, count } = ConstraintGenerator.createConstraintBuffer(
+                this.device,
+                batchConstraints,
+                `distance_constraints_batch_${i}`
+            );
+            this.constraintBuffers.push(constraintBuffer);
+
+            // Create count buffer
+            const countBuffer = ConstraintGenerator.createCountBuffer(
+                this.device,
+                count,
+                `distance_count_batch_${i}`
+            );
+            this.constraintBuffers.push(countBuffer);
+
+            // Create bind group for this batch
+            const bindGroup = this.bindGroupManager.createConstraintBindGroup(
+                'distance',
+                constraintBuffer,
+                countBuffer
+            );
+
+            // Add to constraint batches
+            this.constraintBatches.distance.push({
+                bindGroup,
+                count
+            });
+
+            // console.log(`[GpuEngine] Batch ${i}: ${count} constraints`);
+        }
+
+        console.log(`[GpuEngine] Uploaded ${distanceBatches.flat().length} total distance constraints`);
+
+        // Generate bending constraints (dihedral angle)
+        // Soften compliance based on scale factor (similar to Rust)
+        // Rust uses ~0.7 for scale=0.84.
+        const bendingCompliance = 0.5 * this.scaleFactor * this.scaleFactor;
+
+        const bendingBatches = ConstraintGenerator.generateColoredBendingConstraints(
+            this.initialPositions,
+            this.meshIndices,
+            {
+                bendingCompliance: bendingCompliance
+            }
         );
-        this.constraintBuffers.push(constraintBuffer);
 
-        // Create count buffer
-        const countBuffer = ConstraintGenerator.createCountBuffer(
-            this.device,
-            count,
-            'distance_count'
-        );
-        this.constraintBuffers.push(countBuffer);
+        if (bendingBatches.length > 0) {
+            console.log(`[GpuEngine] Processing ${bendingBatches.length} bending constraint batches (compliance=${bendingCompliance.toFixed(5)})`);
 
-        // Create bind group for this batch
-        const bindGroup = this.bindGroupManager.createConstraintBindGroup(
-            'distance',
-            constraintBuffer,
-            countBuffer
-        );
+            for (let i = 0; i < bendingBatches.length; i++) {
+                const batchConstraints = bendingBatches[i];
+                if (batchConstraints.length === 0) continue;
 
-        // Add to constraint batches
-        this.constraintBatches.distance.push({
-            bindGroup,
-            count
-        });
+                // Create GPU buffer
+                const { buffer: constraintBuffer, count } = ConstraintGenerator.createConstraintBuffer(
+                    this.device,
+                    batchConstraints,
+                    `bending_constraints_batch_${i}`
+                );
+                this.constraintBuffers.push(constraintBuffer);
 
-        console.log(`[GpuEngine] Created ${count} distance constraints`);
+                // Create count buffer
+                const countBuffer = ConstraintGenerator.createCountBuffer(
+                    this.device,
+                    count,
+                    `bending_count_batch_${i}`
+                );
+                this.constraintBuffers.push(countBuffer);
+
+                // Create bind group (Layout: bendingConstraints)
+                const bindGroup = this.bindGroupManager.createConstraintBindGroup(
+                    'bending',
+                    constraintBuffer,
+                    countBuffer
+                );
+
+                // Add to batches
+                this.constraintBatches.bending.push({
+                    bindGroup,
+                    count
+                });
+            }
+            console.log(`[GpuEngine] Uploaded ${bendingBatches.flat().length} total bending constraints`);
+        } else {
+            console.warn('[GpuEngine] No bending constraints generated');
+        }
+
+        // Generate tether constraints (Long Range Attachments)
+        if (this.initialNormals) {
+            const tetherBatches = ConstraintGenerator.generateColoredTetherConstraints(
+                this.initialPositions,
+                this.initialNormals,
+                {
+                    tetherCompliance: 0.001
+                }
+            );
+
+            if (tetherBatches.length > 0) {
+                console.log(`[GpuEngine] Processing ${tetherBatches.length} tether constraint batches (Distance+Horizontal)`);
+
+                for (let i = 0; i < tetherBatches.length; i++) {
+                    const batchConstraints = tetherBatches[i];
+                    if (batchConstraints.length === 0) continue;
+
+                    // Create GPU buffer
+                    const { buffer: constraintBuffer, count } = ConstraintGenerator.createTetherConstraintBuffer(
+                        this.device,
+                        batchConstraints,
+                        `tether_constraints_batch_${i}`
+                    );
+                    this.constraintBuffers.push(constraintBuffer);
+
+                    // Create count buffer
+                    const countBuffer = ConstraintGenerator.createCountBuffer(
+                        this.device,
+                        count,
+                        `tether_count_batch_${i}`
+                    );
+                    this.constraintBuffers.push(countBuffer);
+
+                    // Create bind group (Layout: tetherConstraints)
+                    const bindGroup = this.bindGroupManager.createConstraintBindGroup(
+                        'tether',
+                        constraintBuffer,
+                        countBuffer
+                    );
+
+                    // Add to batches
+                    this.constraintBatches.tether.push({
+                        bindGroup,
+                        count
+                    });
+                }
+                console.log(`[GpuEngine] Uploaded ${tetherBatches.flat().length} total tether constraints`);
+            } else {
+                console.log('[GpuEngine] No tether constraints generated (topology mismatch?)');
+            }
+        } else {
+            console.warn('[GpuEngine] Missing normals for tether generation');
+        }
     }
 }

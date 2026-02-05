@@ -14,6 +14,8 @@ export interface GpuStateConfig {
     readonly particleCount: number;
     /** Initial particle positions (flat array: x, y, z, x, y, z, ...). */
     readonly initialPositions: Float32Array;
+    /** Initial particle normals (flat array, optional). */
+    readonly initialNormals?: Float32Array;
     /** Inverse mass values (0 = pinned, > 0 = mobile). */
     readonly inverseMasses: Float32Array;
     /** Triangle indices for the mesh. */
@@ -172,6 +174,8 @@ export class GpuState {
     async readPositions(): Promise<Float32Array> {
         this.ensureInitialized();
 
+        // const start = performance.now();
+
         const commandEncoder = this.device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(
             this.positionBuffer!,
@@ -183,8 +187,12 @@ export class GpuState {
         this.device.queue.submit([commandEncoder.finish()]);
 
         await this.readbackBuffer!.mapAsync(GPUMapMode.READ);
-        const data = new Float32Array(this.readbackBuffer!.getMappedRange().slice(0));
+        const range = this.readbackBuffer!.getMappedRange();
+        const data = new Float32Array(range.slice(0)); // Copy is necessary as unmap invalidates range
         this.readbackBuffer!.unmap();
+
+        // const end = performance.now();
+        // if (Math.random() < 0.01) console.log(`[GpuState] Readback time: ${(end - start).toFixed(2)}ms`);
 
         return data;
     }

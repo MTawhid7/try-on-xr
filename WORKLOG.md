@@ -5,6 +5,52 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-05] - WebGPU Beta 1 Optimization & Status
+
+### 1. Current State (WebGPU Beta)
+
+- **Status:** **Functional but Low Performance**.
+- **Issue:** The simulation runs, but performance is extremely low (~4 FPS) despite implementing Spatial Hash optimization. The shirt also remains static (stuck in spawn position), indicating a logic error in integration or collision response.
+- **Progress:**
+  - **Constraints:** Successfully ported Rust's `DistanceConstraint` (Bending) and `TetherConstraint` logic to WGSL.
+  - **Collision Architecture:** Implemented a robust "Spatial Hash" system:
+    - **CPU:** Generates a 15cm Uniform Grid (`grid_cells`, `grid_params`, `triangle_refs`) and uploads it to the GPU.
+    - **GPU:** `collision.wgsl` uses this grid to prune checks from $O(N \cdot M)$ to $O(1)$ (checking only 27 neighboring cells).
+    - **Alignment Fix:** Resolved a critical `std140` padding bug in `GridParams` where `vec3` fields caused data corruption. Switched to `vec4`-packed layout.
+  - **Solver Loop:** Confirmed "Interleaved" architecture (Verify -> Collide -> Solve -> Integrate).
+
+### 2. Findings & Persistent Issues (WebGPU Beta)
+
+- **Performance Bottleneck (4 FPS):**
+  - **Diagnosis:** The low framerate persists even with the Spatial Hash. This points to one of two likely causes:
+    1. **Readback Stall:** The `GpuAdapter` reads back the entire particle buffer *every frame* to update Three.js. If this isn't pipelined correctly (async mapping), it causes a massive CPU-GPU sync bubble.
+    2. **Shader Loop Overhead:** Even with the grid, the implementation of the neighbor search (3 nested loops) or the memory access pattern might be causing thread divergence or cache misses on the GPU.
+    3. **Dispatch Count:** The "Interleaved" solver dispatches the collision shader *multiple times per frame* (once per substep). For a heavy shader, this dispatch overhead adds up.
+
+- **"Ghosting" / Stuck Simulation:**
+  - **Diagnosis:** The shirt refuses to fall or conform.
+  - **Possible Cause 1:** **Invalid Collision Normals.** If the spatial hash logic is slightly off (e.g., incorrect cell index), the shader might be detecting "collisions" with empty space or walls constant at (0,0,0), pinning vertices in place.
+  - **Possible Cause 2:** **Integration Failure.** Gravity might be scaling incorrectly with the `dt` (which was previously bugged), effectively freezing time.
+  - **Possible Cause 3:** **Tether Constraints.** Although logged as "skipped," if any tethers *were* generated with (0,0,0) targets, they would pin the mesh to the origin.
+
+### 3. Critical Limitations (WebGPU Beta)
+
+- **Debuggability:** We lack "printf" debugging in WGSL. Verifying that the grid actually contains correct triangle indices is difficult without building a dedicated visualization shader.
+- **Hardware Dependency:** WebGPU performance varies wildly between Metal (Mac) and Vulkan/DX12. The current implementation is tuned for correctness, not yet for architecture-specific performance.
+
+### 4. Future Considerations & Strategy
+
+- **Immediate Plan:**
+  - **Visualize the Grid:** Create a debug view that renders the AABB of populated grid cells to verify the spatial hash generation.
+  - **Profile Readback:** Measure the time taken by `mapAsync` in `GpuEngine`. If it's $>10ms$, we must switch to a double-buffered approach or reduce update frequency.
+  - **Revert to Simplest Collider:** Temporarily disable the Spatial Hash and strictly check against *ground plane only* to see if physics restores. This isolates whether the bug is in *Collision* or *Integration*.
+  - **Check `dt` Scaling:** Verify the `dt` passed to the integrator is actually in seconds (e.g., 0.016) and not milliseconds or nanoseconds.
+
+- **Strategic Pivot:**
+  - If WebGPU parity cannot be reached within the next sprint (stable 60 FPS), we should consider **optimizing the Rust/WASM backend** further (threading?) as the primary engine for launch, keeping WebGPU as an experimental branch.
+
+---
+
 ## [2026-02-05] - WebGPU Backend Debugging
 
 ### 1. Current State (WebGPU Backend)

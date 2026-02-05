@@ -109,12 +109,15 @@ export class BindGroupManager {
             ]
         });
 
-        // Body collision layout (triangles + count)
+        // Body collision layout (triangles + count + spatial hash)
         const bodyCollision = this.device.createBindGroupLayout({
             label: 'body_collision_layout',
             entries: [
                 { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },  // triangles
-                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }  // triangle_count
+                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // triangle_count
+                { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // grid_params
+                { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // grid_cells
+                { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }  // triangle_refs
             ]
         });
 
@@ -214,14 +217,20 @@ export class BindGroupManager {
      */
     createCollisionBindGroup(
         triangleBuffer: GPUBuffer,
-        countBuffer: GPUBuffer
+        countBuffer: GPUBuffer,
+        gridParamsBuffer: GPUBuffer,
+        gridBuffer: GPUBuffer,
+        triangleRefBuffer: GPUBuffer
     ): GPUBindGroup {
         return this.device.createBindGroup({
             label: 'body_collision_bind_group',
             layout: this.getLayouts().bodyCollision,
             entries: [
                 { binding: 0, resource: { buffer: triangleBuffer } },
-                { binding: 1, resource: { buffer: countBuffer } }
+                { binding: 1, resource: { buffer: countBuffer } },
+                { binding: 2, resource: { buffer: gridParamsBuffer } },
+                { binding: 3, resource: { buffer: gridBuffer } },
+                { binding: 4, resource: { buffer: triangleRefBuffer } }
             ]
         });
     }

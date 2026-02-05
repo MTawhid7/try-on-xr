@@ -149,18 +149,18 @@ export class Scheduler {
                         TETHER_WORKGROUP_SIZE
                     );
                 }
-            }
 
-            // 3. Body collision response (ONCE per substep, AFTER all iterations)
-            // This matches Rust behavior: collisions are resolved after internal constraints
-            if (collision && pipelines.collision) {
-                this.encodeCollisionPass(
-                    encoder,
-                    pipelines.collision,
-                    bindGroups,
-                    collision,
-                    collisionDispatch
-                );
+                // 3. Body collision response (Interleaved with constraints)
+                // Rust behavior: collisions are resolved INSIDE the solver loop
+                if (collision && pipelines.collision) {
+                    this.encodeCollisionPass(
+                        encoder,
+                        pipelines.collision,
+                        bindGroups,
+                        collision,
+                        collisionDispatch
+                    );
+                }
             }
         }
     }

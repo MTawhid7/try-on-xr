@@ -143,8 +143,183 @@ export class BodyCollider {
         new Uint32Array(this.triangleCountBuffer.getMappedRange()).set(countData);
         this.triangleCountBuffer.unmap();
 
+        // --- Generate Spatial Hash (Uniform Grid) ---
+        // 1. Compute AABB
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+        for (let i = 0; i < positions.length; i += 3) {
+            const x = positions[i];
+            const y = positions[i + 1];
+            const z = positions[i + 2];
+            minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
+        }
+
+        // Add margin to bounds
+        const boundsMargin = 0.1;
+        this.gridBounds = {
+            min: [minX - boundsMargin, minY - boundsMargin, minZ - boundsMargin],
+            max: [maxX + boundsMargin, maxY + boundsMargin, maxZ + boundsMargin]
+        };
+
+        // 2. Define Grid Params
+        // Cell size needs to be large enough to contain triangles, but small enough to prune.
+        // A standard edge length in the mesh might be 1-5cm. Let's pick 10cm (0.1).
+        this.gridCellSize = 0.15; // 15cm seems safe
+
+        const gridDimX = Math.ceil((this.gridBounds.max[0] - this.gridBounds.min[0]) / this.gridCellSize);
+        const gridDimY = Math.ceil((this.gridBounds.max[1] - this.gridBounds.min[1]) / this.gridCellSize);
+        const gridDimZ = Math.ceil((this.gridBounds.max[2] - this.gridBounds.min[2]) / this.gridCellSize);
+
+        this.gridDimensions = [gridDimX, gridDimY, gridDimZ];
+        const totalCells = gridDimX * gridDimY * gridDimZ;
+
+        console.log(`[BodyCollider] Spatial Hash: ${gridDimX}x${gridDimY}x${gridDimZ} cells (${totalCells}), Bounds: [${this.gridBounds.min}] to [${this.gridBounds.max}]`);
+
+        if (totalCells > 2000000) {
+            console.warn('[BodyCollider] Spatial Hash grid is too large! Check bounds/cell size.');
+            // Fallback or clamp needed? For now we proceed but warn.
+        }
+
+        // 3. Bucket Triangles
+        // We will store a list of triangle indices for each cell.
+        // Since a triangle can span multiple cells, we add it to all cells it touches (AABB approximation).
+
+        const cells: number[][] = new Array(totalCells).fill(0).map(() => []);
+
+        for (let i = 0; i < this.triangleCount; i++) {
+            const i0 = indices[i * 3 + 0];
+            const i1 = indices[i * 3 + 1];
+            const i2 = indices[i * 3 + 2];
+
+            // Triangle AABB
+            const tMinX = Math.min(positions[i0 * 3], positions[i1 * 3], positions[i2 * 3]);
+            const tMaxX = Math.max(positions[i0 * 3], positions[i1 * 3], positions[i2 * 3]);
+            const tMinY = Math.min(positions[i0 * 3 + 1], positions[i1 * 3 + 1], positions[i2 * 3 + 1]);
+            const tMaxY = Math.max(positions[i0 * 3 + 1], positions[i1 * 3 + 1], positions[i2 * 3 + 1]);
+            const tMinZ = Math.min(positions[i0 * 3 + 2], positions[i1 * 3 + 2], positions[i2 * 3 + 2]);
+            const tMaxZ = Math.max(positions[i0 * 3 + 2], positions[i1 * 3 + 2], positions[i2 * 3 + 2]);
+
+            // Convert range to Cell Coordinates
+            const startX = Math.floor((tMinX - this.gridBounds.min[0]) / this.gridCellSize);
+            const endX = Math.floor((tMaxX - this.gridBounds.min[0]) / this.gridCellSize);
+            const startY = Math.floor((tMinY - this.gridBounds.min[1]) / this.gridCellSize);
+            const endY = Math.floor((tMaxY - this.gridBounds.min[1]) / this.gridCellSize);
+            const startZ = Math.floor((tMinZ - this.gridBounds.min[2]) / this.gridCellSize);
+            const endZ = Math.floor((tMaxZ - this.gridBounds.min[2]) / this.gridCellSize);
+
+            // Clamp to grid
+            const cStartX = Math.max(0, Math.min(gridDimX - 1, startX));
+            const cEndX = Math.max(0, Math.min(gridDimX - 1, endX));
+            const cStartY = Math.max(0, Math.min(gridDimY - 1, startY));
+            const cEndY = Math.max(0, Math.min(gridDimY - 1, endY));
+            const cStartZ = Math.max(0, Math.min(gridDimZ - 1, startZ));
+            const cEndZ = Math.max(0, Math.min(gridDimZ - 1, endZ));
+
+            for (let z = cStartZ; z <= cEndZ; z++) {
+                for (let y = cStartY; y <= cEndY; y++) {
+                    for (let x = cStartX; x <= cEndX; x++) {
+                        const cellIndex = x + y * gridDimX + z * gridDimX * gridDimY;
+                        cells[cellIndex].push(i);
+                    }
+                }
+            }
+        }
+
+        // 4. Flatten Grid
+        // Structure:
+        // gridBuffer: [offset (u32), count (u32)] for each cell
+        // triangleRefBuffer: [triangleIndex (u32)] packed
+
+        const gridData = new Uint32Array(totalCells * 4); // Use padded vec4u logic? Or just 2 u32?
+        // Alignment: Storage buffers prefer 16-byte alignment or similar. Let's use 2 u32s (offset, count).
+        // But for random access in WGSL, array<vec2u> is fine (8 bytes).
+        // However, standard WGSL struct alignment is often 16 bytes. Let's be safe and use 4 u32s (offset, count, padding, padding).
+
+        const refs: number[] = [];
+
+        let maxTrianglesPerCell = 0;
+        let emptyCells = 0;
+
+        for (let i = 0; i < totalCells; i++) {
+            const count = cells[i].length;
+            const offset = refs.length;
+
+            gridData[i * 4 + 0] = offset;
+            gridData[i * 4 + 1] = count;
+            gridData[i * 4 + 2] = 0; // padding
+            gridData[i * 4 + 3] = 0; // padding
+
+            for (const triIndex of cells[i]) {
+                refs.push(triIndex);
+            }
+
+            if (count > maxTrianglesPerCell) maxTrianglesPerCell = count;
+            if (count === 0) emptyCells++;
+        }
+
+        console.log(`[BodyCollider] Grid Stats: Max Tri/Cell = ${maxTrianglesPerCell}, Empty Cells = ${emptyCells}/${totalCells}, Total Refs = ${refs.length}`);
+
+        // Upload Grid Buffer
+        this.gridBuffer = this.device.createBuffer({
+            label: 'spatial_hash_grid',
+            size: gridData.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+        new Uint32Array(this.gridBuffer.getMappedRange()).set(gridData);
+        this.gridBuffer.unmap();
+
+        // Upload Refs Buffer
+        const refData = new Uint32Array(refs);
+        this.triangleRefBuffer = this.device.createBuffer({
+            label: 'spatial_hash_refs',
+            size: Math.max(4, refData.byteLength), // Minimum size
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+        new Uint32Array(this.triangleRefBuffer.getMappedRange()).set(refData);
+        this.triangleRefBuffer.unmap();
+
+        // Upload Grid Params Uniform
+        // struct GridParams { min: vec3f, cellSize: f32, dim: vec3u, padding: u32 }
+        const paramsData = new Float32Array(8); // 32 bytes
+        paramsData[0] = this.gridBounds.min[0];
+        paramsData[1] = this.gridBounds.min[1];
+        paramsData[2] = this.gridBounds.min[2];
+        paramsData[3] = this.gridCellSize;
+        // Reinterpret for u32 dims
+        const paramsDataU32 = new Uint32Array(paramsData.buffer);
+        paramsDataU32[4] = this.gridDimensions[0];
+        paramsDataU32[5] = this.gridDimensions[1];
+        paramsDataU32[6] = this.gridDimensions[2];
+        paramsDataU32[7] = 0; // padding
+
+        this.gridParamsBuffer = this.device.createBuffer({
+            label: 'spatial_hash_params',
+            size: paramsData.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+        new Float32Array(this.gridParamsBuffer.getMappedRange()).set(paramsData);
+        this.gridParamsBuffer.unmap();
+
         console.log(`[BodyCollider] Initialized with ${this.triangleCount} triangles`);
     }
+
+    // --- Spatial Hash Properties ---
+    private gridBounds = { min: [0, 0, 0], max: [0, 0, 0] };
+    private gridCellSize = 0.1;
+    private gridDimensions = [0, 0, 0];
+
+    private gridBuffer: GPUBuffer | null = null;       // [offset, count, pad, pad] per cell
+    private triangleRefBuffer: GPUBuffer | null = null; // [triIndex, triIndex...] packed
+    private gridParamsBuffer: GPUBuffer | null = null; // uniform params
+
+    getGridBuffer(): GPUBuffer { return this.gridBuffer!; }
+    getTriangleRefBuffer(): GPUBuffer { return this.triangleRefBuffer!; }
+    getGridParamsBuffer(): GPUBuffer { return this.gridParamsBuffer!; }
 
     /**
      * Gets the triangle buffer for binding.
@@ -186,8 +361,15 @@ export class BodyCollider {
     dispose(): void {
         this.triangleBuffer?.destroy();
         this.triangleCountBuffer?.destroy();
+        this.gridBuffer?.destroy();
+        this.triangleRefBuffer?.destroy();
+        this.gridParamsBuffer?.destroy();
+
         this.triangleBuffer = null;
         this.triangleCountBuffer = null;
+        this.gridBuffer = null;
+        this.triangleRefBuffer = null;
+        this.gridParamsBuffer = null;
         this.triangleCount = 0;
         console.log('[BodyCollider] Disposed');
     }
