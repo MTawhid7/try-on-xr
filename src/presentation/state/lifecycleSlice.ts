@@ -1,4 +1,9 @@
 // src/presentation/state/lifecycleSlice.ts
+/**
+ * @fileoverview Lifecycle state slice.
+ *
+ * Manages application lifecycle: initialization, asset loading, and sizing.
+ */
 
 import type { StateCreator } from 'zustand';
 import type { SimulationStore } from './types';
@@ -16,6 +21,7 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
     assets: null,
     scaledVertices: null,
     shirtSize: ANCHOR_SIZE,
+    backend: null,
     isLoading: false,
     isReady: false,
     error: null,
@@ -29,21 +35,31 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
         try {
             const useCase = new InitializeSimulation();
 
-            // Execute Use Case
+            // Execute Use Case with fallback notification
             const result = await useCase.execute(
                 get().assets, // Pass existing assets if any
-                get().shirtSize
+                get().shirtSize,
+                {
+                    preferGpu: true,
+                    onFallback: (reason) => {
+                        console.warn(`[Store] GPU fallback: ${reason}`);
+                    },
+                    onGpuReady: () => {
+                        console.log('[Store] GPU physics engine ready');
+                    }
+                }
             );
 
             set({
                 engine: result.engine,
                 assets: result.assets,
                 scaledVertices: result.scaledVertices,
+                backend: result.backend,
                 isReady: true,
                 isLoading: false
             });
 
-            console.log("[Store] Simulation Initialized Successfully.");
+            console.log(`[Store] Simulation Initialized Successfully. Backend: ${result.backend}`);
 
         } catch (err) {
             console.error(err);
@@ -52,7 +68,7 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
     },
 
     setShirtSize: async (size) => {
-        const { shirtSize, assets, engine } = get();
+        const { shirtSize, assets, engine, backend } = get();
 
         if (shirtSize === size || !assets) return;
 
@@ -67,15 +83,27 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
                 const result = await useCase.execute(
                     assets,
                     size,
-                    engine // Pass old engine for disposal
+                    engine, // Pass old engine for disposal
+                    {
+                        preferGpu: true,
+                        onFallback: (reason) => {
+                            console.warn(`[Store] GPU fallback on resize: ${reason}`);
+                        }
+                    }
                 );
 
                 set({
                     engine: result.engine,
                     scaledVertices: result.scaledVertices,
+                    backend: result.backend,
                     isReady: true,
                     isLoading: false
                 });
+
+                // Log if backend changed
+                if (result.backend !== backend) {
+                    console.log(`[Store] Backend changed: ${backend} -> ${result.backend}`);
+                }
 
             } catch (err) {
                 console.error(err);

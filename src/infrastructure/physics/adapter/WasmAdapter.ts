@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { init, PhysicsEngine, type InitOutput } from '../wasm';
-import type { IPhysicsEngine } from '../../../core/interfaces/IPhysicsEngine';
+import type { IPhysicsEngine, PhysicsBackend } from '../../../core/interfaces/IPhysicsEngine';
 import {
     COLLIDER_INFLATION,
     COLLIDER_SMOOTHING_ITERATIONS
@@ -13,6 +13,9 @@ import {
  * Handles memory management, type conversion, and efficient data transfer.
  */
 export class WasmAdapter implements IPhysicsEngine {
+    /** Backend identifier for this adapter. */
+    readonly backend: PhysicsBackend = 'wasm';
+
     private engine: PhysicsEngine | null = null;
     private wasmMemory: WebAssembly.Memory | null = null;
 

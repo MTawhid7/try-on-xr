@@ -5,6 +5,44 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-05] - WebGPU Backend Debugging
+
+### 1. Current State (WebGPU Backend)
+
+- **Status:** **Experimental / Unstable**.
+- **Issue:** The simulation loop is functional and pipelines compile, but the physics solution is numerically unstable. The shirt mesh "explodes" (vertices project to Infinity/NaN) immediately upon simulation start.
+- **Progress:**
+  - **Pipelines:** Successfully implemented Compute Shader pipelines for `Integration`, `DistanceConstraint`, `BendingConstraint`, `TetherConstraint`, and `Collision`.
+  - **Data Structure:** Implemented `GpuEngine` and `GpuState` to manage `StorageBuffers` for particle data (Pos, PrevPos, Vel, InvMass).
+  - **Interop:** Established a working `GpuAdapter` to synchronize WebGPU buffers with Three.js geometry.
+
+### 2. Findings & Fixes (WebGPU Backend)
+
+- **Critical Buffer Alignment (SimParams):**
+  - **Discovery:** WGSL uniform buffers follow `std140` layout rules, where `vec3<f32>` has 16-byte alignment (padding the 4th float).
+  - **The Bug:** Typescript was packing `dt` (delta time) at byte offset 12 (immediately after `gravity.z`), but the shader was reading it from byte 16 (or later). This caused `dt` to be read as `0.0` or garbage data.
+  - **The Fix:** Redesigned `SimParams` to use **Explicit Vec4 Layout**.
+    - `config: vec4<f32>` (x=dt, y=damping, ...)
+    - `gravity: vec4<f32>` (xyz=gravity, w=padding)
+    - `counts: vec4<u32>` (x=particle_count, ...)
+  - **Outcome:** This resolved the internal "Static/Frozen" shirt issue where time wasn't passing, but revealed the underlying numerical instability (Explosion).
+
+- **Constraint Logic:**
+  - **Sign Error:** Detected and fixed an inverted sign in the `DistanceConstraint` gradient. The solver was "pushing" particles apart instead of "pulling" them together.
+  - **Collision Frequency:** Reduced collision dispatch from "Once per Constraint Iteration" (72x/frame) to "Once per Substep" (6x/frame). This improved performance logic but didn't solve stability.
+
+### 3. Critical Issues (WebGPU Backend)
+
+- **Numerical Explosion:** Even with correct `dt` and parameters, the solver diverges instantly.
+  - **Possible Cause 1:** **Collision Response.** The brute-force "Point-Triangle" check might be generating massive impulses if a particle spawns slightly inside the body (tunneling correction).
+  - **Possible Cause 2:** **Constraint Stiffness.** The XPBD `alpha` calculation might be under-damped for the given `dt`, turning the cloth into a "loaded spring" that snaps violently.
+
+### 4. Future Works (WebGPU Backend)
+
+- [ ] **Step-by-Step Parity:** Create a CPU-side "Reference Solver" (scalar TS) that runs identical logic to the shader to compare intermediate values frame-by-frame.
+- [ ] **Soft Start:** Implement a "Warm Up" phase where gravity and collision are disabled, allowing constraints to relax the T-Pose mesh before dynamics begin.
+- [ ] **Robust Debugging:** Implement a GPU-to-CPU readback buffer that captures the `force` or `delta` applied by *each* constraint to identify which specific kernel is generating NaN values.
+
 ## [2026-02-02] - UI/UX Refinement & Performance Monitoring
 
 ### 1. Current State (UI/UX Refinement)

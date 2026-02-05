@@ -217,7 +217,7 @@ Modify `physics/src/engine/config.rs` to adjust behavior.
 
 - [x] **Parallel Batch Solving:** Implement graph-colored collision pairs for multi-threaded resolution.
 - [ ] **Temporal Coherence:** Incremental spatial hash updates via Morton code tracking.
-- [ ] **WebGPU:** Port the solver logic to WGSL Compute Shaders for massive particle counts (>50k).
+- [ ] **WebGPU:** (Experimental) Porting solver logic to WGSL Compute Shaders. Currently unstable (WIP).
 - [ ] **User Input:** UI for custom anatomical measurements to morph the mannequin.
 - [ ] **Multi-Layering:** Support for complex garment layering (e.g., blazer over hoodie).
 

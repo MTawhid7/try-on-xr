@@ -1,0 +1,27 @@
+{
+    "name": "@vestra/compute",
+    "version": "0.1.0",
+    "private": true,
+    "description": "WebGPU compute engine for Vestra Physics",
+    "type": "module",
+    "main": "src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint src/",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "dependencies": {
+        "@webgpu/types": "^0.1.40"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.0",
+        "vitest": "^1.0.0"
+    },
+    "peerDependencies": {
+        "three": ">=0.160.0"
+    }
+}

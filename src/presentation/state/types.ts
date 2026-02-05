@@ -1,7 +1,12 @@
 // src/presentation/state/types.ts
+/**
+ * @fileoverview Simulation store type definitions.
+ *
+ * Defines the state shape and actions for the simulation store.
+ */
 
 import * as THREE from 'three';
-import type { IPhysicsEngine } from '../../core/interfaces/IPhysicsEngine';
+import type { IPhysicsEngine, PhysicsBackend } from '../../core/interfaces/IPhysicsEngine';
 import type { SimulationAssets } from '../../core/entities/Assets';
 import type { ShirtSize } from '../../core/entities/Garment';
 
@@ -15,6 +20,8 @@ export interface SimulationState {
     assets: SimulationAssets<THREE.BufferGeometry> | null;
     scaledVertices: Float32Array | null;
     shirtSize: ShirtSize;
+    /** The currently active physics backend. */
+    backend: PhysicsBackend | null;
 
     // --- Flags ---
     isLoading: boolean;

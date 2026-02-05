@@ -1,11 +1,41 @@
 // src/core/interfaces/IPhysicsEngine.ts
 /**
- * The contract for the Physics Engine Adapter.
- * This interface decouples the React application from the specific WASM implementation.
+ * @fileoverview Physics engine interface contract.
+ *
+ * This interface decouples the React application from specific physics
+ * implementations (WASM/CPU or WebGPU). All adapters must implement this
+ * contract to ensure consistent behavior across backends.
+ */
+
+/**
+ * Available physics backend types.
+ */
+export type PhysicsBackend = 'wasm' | 'webgpu';
+
+/**
+ * The contract for Physics Engine Adapters.
+ *
+ * Implementations include:
+ * - `WasmAdapter`: CPU-based simulation via Rust/WASM
+ * - `GpuAdapter`: GPU-accelerated simulation via WebGPU (Phase 4)
  */
 export interface IPhysicsEngine {
     /**
+     * Identifies the backend implementation.
+     * Used for capability checks and debugging.
+     */
+    readonly backend: PhysicsBackend;
+
+    /**
      * Initializes the physics engine with the necessary geometry data.
+     *
+     * @param garmentVerts - Flat array of garment vertex positions [x,y,z,...].
+     * @param garmentIndices - Triangle indices for the garment mesh.
+     * @param garmentUVs - UV coordinates for anisotropic material properties.
+     * @param colliderVerts - Flat array of collider vertex positions.
+     * @param colliderNormals - Flat array of collider vertex normals.
+     * @param colliderIndices - Triangle indices for the collider mesh.
+     * @param scaleFactor - Scale factor for unit conversion.
      */
     init(
         garmentVerts: Float32Array,
@@ -34,23 +64,23 @@ export interface IPhysicsEngine {
 
     /**
      * Returns a view into the memory buffer representing the computed vertex normals.
-     * Normals are computed in WASM after physics step for performance.
+     * Normals are computed after physics step for performance.
      */
     getNormals(): any;
 
     /**
-     * Frees any unmanaged resources (e.g., WASM memory).
+     * Frees any unmanaged resources (e.g., WASM memory, GPU buffers).
      */
     dispose(): void;
 
     // --- Interaction Methods ---
 
     /**
-     * strict: Begins a user interaction (drag) at a specific vertex index.
+     * Begins a user interaction (drag) at a specific vertex index.
      * @param index - The index of the vertex being grabbed.
-     * @param x - The x coordinate of the drag content.
-     * @param y - The y coordinate of the drag content.
-     * @param z - The z coordinate of the drag content.
+     * @param x - The x coordinate of the drag target.
+     * @param y - The y coordinate of the drag target.
+     * @param z - The z coordinate of the drag target.
      */
     startInteraction(index: number, x: number, y: number, z: number): void;
 

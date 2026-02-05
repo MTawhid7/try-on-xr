@@ -2,6 +2,41 @@
 ├── .gitignore
 ├── README.md
 ├── WORKLOG.md
+├── compute
+│   ├── package.json
+│   ├── src
+│   │   ├── buffers
+│   │   │   ├── BufferManager.ts
+│   │   │   └── ParticleBuffers.ts
+│   │   ├── capabilities
+│   │   │   └── GpuCapabilities.ts
+│   │   ├── collision
+│   │   │   ├── BodyCollider.ts
+│   │   │   └── index.ts
+│   │   ├── constraints
+│   │   │   ├── ConstraintGenerator.ts
+│   │   │   └── index.ts
+│   │   ├── engine
+│   │   │   ├── GpuEngine.ts
+│   │   │   └── GpuState.ts
+│   │   ├── index.ts
+│   │   ├── pipeline
+│   │   │   ├── BindGroupManager.ts
+│   │   │   ├── Scheduler.ts
+│   │   │   ├── ShaderCompiler.ts
+│   │   │   └── index.ts
+│   │   └── shaders
+│   │       ├── bending.wgsl.ts
+│   │       ├── collision.wgsl.ts
+│   │       ├── common
+│   │       │   ├── math.wgsl.ts
+│   │       │   └── types.wgsl.ts
+│   │       ├── distance.wgsl.ts
+│   │       ├── index.ts
+│   │       ├── integrator.wgsl.ts
+│   │       ├── normals.wgsl.ts
+│   │       └── tether.wgsl.ts
+│   └── tsconfig.json
 ├── eslint.config.js
 ├── index.html
 ├── package-lock.json
@@ -117,6 +152,7 @@
 │   │   │   ├── Assets.ts
 │   │   │   ├── Garment.ts
 │   │   │   ├── Geometry.ts
+│   │   │   ├── PreprocessedData.ts
 │   │   │   └── index.ts
 │   │   └── interfaces
 │   │       ├── IAssetLoader.ts
@@ -151,7 +187,10 @@
 │   │   │   └── MeshLoader.ts
 │   │   ├── physics
 │   │   │   ├── adapter
+│   │   │   │   ├── GpuAdapter.ts
 │   │   │   │   └── WasmAdapter.ts
+│   │   │   ├── factory
+│   │   │   │   └── EngineFactory.ts
 │   │   │   └── wasm
 │   │   │       └── index.ts
 │   │   └── rendering
@@ -205,4 +244,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-58 directories, 148 files
+69 directories, 176 files

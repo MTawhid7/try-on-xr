@@ -1,10 +1,16 @@
 // src/application/use-cases/InitializeSimulation.ts
+/**
+ * @fileoverview Simulation initialization use case.
+ *
+ * Orchestrates asset loading, sizing/grading, and physics engine creation.
+ * Uses EngineFactory for automatic GPU detection and fallback.
+ */
 
 import * as THREE from 'three';
 import { AssetPreparationPipeline } from '../pipelines/AssetPreparationPipeline';
 import { GradingPipeline } from '../pipelines/GradingPipeline';
-import { WasmAdapter } from '../../infrastructure/physics/adapter/WasmAdapter';
-import type { IPhysicsEngine } from '../../core/interfaces/IPhysicsEngine';
+import { engineFactory, type EngineCreationResult } from '../../infrastructure/physics/factory/EngineFactory';
+import type { IPhysicsEngine, PhysicsBackend } from '../../core/interfaces/IPhysicsEngine';
 import type { SimulationAssets } from '../../core/entities/Assets';
 import type { ShirtSize } from '../../core/entities/Garment';
 
@@ -12,6 +18,17 @@ export interface InitializationResult {
     engine: IPhysicsEngine;
     assets: SimulationAssets<THREE.BufferGeometry>;
     scaledVertices: Float32Array;
+    backend: PhysicsBackend;
+    fallbackReason?: string;
+}
+
+export interface InitializationConfig {
+    /** Prefer GPU backend. Default: true */
+    preferGpu?: boolean;
+    /** Called when falling back to CPU. */
+    onFallback?: (reason: string) => void;
+    /** Called when GPU is ready. */
+    onGpuReady?: () => void;
 }
 
 /**
@@ -30,11 +47,14 @@ export class InitializeSimulation {
      *
      * @param currentAssets - Existing assets (if already loaded) to avoid reloading.
      * @param size - The shirt size to apply.
+     * @param config - Optional configuration for engine selection.
      */
     async execute(
         currentAssets: SimulationAssets<THREE.BufferGeometry> | null,
-        size: ShirtSize
+        size: ShirtSize,
+        config: InitializationConfig = {}
     ): Promise<InitializationResult> {
+        const { preferGpu = true, onFallback, onGpuReady } = config;
 
         // 1. Load Assets (if needed)
         let assets = currentAssets;
@@ -49,9 +69,15 @@ export class InitializeSimulation {
             size
         );
 
-        // 3. Initialize Physics Engine
-        const engine = new WasmAdapter();
-        await engine.init(
+        // 3. Create Physics Engine using factory
+        const creationResult: EngineCreationResult = await engineFactory.createEngine({
+            preferGpu,
+            onFallback,
+            onGpuReady
+        });
+
+        // 4. Initialize the engine with geometry
+        await creationResult.engine.init(
             scaledGarmentVerts,
             assets.garment.indices,
             assets.garment.uvs,
@@ -61,10 +87,14 @@ export class InitializeSimulation {
             scaleFactor
         );
 
+        console.log(`[InitializeSimulation] Using ${creationResult.backend} backend`);
+
         return {
-            engine,
+            engine: creationResult.engine,
             assets,
-            scaledVertices: scaledGarmentVerts
+            scaledVertices: scaledGarmentVerts,
+            backend: creationResult.backend,
+            fallbackReason: creationResult.fallbackReason
         };
     }
 }
