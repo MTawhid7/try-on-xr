@@ -1,5 +1,7 @@
 .
 ├── .gitignore
+├── README.md
+├── WORKLOG.md
 ├── compute
 │   ├── package.json
 │   ├── src
@@ -20,20 +22,23 @@
 │   │   ├── index.ts
 │   │   ├── pipeline
 │   │   │   ├── BindGroupManager.ts
-│   │   │   ├── index.ts
 │   │   │   ├── Scheduler.ts
-│   │   │   └── ShaderCompiler.ts
-│   │   └── shaders
-│   │       ├── bending.wgsl.ts
-│   │       ├── collision.wgsl.ts
-│   │       ├── common
-│   │       │   ├── math.wgsl.ts
-│   │       │   └── types.wgsl.ts
-│   │       ├── distance.wgsl.ts
-│   │       ├── index.ts
-│   │       ├── integrator.wgsl.ts
-│   │       ├── normals.wgsl.ts
-│   │       └── tether.wgsl.ts
+│   │   │   ├── ShaderCompiler.ts
+│   │   │   └── index.ts
+│   │   ├── shaders
+│   │   │   ├── area.wgsl.ts
+│   │   │   ├── bending.wgsl.ts
+│   │   │   ├── collision.wgsl.ts
+│   │   │   ├── common
+│   │   │   │   ├── math.wgsl.ts
+│   │   │   │   └── types.wgsl.ts
+│   │   │   ├── distance.wgsl.ts
+│   │   │   ├── index.ts
+│   │   │   ├── integrator.wgsl.ts
+│   │   │   ├── normals.wgsl.ts
+│   │   │   └── tether.wgsl.ts
+│   │   └── utils
+│   │       └── GeometryUtils.ts
 │   └── tsconfig.json
 ├── eslint.config.js
 ├── index.html
@@ -130,7 +135,6 @@
 │   │   └── shirt.glb
 │   ├── textures
 │   └── vite.svg
-├── README.md
 ├── src
 │   ├── application
 │   │   ├── index.ts
@@ -144,36 +148,36 @@
 │   │   └── react.svg
 │   ├── core
 │   │   ├── constants
-│   │   │   ├── index.ts
 │   │   │   ├── SimulationConstants.ts
-│   │   │   └── SizingStandards.ts
+│   │   │   ├── SizingStandards.ts
+│   │   │   └── index.ts
 │   │   ├── entities
 │   │   │   ├── Assets.ts
 │   │   │   ├── Garment.ts
 │   │   │   ├── Geometry.ts
-│   │   │   ├── index.ts
-│   │   │   └── PreprocessedData.ts
+│   │   │   ├── PreprocessedData.ts
+│   │   │   └── index.ts
 │   │   └── interfaces
 │   │       ├── IAssetLoader.ts
-│   │       ├── index.ts
-│   │       └── IPhysicsEngine.ts
+│   │       ├── IPhysicsEngine.ts
+│   │       └── index.ts
 │   ├── index.css
 │   ├── infrastructure
 │   │   ├── geometry
 │   │   │   ├── analysis
 │   │   │   │   ├── BodyMeasurer.ts
-│   │   │   │   ├── index.ts
 │   │   │   │   ├── MeshAnalyzer.ts
 │   │   │   │   ├── MeshMeasurer.ts
+│   │   │   │   ├── SpineRegressor.ts
+│   │   │   │   ├── index.ts
 │   │   │   │   ├── orientation
 │   │   │   │   │   ├── OrientationDetector.ts
 │   │   │   │   │   ├── OrientationOptimizer.ts
 │   │   │   │   │   ├── PCASolver.ts
 │   │   │   │   │   └── ValidationUtils.ts
-│   │   │   │   ├── slice
-│   │   │   │   │   ├── ClusterEngine.ts
-│   │   │   │   │   └── SliceAnalyzer.ts
-│   │   │   │   └── SpineRegressor.ts
+│   │   │   │   └── slice
+│   │   │   │       ├── ClusterEngine.ts
+│   │   │   │       └── SliceAnalyzer.ts
 │   │   │   ├── index.ts
 │   │   │   ├── modifiers
 │   │   │   │   ├── AutoAligner.ts
@@ -197,22 +201,24 @@
 │   ├── main.tsx
 │   ├── physics-pkg
 │   │   ├── .gitignore
-│   │   ├── garment_physics_bg.wasm
-│   │   ├── garment_physics_bg.wasm.d.ts
 │   │   ├── garment_physics.d.ts
 │   │   ├── garment_physics.js
+│   │   ├── garment_physics_bg.wasm
+│   │   ├── garment_physics_bg.wasm.d.ts
 │   │   └── package.json
 │   └── presentation
 │       ├── App.tsx
 │       ├── canvas
 │       │   ├── CameraRig.tsx
+│       │   ├── CapsuleDebug.tsx
 │       │   ├── FpsTracker.tsx
 │       │   ├── GarmentMesh.tsx
-│       │   ├── index.ts
 │       │   ├── Lights.tsx
 │       │   ├── MannequinMesh.tsx
-│       │   └── Scene.tsx
+│       │   ├── Scene.tsx
+│       │   └── index.ts
 │       ├── components
+│       │   ├── LoadingScreen.tsx
 │       │   ├── common
 │       │   │   ├── Button.tsx
 │       │   │   └── Panel.tsx
@@ -220,7 +226,6 @@
 │       │   │   ├── SimulationControls.tsx
 │       │   │   └── SizeSelector.tsx
 │       │   ├── index.ts
-│       │   ├── LoadingScreen.tsx
 │       │   └── overlay
 │       │       ├── Overlay.tsx
 │       │       └── StatusPanel.tsx
@@ -241,7 +246,6 @@
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
-├── vite.config.ts
-└── WORKLOG.md
+└── vite.config.ts
 
-69 directories, 176 files
+70 directories, 179 files
