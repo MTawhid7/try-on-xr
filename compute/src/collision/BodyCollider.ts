@@ -63,12 +63,17 @@ export class BodyCollider {
      */
     initialize(config: BodyColliderConfig): void {
         const { positions, normals, indices, margin } = config;
+        console.log(`[BodyCollider] Initializing. Pos: ${positions.length}, Ind: ${indices.length}, Margin: ${margin}`);
+        if (positions.length > 0) {
+            console.log(`[BodyCollider] P[0]: ${positions[0]}, ${positions[1]}, ${positions[2]}`);
+        }
         this.margin = margin;
         this.triangleCount = indices.length / 3;
 
         // Build triangle data array
-        // Each triangle: v0 (vec4), v1 (vec4), v2 (vec4), normal (vec4) = 64 bytes
-        const triangleData = new Float32Array(this.triangleCount * 16);
+        const tempTriangleData: number[] = [];
+        const keptIndices: number[] = [];
+        let validTriangleCount = 0;
 
         for (let i = 0; i < this.triangleCount; i++) {
             const i0 = indices[i * 3 + 0];
@@ -88,39 +93,53 @@ export class BodyCollider {
             const v2y = positions[i2 * 3 + 1];
             const v2z = positions[i2 * 3 + 2];
 
-            // Average normal from vertices
-            const nx = (normals[i0 * 3 + 0] + normals[i1 * 3 + 0] + normals[i2 * 3 + 0]) / 3;
-            const ny = (normals[i0 * 3 + 1] + normals[i1 * 3 + 1] + normals[i2 * 3 + 1]) / 3;
-            const nz = (normals[i0 * 3 + 2] + normals[i1 * 3 + 2] + normals[i2 * 3 + 2]) / 3;
+            // Check for degeneracy (Area / Edge length)
+            const e1x = v1x - v0x;
+            const e1y = v1y - v0y;
+            const e1z = v1z - v0z;
 
-            // Normalize
-            const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-            const nnx = len > 0 ? nx / len : 0;
-            const nny = len > 0 ? ny / len : 0;
-            const nnz = len > 0 ? nz / len : 1;
+            const e2x = v2x - v0x;
+            const e2y = v2y - v0y;
+            const e2z = v2z - v0z;
 
-            // Pack into buffer: v0.xyz, margin, v1.xyz, 0, v2.xyz, 0, n.xyz, 0
-            const offset = i * 16;
-            triangleData[offset + 0] = v0x;
-            triangleData[offset + 1] = v0y;
-            triangleData[offset + 2] = v0z;
-            triangleData[offset + 3] = margin;
+            // Cross product usually gives normal * 2*area
+            const cx = e1y * e2z - e1z * e2y;
+            const cy = e1z * e2x - e1x * e2z;
+            const cz = e1x * e2y - e1y * e2x;
 
-            triangleData[offset + 4] = v1x;
-            triangleData[offset + 5] = v1y;
-            triangleData[offset + 6] = v1z;
-            triangleData[offset + 7] = 0;
+            const lenSq = cx * cx + cy * cy + cz * cz;
 
-            triangleData[offset + 8] = v2x;
-            triangleData[offset + 9] = v2y;
-            triangleData[offset + 10] = v2z;
-            triangleData[offset + 11] = 0;
+            // Threshold: 1e-12 corresponds to very tiny area
+            if (lenSq < 1e-12) {
+                console.warn(`[BodyCollider] Skipping degenerate triangle ${i}`);
+                continue;
+            }
 
-            triangleData[offset + 12] = nnx;
-            triangleData[offset + 13] = nny;
-            triangleData[offset + 14] = nnz;
-            triangleData[offset + 15] = 0;
+            // Normal Normalization
+            const len = Math.sqrt(lenSq);
+            // Use face normal for flat triangles to ensure consistency
+            const nnx = cx / len;
+            const nny = cy / len;
+            const nnz = cz / len;
+
+            // Helper to push float
+            tempTriangleData.push(
+                v0x, v0y, v0z, margin,
+                v1x, v1y, v1z, 0,
+                v2x, v2y, v2z, 0,
+                nnx, nny, nnz, 0
+            );
+
+            keptIndices.push(i0, i1, i2);
+            validTriangleCount++;
         }
+
+        this.triangleCount = validTriangleCount;
+        const triangleData = new Float32Array(tempTriangleData);
+        // We must update indices for spatial hash to use the NEW compacted/filtered list?
+        // Actually, the spatial hash loop below uses 'indices' which is the ORIGINAL list.
+        // We need to use 'keptIndices'.
+        const usedIndices = new Uint32Array(keptIndices);
 
         // Create triangle buffer
         this.triangleBuffer = this.device.createBuffer({
@@ -148,6 +167,10 @@ export class BodyCollider {
         let minX = Infinity, minY = Infinity, minZ = Infinity;
         let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
+        // Use valid vertices only
+        // Note: positions array is huge/original, but we only care about vertices ref'd by valid triangles.
+        // Actually, for AABB, iterating all vertices is fine, or we can iterate keptIndices.
+        // Iterating all positions is safer/simpler for AABB.
         for (let i = 0; i < positions.length; i += 3) {
             const x = positions[i];
             const y = positions[i + 1];
@@ -165,8 +188,8 @@ export class BodyCollider {
 
         // 2. Define Grid Params
         // Cell size needs to be large enough to contain triangles, but small enough to prune.
-        // A standard edge length in the mesh might be 1-5cm. Let's pick 10cm (0.1).
-        this.gridCellSize = 0.15; // 15cm seems safe
+        // A standard edge length in the mesh might be 1-5cm. Let's pick 5cm (0.05).
+        this.gridCellSize = 0.05; // 5cm for better granularity
 
         const gridDimX = Math.ceil((this.gridBounds.max[0] - this.gridBounds.min[0]) / this.gridCellSize);
         const gridDimY = Math.ceil((this.gridBounds.max[1] - this.gridBounds.min[1]) / this.gridCellSize);
@@ -188,10 +211,11 @@ export class BodyCollider {
 
         const cells: number[][] = new Array(totalCells).fill(0).map(() => []);
 
+        // Iterate ONLY the valid triangles
         for (let i = 0; i < this.triangleCount; i++) {
-            const i0 = indices[i * 3 + 0];
-            const i1 = indices[i * 3 + 1];
-            const i2 = indices[i * 3 + 2];
+            const i0 = usedIndices[i * 3 + 0];
+            const i1 = usedIndices[i * 3 + 1];
+            const i2 = usedIndices[i * 3 + 2];
 
             // Triangle AABB
             const tMinX = Math.min(positions[i0 * 3], positions[i1 * 3], positions[i2 * 3]);

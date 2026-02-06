@@ -27,6 +27,7 @@ export class WasmAdapter implements IPhysicsEngine {
 
     async init(
         garmentVerts: Float32Array,
+        _garmentNormals: Float32Array,
         garmentIndices: Uint32Array,
         garmentUVs: Float32Array,
         colliderVerts: Float32Array,

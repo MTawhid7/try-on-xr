@@ -5,6 +5,48 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-06] - WebGPU Physics & Stability Crisis
+
+### 1. Current State (WebGPU Stability)
+
+- **Status:** **Feature-Complete but Unstable**.
+- **Issue:** The WebGPU backend now supports the Full Mannequin, Size Switching, and Optimized Collision, but suffers from persistent numerical instability ("Explosions" or "Black Hole" artifacts) where the mesh collapses to `NaN` or `Infinity`.
+- **Progress:**
+  - **Crash Fixed:** Solved the critical "Size Switch Crash" (M -> XL). Cause: `UpdateGarmentSize` was passing `indices` (Int) into the `normals` (Float) argument of the engine init function.
+  - **Collision Accuracy:** Increased collision margin to **1cm** and `solverIterations` to **8**. Implemented Dynamic Margin in `collision.wgsl`.
+  - **Tuning:** Enabled **Friction** (0.5) and **Drag** (0.01) via the `SimParams` uniform buffer (previously unused slots).
+  - **Logic:** Re-enabled **Tether Constraints** to prevent "gum-like" stretching, though this introduces risk of snapping.
+
+### 2. Findings & Persistent Issues (WebGPU Stability)
+
+- **The "Parallel Paradox":**
+  - **Problem:** Constraints that are stable on CPU (Serial) become unstable on GPU (Parallel) because hundreds of constraints modify shared particles simultaneously.
+  - **Symptom:** "Vortexing" vertices. A single particle getting conflicting instructions from 4+ neighbors + collision can accumulate infinite energy in a single frame.
+  - **Constraint Stiffness:** Our current XPBD compliance is likely too stiff for the parallel solver. The "correction" vector is too large, overshooting the solution.
+- **Data Corruption (Resolved):**
+  - The "0 Triangles" bug was a symptom of the data corruption caused by the argument mismatch. `UpdateGarmentSize` is now robust.
+- **Visual Artifacts:**
+  - **Penetration:** Even with the 1cm margin, the "soft" nature of the parallel solver allows some clipping.
+  - **Anchoring:** We previously saw vertices stuck to (0,0,0). This was often due to "Degenerate Triangles" in the collider returning `NaN` barycentric coordinates. We filtered these out in `BodyCollider`.
+
+### 3. Strategic Evaluation (Architecture)
+
+We analyzed 3 paths forward (detailed in `architecture_evaluation.md`):
+
+1. **Single-Core Rust:** Reliable, safe, but hits a performance wall (FPS < 30) with high-res meshes.
+2. **Multi-Core Rust:** The "Golden Mean". Uses `wasm-bindgen-rayon` to parallelize the stable Rust logic across 8 CPU threads. High effort to set up COOP/COEP / SharedArrayBuffer.
+3. **Refined WebGPU:** The "High Risk / High Reward" path. Requires deep tuning (Graph Coloring, Red-Black Gauss-Seidel) to fix stability.
+
+### 4. Next Steps / Plan (Stability)
+
+- **Immediate:** Attempt one final "Softening" pass on WebGPU.
+  - **Disable Tethers:** They are the most likely cause of infinite-force snapping.
+  - **Increase Compliance:** Make the shirt "stretchy" (rubbery) to absorb error energy.
+  - **Increase Mass:** Heavier particles resist acceleration artifacts.
+- **Contingency:** If the "Soft" approach fails to stabilize the simulation within 24 hours, **Pivot to Logic Option 2 (Multi-Core Rust)** to guarantee a shippable product.
+
+---
+
 ## [2026-02-05] - WebGPU Beta 1 Optimization & Status
 
 ### 1. Current State (WebGPU Beta)

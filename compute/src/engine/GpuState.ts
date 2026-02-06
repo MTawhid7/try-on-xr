@@ -46,8 +46,10 @@ export class GpuState {
     private inverseMassBuffer: GPUBuffer | null = null;
     private normalBuffer: GPUBuffer | null = null;
 
-    // Staging buffer for CPU readback
-    private readbackBuffer: GPUBuffer | null = null;
+    // Double buffering for async readback
+    private readbackBuffers: GPUBuffer[] = [];
+    private currentReadbackIndex: number = 0;
+    private mapPromises: Promise<void>[] = [];
 
     /**
      * Creates a new GpuState instance.
@@ -114,12 +116,23 @@ export class GpuState {
             'normal'
         );
 
-        // Create readback buffer for CPU access
-        this.readbackBuffer = this.device.createBuffer({
-            label: 'readback',
-            size: particleCount * 4 * Float32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-        });
+        // Create TWO readback buffers for pipelining (Zero-Copy Readback effectively)
+        const readbackSize = particleCount * 4 * Float32Array.BYTES_PER_ELEMENT;
+        this.readbackBuffers = [
+            this.device.createBuffer({
+                label: 'readback_0',
+                size: readbackSize,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+            }),
+            this.device.createBuffer({
+                label: 'readback_1',
+                size: readbackSize,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+            })
+        ];
+
+        this.currentReadbackIndex = 0;
+        this.mapPromises = [Promise.resolve(), Promise.resolve()];
 
         this.initialized = true;
         console.log(`[GpuState] Initialized with ${particleCount} particles`);
@@ -166,35 +179,65 @@ export class GpuState {
     }
 
     /**
-     * Reads positions back to CPU memory.
-     * This is an async operation that waits for GPU completion.
+     * Reads positions back to CPU memory using Double Buffering to prevent stalls.
+     * This introduces 1 frame of latency but allows the GPU and CPU to run in parallel.
      *
      * @returns Float32Array containing positions in vec4 layout.
      */
     async readPositions(): Promise<Float32Array> {
         this.ensureInitialized();
 
-        // const start = performance.now();
+        const writeIndex = this.currentReadbackIndex % 2;
+        const readIndex = (this.currentReadbackIndex + 1) % 2;
 
+        const writeBuffer = this.readbackBuffers[writeIndex];
+        const readBuffer = this.readbackBuffers[readIndex];
+
+        // 1. Schedule copy for CURRENT frame
         const commandEncoder = this.device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(
             this.positionBuffer!,
             0,
-            this.readbackBuffer!,
+            writeBuffer,
             0,
             this.particleCount * 4 * Float32Array.BYTES_PER_ELEMENT
         );
         this.device.queue.submit([commandEncoder.finish()]);
 
-        await this.readbackBuffer!.mapAsync(GPUMapMode.READ);
-        const range = this.readbackBuffer!.getMappedRange();
-        const data = new Float32Array(range.slice(0)); // Copy is necessary as unmap invalidates range
-        this.readbackBuffer!.unmap();
+        // 2. Schedule async map for this write buffer
+        this.mapPromises[writeIndex] = writeBuffer.mapAsync(GPUMapMode.READ);
 
-        // const end = performance.now();
-        // if (Math.random() < 0.01) console.log(`[GpuState] Readback time: ${(end - start).toFixed(2)}ms`);
+        // 3. Process PREVIOUS frame
+        // If we haven't wrapped around yet (first 1 frames), we just return 0s or initial pos equivalent
+        // to avoid waiting on an unmapped buffer.
+        let result: Float32Array;
 
-        return data;
+        if (this.currentReadbackIndex < 1) {
+            // First frame: Return empty or initial (simplest is just create new)
+            // We return a zeroed array of correct size, or simpler, reuse the logic later but don't wait?
+            // Actually, simplest is to just return a temp array for the very first frame.
+            result = new Float32Array(this.particleCount * 4);
+        } else {
+            // Wait for the PREVIOUS buffer to be ready (should be fast/instant)
+            try {
+                await this.mapPromises[readIndex];
+
+                // Read data
+                const range = readBuffer.getMappedRange();
+                result = new Float32Array(range.slice(0)); // Copy is necessary
+                readBuffer.unmap();
+            } catch (e: any) {
+                if (e.name === 'AbortError' || e.message?.includes('destroyed')) {
+                    // Buffer destroyed during wait (resize happened) - ignore
+                    result = new Float32Array(this.particleCount * 4);
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        this.currentReadbackIndex++;
+        return result;
     }
 
     /**
@@ -206,14 +249,15 @@ export class GpuState {
         this.velocityBuffer?.destroy();
         this.inverseMassBuffer?.destroy();
         this.normalBuffer?.destroy();
-        this.readbackBuffer?.destroy();
+
+        this.readbackBuffers.forEach(b => b.destroy());
+        this.readbackBuffers = [];
 
         this.positionBuffer = null;
         this.prevPositionBuffer = null;
         this.velocityBuffer = null;
         this.inverseMassBuffer = null;
         this.normalBuffer = null;
-        this.readbackBuffer = null;
 
         this.initialized = false;
         console.log('[GpuState] Disposed');

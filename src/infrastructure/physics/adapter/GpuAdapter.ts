@@ -62,6 +62,7 @@ export class GpuAdapter implements IPhysicsEngine {
      */
     async init(
         garmentVerts: Float32Array,
+        garmentNormals: Float32Array,
         garmentIndices: Uint32Array,
         _garmentUVs: Float32Array,
         colliderVerts: Float32Array,
@@ -82,7 +83,7 @@ export class GpuAdapter implements IPhysicsEngine {
         const stateConfig: GpuEngineStateConfig = {
             particleCount: this.vertexCount,
             initialPositions: garmentVerts,
-            // initialNormals optional, omitted for now since not available in init signatures
+            initialNormals: garmentNormals,
             inverseMasses,
             indices: garmentIndices,
             // Pass collider data to engine
@@ -136,20 +137,7 @@ export class GpuAdapter implements IPhysicsEngine {
             this.frameCount = 0;
         }
         if (this.frameCount < 60) {
-            const sdt = dt / 6; // Assuming 6 substeps
-            console.log(`[GpuAdapter] Frame ${this.frameCount}: dt=${dt.toFixed(6)}s, sdt=${sdt.toFixed(6)}s`);
 
-            // Periodically check particle 0 status
-            if (this.frameCount % 10 === 0) {
-                this.engine.debugReadParticle(0).then(p => {
-                    if (p) {
-                        console.log(`[Frame ${this.frameCount}] P0: pos=[${p.pos[0].toFixed(4)}, ${p.pos[1].toFixed(4)}, ${p.pos[2].toFixed(4)}]`);
-                        console.log(`    prev=[${p.prev[0].toFixed(4)}, ${p.prev[1].toFixed(4)}, ${p.prev[2].toFixed(4)}]`);
-                        console.log(`    vel=[${p.vel[0].toFixed(4)}, ${p.vel[1].toFixed(4)}, ${p.vel[2].toFixed(4)}]`);
-                        console.log(`    invMass=${p.invMass}`);
-                    }
-                });
-            }
         }
         this.frameCount++;
 

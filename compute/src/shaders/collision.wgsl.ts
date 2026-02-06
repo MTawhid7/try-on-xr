@@ -104,6 +104,7 @@ fn closest_point_on_triangle_robust(p: vec3f, v0: vec3f, v1: vec3f, v2: vec3f) -
     }
 
     let denom = 1.0 / (va + vb + vc);
+    if (abs(va + vb + vc) < 1e-9) { return v0; } // Degenerate triangle check
     let v_bary = vb * denom;
     let w_bary = vc * denom;
     return v0 + ab * v_bary + ac * w_bary;
@@ -183,6 +184,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     let dimy = i32(dim.y);
     let dimz = i32(dim.z);
 
+    // Use loop margins from uniform config or Triangle.w?
+    // Triangle.w contains the margin.
+    // NOTE: Triangles are static, margin shouldn't change per frame ideally unless uploaded.
+    // For now we trust tri.v0.w as the source of truth for margin.
+
     // Iterate neighbors
     for (var z = cz - 1; z <= cz + 1; z++) {
         if (z < 0 || z >= dimz) { continue; }
@@ -221,24 +227,61 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
                         }
                     }
 
-                    // 2. Discrete Check
+                    // 2. Discrete Check (with Deep Penetration Recovery)
                     if (!is_ccd) {
                         let closest = closest_point_on_triangle_robust(pos, v0, v1, v2);
                         let diff = pos - closest;
                         let dist_sq = dot(diff, diff);
 
-                        if (dist_sq < margin * margin) {
+                        // DETECTION RADIUS:
+                        // Use a larger radius (e.g. 0.2m) to catch particles "deep" inside the body.
+                        // Rust uses 0.05, but for "fitting" large penetrations we need more.
+                        let detection_radius = 0.2;
+
+                        if (dist_sq < detection_radius * detection_radius) {
                             if (dist_sq < min_dist_sq) {
-                                min_dist_sq = dist_sq;
-                                best_surface_point = closest;
                                 let dist = sqrt(dist_sq);
                                 let tri_normal = tri.normal.xyz;
-                                if (dist > EPSILON) {
-                                     best_normal = diff / dist;
+
+                                // Check orientation: Are we inside or outside?
+                                // If dot(diff, tri_normal) < 0, the vector from surface to point opposes normal -> INSIDE.
+                                // However, 'diff' is (pos - closest).
+
+                                // Ideally 'diff' aligns with 'tri_normal' if outside.
+
+                                let is_inside = dot(diff, tri_normal) < 0.0;
+
+                                // Handling Deep Penetration:
+                                // If inside, we MUST push out along the normal.
+                                // If outside, we only push if we are within the small 'margin'.
+
+                                if (is_inside) {
+                                    // INSIDE: Always resolve.
+                                    min_dist_sq = dist_sq; // Track this as the "deepest" valid interaction?
+                                    // Actually, for inside, the "closest" surface might be far, but we want the one that pushes us out MOST?
+                                    // Or just the closest surface point.
+                                    best_surface_point = closest;
+
+                                    // Important: For inside, the normal should be the triangle normal (push OUT).
+                                    // Using 'diff' would push deeper IN.
+
+                                    best_normal = tri_normal;
+                                    has_hit = true;
+
                                 } else {
-                                     best_normal = tri_normal;
+                                    // OUTSIDE: Standard collision.
+                                    // Only resolve if touching the skin (margin).
+                                    if (dist_sq < margin * margin) {
+                                        min_dist_sq = dist_sq;
+                                        best_surface_point = closest;
+                                        if (dist > EPSILON) {
+                                            best_normal = diff / dist;
+                                        } else {
+                                            best_normal = tri_normal;
+                                        }
+                                        has_hit = true;
+                                    }
                                 }
-                                has_hit = true;
                             }
                         }
                     }
@@ -248,17 +291,64 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     }
 
     if (has_hit) {
-        if (is_ccd) {
-             pos = best_surface_point + best_normal * 0.002;
-        } else {
-             pos = best_surface_point + best_normal * 0.002;
+        // We found a collision.
+        // 1. Apply Position Correction (Projection)
+        // We want to project exactly to surface + margin?
+        // Rust does: projection < thickness => penetration = thickness - projection.
+        // Here we have best_surface_point and best_normal.
+        // The penetration depth is margin - dist (for discrete) or similar.
+
+        // Simplified Pushout to Surface + Margin
+        // We use 0.01 (1cm) to match GpuEngine config and prevent visual clipping.
+        let margin = 0.01;
+
+        // Apply Position Projection
+        let new_pos = best_surface_point + best_normal * margin;
+
+        // Update Position
+        positions[idx] = vec4f(new_pos, 0.0);
+
+        // 2. Apply Friction (Velocity Modification)
+        // Calculate current velocity based on projected position
+        let velocity = new_pos - prev;
+
+        // Decompose velocity
+        let v_normal_mag = dot(velocity, best_normal);
+        let v_normal = best_normal * v_normal_mag;
+        let v_tangent = velocity - v_normal;
+        let v_tangent_len = length(v_tangent);
+
+        var friction_factor = 0.0;
+        let penetration = margin; // Approximate penetration magnitude for friction calc
+
+        let dynamic_friction = params.config.z; // From config (0.5 default)
+        let static_friction = dynamic_friction + 0.1; // Slightly sticky
+
+        if (v_tangent_len > 1e-9) {
+            if (v_tangent_len < penetration * static_friction) {
+                friction_factor = 1.0; // Static friction (stop completely)
+            } else {
+                let max_slide = penetration * dynamic_friction;
+                friction_factor = max_slide / v_tangent_len;
+                if (friction_factor > 1.0) { friction_factor = 1.0; }
+            }
         }
-    }
 
-    positions[idx] = vec4f(pos, 0.0);
+        // Apply friction to tangent component
+        let new_v_tangent = v_tangent * (1.0 - friction_factor);
 
-    if (pos.y < -3.0) {
-        positions[idx].y = -3.0; // Floor
+        // Kill normal component (inelastic collision) if moving inwards
+        // If v_normal_mag > 0 (moving out), keep it? Rust: if vn_mag < 0.0 { ZERO } else { vn }
+        var new_v_normal = vec3f(0.0);
+        if (v_normal_mag > 0.0) {
+            new_v_normal = v_normal;
+        }
+
+        let total_velocity = new_v_normal + new_v_tangent;
+
+        // Update Prev Position to reflect new velocity
+        // prev = pos - velocity
+        prev_positions[idx] = vec4f(new_pos - total_velocity, 0.0);
     }
 }
 `;

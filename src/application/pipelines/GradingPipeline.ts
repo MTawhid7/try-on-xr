@@ -15,7 +15,7 @@ export class GradingPipeline {
      * @param targetSize - The desired shirt size (XS - XXL) from the standard sizing chart.
      * @returns An object containing the new scaled vertices (Float32Array) and the physics scale factor.
      */
-    static execute(baseMesh: ProcessedMesh, targetSize: ShirtSize): { vertices: Float32Array, scaleFactor: number } {
+    static execute(baseMesh: ProcessedMesh, targetSize: ShirtSize): { vertices: Float32Array, normals: Float32Array, scaleFactor: number } {
         // 1. Reconstruct a temporary THREE.Mesh to measure dimensions
         // We do this to reuse the robust bounding box logic in MeshMeasurer.
         // Since ProcessedMesh is just arrays (vertices, indices), we wrap it briefly in a BufferGeometry.
@@ -64,11 +64,43 @@ export class GradingPipeline {
             scaledVertices[i + 1] = maxY + (y - maxY) * scaleY;
         }
 
-        // 5. Calculate Physics Scale Factor
+        // 5. Transform Normals
+        // Since we are non-uniformly scaling the mesh, we must transform normals using the inverse transpose matrix.
+        // For a scale matrix S(sx, sy, sz), the Inverse is S(1/sx, 1/sy, 1/sz).
+        // Transpose of diagonal matrix is itself.
+        // So we multiply normals by (1/sx, 1/sy, 1/sz) and re-normalize.
+        const scaledNormals = new Float32Array(baseMesh.normals.length);
+        const invScaleX = 1.0 / scaleX;
+        const invScaleY = 1.0 / scaleY;
+        const invScaleZ = 1.0 / scaleZ;
+
+        for (let i = 0; i < scaledNormals.length; i += 3) {
+            let nx = baseMesh.normals[i];
+            let ny = baseMesh.normals[i + 1];
+            let nz = baseMesh.normals[i + 2];
+
+            nx *= invScaleX;
+            ny *= invScaleY;
+            nz *= invScaleZ;
+
+            // Re-normalize
+            const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (len > 0) {
+                nx /= len;
+                ny /= len;
+                nz /= len;
+            }
+
+            scaledNormals[i] = nx;
+            scaledNormals[i + 1] = ny;
+            scaledNormals[i + 2] = nz;
+        }
+
+        // 6. Calculate Physics Scale Factor
         // This factor is passed to the physics engine to roughly approximate the change in mass/stiffness.
         // A larger shirt is generally heavier and potentially "floppier"; this factor helps compensate.
         const physicsScale = (scaleX + scaleY) / 2;
 
-        return { vertices: scaledVertices, scaleFactor: physicsScale };
+        return { vertices: scaledVertices, normals: scaledNormals, scaleFactor: physicsScale };
     }
 }

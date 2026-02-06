@@ -16,8 +16,8 @@ export const TYPES_WGSL = /* wgsl */`
 struct SimParams {
     // x = dt
     // y = damping
-    // z = unused
-    // w = unused
+    // z = friction
+    // w = drag
     config: vec4f,
 
     // xyz = gravity

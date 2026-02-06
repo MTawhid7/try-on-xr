@@ -32,6 +32,8 @@ export interface BindGroupLayouts {
     readonly bendingConstraints: GPUBindGroupLayout;
     /** Layout for tether constraints. */
     readonly tetherConstraints: GPUBindGroupLayout;
+    /** Layout for area constraints. */
+    readonly areaConstraints: GPUBindGroupLayout;
     /** Layout for body collision. */
     readonly bodyCollision: GPUBindGroupLayout;
 }
@@ -109,6 +111,15 @@ export class BindGroupManager {
             ]
         });
 
+        // Area constraints layout (same structure as bending/tether but 32 bytes stride implicitly handled by shader)
+        const areaConstraints = this.device.createBindGroupLayout({
+            label: 'area_constraints_layout',
+            entries: [
+                { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }
+            ]
+        });
+
         // Body collision layout (triangles + count + spatial hash)
         const bodyCollision = this.device.createBindGroupLayout({
             label: 'body_collision_layout',
@@ -127,6 +138,7 @@ export class BindGroupManager {
             distanceConstraints,
             bendingConstraints,
             tetherConstraints,
+            areaConstraints,
             bodyCollision
         };
 
@@ -183,7 +195,7 @@ export class BindGroupManager {
      * Creates a bind group for a constraint batch.
      */
     createConstraintBindGroup(
-        type: 'distance' | 'bending' | 'tether',
+        type: 'distance' | 'bending' | 'tether' | 'area',
         constraintBuffer: GPUBuffer,
         countBuffer: GPUBuffer
     ): GPUBindGroup {
@@ -199,6 +211,9 @@ export class BindGroupManager {
                 break;
             case 'tether':
                 layout = layouts.tetherConstraints;
+                break;
+            case 'area':
+                layout = layouts.areaConstraints;
                 break;
         }
 

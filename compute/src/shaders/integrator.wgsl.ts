@@ -60,14 +60,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     }
 
     // dt is config.x, damping is config.y
+    // dt is config.x, damping is config.y
     let dt = params.config.x;
-    let padding_check = params.config.z; // unused
+    let drag = params.config.w;
     let gravity = params.gravity.xyz;
     let damping = params.config.y;
 
     // Proper Verlet integration (matching Rust implementation):
-    // velocity = (pos - prev) * damping
-    let velocity = (pos - prev_pos) * damping;
+    // velocity = (pos - prev) * damping * (1.0 - drag)
+    let velocity = (pos - prev_pos) * damping * (1.0 - drag);
 
     // acceleration = gravity (force per unit mass)
     let acceleration = gravity;

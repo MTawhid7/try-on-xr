@@ -39,6 +39,17 @@ export interface TetherConstraintData {
 }
 
 /**
+ * Area constraint data.
+ */
+export interface AreaConstraintData {
+    i0: number;
+    i1: number;
+    i2: number;
+    restArea: number;
+    compliance: number;
+}
+
+/**
  * Configuration for constraint generation.
  */
 export interface ConstraintConfig {
@@ -47,14 +58,16 @@ export interface ConstraintConfig {
     /** Bending constraint stiffness. */
     bendingCompliance: number;
     /** Tether constraint stiffness. */
-    /** Tether constraint stiffness. */
     tetherCompliance: number;
+    /** Area constraint stiffness. */
+    areaCompliance: number;
 }
 
 const DEFAULT_CONFIG: ConstraintConfig = {
     distanceCompliance: 0.0001,
     bendingCompliance: 0.01,
-    tetherCompliance: 0.001
+    tetherCompliance: 0.0, // Rigid (matches Rust)
+    areaCompliance: 0.0002 // Matches Rust 2.0e-4
 };
 
 /**
@@ -131,8 +144,13 @@ export class ConstraintGenerator {
             const [e0, e1] = key.split('_').map(Number);
 
             // Wing vertices: the ones NOT on the shared edge
-            const wing0 = v0.find(v => v !== e0 && v !== e1)!;
-            const wing1 = v1.find(v => v !== e0 && v !== e1)!;
+            const wing0 = v0.find(v => v !== e0 && v !== e1);
+            const wing1 = v1.find(v => v !== e0 && v !== e1);
+
+            if (wing0 === undefined || wing1 === undefined) {
+                // Degenerate geometry (e.g. duplicate indices)
+                continue;
+            }
 
             // Distance Bending: constrain distance between wing0 and wing1
             const i0 = wing0;
@@ -267,6 +285,11 @@ export class ConstraintGenerator {
         // Build constraints and adjacency list
         for (let i = 0; i < edges.length; i++) {
             const [i0, i1] = edges[i];
+
+            if (!particleConstraints[i0] || !particleConstraints[i1]) {
+                console.warn(`[ConstraintGenerator] Invalid edge indices: ${i0}, ${i1} (max: ${maxParticleIndex})`);
+                continue;
+            }
 
             particleConstraints[i0].push(i);
             particleConstraints[i1].push(i);
@@ -425,13 +448,14 @@ export class ConstraintGenerator {
      * Creates a uniform buffer containing the constraint count.
      */
     static createCountBuffer(device: GPUDevice, count: number, label: string = 'constraint_count'): GPUBuffer {
+        // Uniform buffers must be at least 16 bytes in WebGPU
         const buffer = device.createBuffer({
             label,
-            size: 4,
+            size: 16,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        const data = new Uint32Array([count]);
+        const data = new Uint32Array([count, 0, 0, 0]); // Pad to 16 bytes
         device.queue.writeBuffer(buffer, 0, data);
 
         return buffer;
@@ -675,6 +699,145 @@ export class ConstraintGenerator {
             u32View[offset + 1] = c.particle;
             f32View[offset + 2] = c.maxDistance;
             f32View[offset + 3] = c.compliance;
+        }
+
+        const buffer = device.createBuffer({
+            label,
+            size: Math.max(byteSize, 16),
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+
+        device.queue.writeBuffer(buffer, 0, data);
+        return { buffer, count: constraints.length };
+    }
+
+
+
+    /**
+     * Generates area constraints for every triangle.
+     * Uses graph coloring to allow parallel solving.
+     */
+    static generateColoredAreaConstraints(
+        positions: Float32Array,
+        indices: Uint32Array,
+        config: Partial<ConstraintConfig> = {}
+    ): AreaConstraintData[][] {
+        const { areaCompliance } = { ...DEFAULT_CONFIG, ...config };
+
+        const numTriangles = indices.length / 3;
+        const constraints: AreaConstraintData[] = [];
+        const particleConstraints: number[][] = Array.from({ length: positions.length / 3 }, () => []);
+
+        // 1. Generate constraints
+        for (let t = 0; t < numTriangles; t++) {
+            const i0 = indices[t * 3 + 0];
+            const i1 = indices[t * 3 + 1];
+            const i2 = indices[t * 3 + 2];
+
+            const p0x = positions[i0 * 3 + 0];
+            const p0y = positions[i0 * 3 + 1];
+            const p0z = positions[i0 * 3 + 2];
+
+            const p1x = positions[i1 * 3 + 0];
+            const p1y = positions[i1 * 3 + 1];
+            const p1z = positions[i1 * 3 + 2];
+
+            const p2x = positions[i2 * 3 + 0];
+            const p2y = positions[i2 * 3 + 1];
+            const p2z = positions[i2 * 3 + 2];
+
+            // Cross product: (p1-p0) x (p2-p0)
+            const uX = p1x - p0x;
+            const uY = p1y - p0y;
+            const uZ = p1z - p0z;
+
+            const vX = p2x - p0x;
+            const vY = p2y - p0y;
+            const vZ = p2z - p0z;
+
+            const cX = uY * vZ - uZ * vY;
+            const cY = uZ * vX - uX * vZ;
+            const cZ = uX * vY - uY * vX;
+
+            const area = 0.5 * Math.sqrt(cX * cX + cY * cY + cZ * cZ);
+
+            if (area > 1e-6) {
+                const idx = constraints.length;
+                constraints.push({
+                    i0, i1, i2,
+                    restArea: area,
+                    compliance: areaCompliance
+                });
+
+                particleConstraints[i0].push(idx);
+                particleConstraints[i1].push(idx);
+                particleConstraints[i2].push(idx);
+            }
+        }
+
+        // 2. Greedy Coloring
+        const constraintColors = new Int32Array(constraints.length).fill(-1);
+        let maxColor = 0;
+
+        for (let i = 0; i < constraints.length; i++) {
+            const c = constraints[i];
+            const usedColors = new Set<number>();
+
+            const check = (p: number) => {
+                for (const ni of particleConstraints[p]) {
+                    if (ni === i) continue;
+                    const col = constraintColors[ni];
+                    if (col !== -1) usedColors.add(col);
+                }
+            };
+
+            check(c.i0);
+            check(c.i1);
+            check(c.i2);
+
+            let color = 0;
+            while (usedColors.has(color)) color++;
+            constraintColors[i] = color;
+            if (color > maxColor) maxColor = color;
+        }
+
+        // 3. Batching
+        const batches: AreaConstraintData[][] = Array.from({ length: maxColor + 1 }, () => []);
+        for (let i = 0; i < constraints.length; i++) {
+            batches[constraintColors[i]].push(constraints[i]);
+        }
+
+        console.log(`[ConstraintGenerator] Partitioned ${constraints.length} area constraints into ${batches.length} batches`);
+        return batches;
+    }
+
+    /**
+     * Creates Area Constraint Buffer.
+     * Layout: i0, i1, i2, pad (u32), restArea, compliance, pad, pad (f32) -> 32 bytes
+     */
+    static createAreaConstraintBuffer(
+        device: GPUDevice,
+        constraints: AreaConstraintData[],
+        label: string = 'area_constraints'
+    ): { buffer: GPUBuffer; count: number } {
+        const byteSize = constraints.length * 32;
+        const data = new ArrayBuffer(byteSize);
+        const u32View = new Uint32Array(data);
+        const f32View = new Float32Array(data);
+
+        for (let i = 0; i < constraints.length; i++) {
+            const c = constraints[i];
+            const offset = i * 8; // 8 * 4 bytes = 32 bytes
+
+            u32View[offset + 0] = c.i0;
+            u32View[offset + 1] = c.i1;
+            u32View[offset + 2] = c.i2;
+            u32View[offset + 3] = 0; // pad
+
+            f32View[offset + 4] = c.restArea;
+            f32View[offset + 5] = c.compliance;
+            f32View[offset + 6] = 0.0; // pad
+            f32View[offset + 7] = 0.0; // pad
         }
 
         const buffer = device.createBuffer({

@@ -39,6 +39,7 @@ export interface IPhysicsEngine {
      */
     init(
         garmentVerts: Float32Array,
+        garmentNormals: Float32Array,
         garmentIndices: Uint32Array,
         garmentUVs: Float32Array,
         colliderVerts: Float32Array,

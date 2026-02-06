@@ -1,7 +1,5 @@
 .
 ├── .gitignore
-├── README.md
-├── WORKLOG.md
 ├── compute
 │   ├── package.json
 │   ├── src
@@ -22,9 +20,9 @@
 │   │   ├── index.ts
 │   │   ├── pipeline
 │   │   │   ├── BindGroupManager.ts
+│   │   │   ├── index.ts
 │   │   │   ├── Scheduler.ts
-│   │   │   ├── ShaderCompiler.ts
-│   │   │   └── index.ts
+│   │   │   └── ShaderCompiler.ts
 │   │   └── shaders
 │   │       ├── bending.wgsl.ts
 │   │       ├── collision.wgsl.ts
@@ -132,6 +130,7 @@
 │   │   └── shirt.glb
 │   ├── textures
 │   └── vite.svg
+├── README.md
 ├── src
 │   ├── application
 │   │   ├── index.ts
@@ -145,36 +144,36 @@
 │   │   └── react.svg
 │   ├── core
 │   │   ├── constants
+│   │   │   ├── index.ts
 │   │   │   ├── SimulationConstants.ts
-│   │   │   ├── SizingStandards.ts
-│   │   │   └── index.ts
+│   │   │   └── SizingStandards.ts
 │   │   ├── entities
 │   │   │   ├── Assets.ts
 │   │   │   ├── Garment.ts
 │   │   │   ├── Geometry.ts
-│   │   │   ├── PreprocessedData.ts
-│   │   │   └── index.ts
+│   │   │   ├── index.ts
+│   │   │   └── PreprocessedData.ts
 │   │   └── interfaces
 │   │       ├── IAssetLoader.ts
-│   │       ├── IPhysicsEngine.ts
-│   │       └── index.ts
+│   │       ├── index.ts
+│   │       └── IPhysicsEngine.ts
 │   ├── index.css
 │   ├── infrastructure
 │   │   ├── geometry
 │   │   │   ├── analysis
 │   │   │   │   ├── BodyMeasurer.ts
+│   │   │   │   ├── index.ts
 │   │   │   │   ├── MeshAnalyzer.ts
 │   │   │   │   ├── MeshMeasurer.ts
-│   │   │   │   ├── SpineRegressor.ts
-│   │   │   │   ├── index.ts
 │   │   │   │   ├── orientation
 │   │   │   │   │   ├── OrientationDetector.ts
 │   │   │   │   │   ├── OrientationOptimizer.ts
 │   │   │   │   │   ├── PCASolver.ts
 │   │   │   │   │   └── ValidationUtils.ts
-│   │   │   │   └── slice
-│   │   │   │       ├── ClusterEngine.ts
-│   │   │   │       └── SliceAnalyzer.ts
+│   │   │   │   ├── slice
+│   │   │   │   │   ├── ClusterEngine.ts
+│   │   │   │   │   └── SliceAnalyzer.ts
+│   │   │   │   └── SpineRegressor.ts
 │   │   │   ├── index.ts
 │   │   │   ├── modifiers
 │   │   │   │   ├── AutoAligner.ts
@@ -198,10 +197,10 @@
 │   ├── main.tsx
 │   ├── physics-pkg
 │   │   ├── .gitignore
-│   │   ├── garment_physics.d.ts
-│   │   ├── garment_physics.js
 │   │   ├── garment_physics_bg.wasm
 │   │   ├── garment_physics_bg.wasm.d.ts
+│   │   ├── garment_physics.d.ts
+│   │   ├── garment_physics.js
 │   │   └── package.json
 │   └── presentation
 │       ├── App.tsx
@@ -209,12 +208,11 @@
 │       │   ├── CameraRig.tsx
 │       │   ├── FpsTracker.tsx
 │       │   ├── GarmentMesh.tsx
+│       │   ├── index.ts
 │       │   ├── Lights.tsx
 │       │   ├── MannequinMesh.tsx
-│       │   ├── Scene.tsx
-│       │   └── index.ts
+│       │   └── Scene.tsx
 │       ├── components
-│       │   ├── LoadingScreen.tsx
 │       │   ├── common
 │       │   │   ├── Button.tsx
 │       │   │   └── Panel.tsx
@@ -222,6 +220,7 @@
 │       │   │   ├── SimulationControls.tsx
 │       │   │   └── SizeSelector.tsx
 │       │   ├── index.ts
+│       │   ├── LoadingScreen.tsx
 │       │   └── overlay
 │       │       ├── Overlay.tsx
 │       │       └── StatusPanel.tsx
@@ -242,6 +241,7 @@
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
-└── vite.config.ts
+├── vite.config.ts
+└── WORKLOG.md
 
 69 directories, 176 files

@@ -64,7 +64,7 @@ export class InitializeSimulation {
 
         // 2. Apply Grading (Sizing)
         // This transforms the base mesh vertices to match the requested size.
-        const { vertices: scaledGarmentVerts, scaleFactor } = GradingPipeline.execute(
+        const { vertices: scaledGarmentVerts, normals: scaledGarmentNormals, scaleFactor } = GradingPipeline.execute(
             assets.garment,
             size
         );
@@ -79,6 +79,7 @@ export class InitializeSimulation {
         // 4. Initialize the engine with geometry
         await creationResult.engine.init(
             scaledGarmentVerts,
+            scaledGarmentNormals,
             assets.garment.indices,
             assets.garment.uvs,
             assets.collider.vertices,

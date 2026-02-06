@@ -7,6 +7,7 @@ import { useSimulationStore } from '../state/useSimulationStore';
 import { Lights } from './Lights';
 import { CameraRig } from './CameraRig';
 import { MannequinMesh } from './MannequinMesh';
+
 import { GarmentMesh } from './GarmentMesh';
 import { FpsTracker } from './FpsTracker';
 
@@ -46,6 +47,7 @@ export const Scene: React.FC = () => {
             {isReady && (
                 <group>
                     <MannequinMesh />
+                    {/* <CapsuleDebug /> */}
                     <GarmentMesh />
                 </group>
             )}

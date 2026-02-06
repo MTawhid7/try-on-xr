@@ -53,7 +53,7 @@ export class UpdateGarmentSize {
         }
 
         // 2. Apply Grading
-        const { vertices: scaledGarmentVerts, scaleFactor } = GradingPipeline.execute(
+        const { vertices: scaledGarmentVerts, normals: scaledGarmentNormals, scaleFactor } = GradingPipeline.execute(
             assets.garment,
             newSize
         );
@@ -67,6 +67,7 @@ export class UpdateGarmentSize {
         // 4. Initialize the engine with new geometry
         await creationResult.engine.init(
             scaledGarmentVerts,
+            scaledGarmentNormals,
             assets.garment.indices,
             assets.garment.uvs,
             assets.collider.vertices,

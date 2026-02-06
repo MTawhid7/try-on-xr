@@ -12,10 +12,12 @@ import { BindGroupManager } from '../pipeline/BindGroupManager';
 import { Scheduler, type SimulationPipelines, type SimulationBindGroups, type ConstraintBatches, type CollisionInfo } from '../pipeline/Scheduler';
 import { ConstraintGenerator } from '../constraints/ConstraintGenerator';
 import { BodyCollider } from '../collision/BodyCollider';
+import { generateCylinderMesh, generateTMesh } from '../utils/GeometryUtils';
 import { INTEGRATOR_WGSL } from '../shaders/integrator.wgsl';
 import { DISTANCE_WGSL } from '../shaders/distance.wgsl';
 import { BENDING_WGSL } from '../shaders/bending.wgsl';
 import { TETHER_WGSL } from '../shaders/tether.wgsl';
+import { AREA_WGSL } from '../shaders/area.wgsl';
 import { COLLISION_WGSL } from '../shaders/collision.wgsl';
 
 /**
@@ -32,6 +34,10 @@ export interface GpuEngineConfig {
     readonly damping: number;
     /** Collision margin. */
     readonly collisionMargin: number;
+    /** Friction coefficient (0-1). */
+    readonly friction?: number;
+    /** Air drag coefficient (0-1). */
+    readonly drag?: number;
 }
 
 /**
@@ -52,11 +58,13 @@ export interface GpuEngineStateConfig extends GpuStateConfig {
  * Default engine configuration matching the Rust backend.
  */
 const DEFAULT_CONFIG: GpuEngineConfig = {
-    substeps: 6,
-    solverIterations: 12,
+    substeps: 4,
+    solverIterations: 8,
     gravity: [0, -9.81, 0],
     damping: 0.985,
-    collisionMargin: 0.01
+    collisionMargin: 0.01, // 1cm
+    friction: 0.5,
+    drag: 0.01
 };
 
 /**
@@ -105,7 +113,8 @@ export class GpuEngine {
     private constraintBatches: ConstraintBatches = {
         distance: [],
         bending: [],
-        tether: []
+        tether: [],
+        area: []
     };
 
     // Constraint buffers
@@ -197,16 +206,47 @@ export class GpuEngine {
      *
      * @param dt - Time step in seconds.
      */
+    // Simulation timer
+    private elapsedTime: number = 0;
+
+    /**
+     * Advances the simulation by dt seconds.
+     *
+     * @param dt - Time step in seconds.
+     */
     step(dt: number): void {
         if (!this.ready || !this.scheduler || !this.pipelines || !this.bindGroups) {
             console.warn('[GpuEngine] Not initialized, skipping step');
             return;
         }
 
+        // FITTING PHASE LOGIC
+        // For the first 2.0 seconds, disable gravity to allow the cloth to "fit"
+        // or settle onto the collider via elastic forces/collisions.
+        this.elapsedTime += dt;
+        const isFitting = this.elapsedTime < 2.0;
+
+        // Temporarily override gravity in config if fitting
+        const originalGravity = this.config.gravity;
+        if (isFitting) {
+            // @ts-ignore - altering readonly for fitting phase
+            this.config.gravity = [0, 0, 0];
+        } else {
+            // @ts-ignore
+            this.config.gravity = [-0, -9.81, 0];
+        }
+
         const sdt = dt / this.config.substeps;
 
-        // Update params buffer with current timestep
+        // Update params buffer with current timestep (sim params use this.config.gravity)
         this.updateParamsBuffer(sdt);
+
+        // Restore config gravity if it was modified (so it's correct for next frame if we switch back)
+        // Actually, better to just keep it clean.
+        if (isFitting) {
+            // @ts-ignore
+            this.config.gravity = originalGravity;
+        }
 
         // Create command encoder
         const commandEncoder = this.device.createCommandEncoder({
@@ -329,7 +369,7 @@ export class GpuEngine {
         this.bindGroups = null;
         this.collisionInfo = null;
         this.scheduler = null;
-        this.constraintBatches = { distance: [], bending: [], tether: [] };
+        this.constraintBatches = { distance: [], bending: [], tether: [], area: [] };
         this.initialPositions = null;
         this.meshIndices = null;
 
@@ -355,8 +395,8 @@ export class GpuEngine {
         // config (vec4f) at offset 0
         view.setFloat32(0, 0.0, true); // dt
         view.setFloat32(4, this.config.damping, true); // damping
-        view.setFloat32(8, 0.0, true); // unused
-        view.setFloat32(12, 0.0, true); // unused
+        view.setFloat32(8, this.config.friction ?? 0.5, true); // friction
+        view.setFloat32(12, this.config.drag ?? 0.01, true); // drag
 
         // gravity (vec4f) at offset 16
         view.setFloat32(16, this.config.gravity[0], true);
@@ -392,8 +432,8 @@ export class GpuEngine {
         // config at offset 0
         view.setFloat32(0, dt, true);
         view.setFloat32(4, this.config.damping, true);
-        view.setFloat32(8, 0.0, true);
-        view.setFloat32(12, 0.0, true);
+        view.setFloat32(8, this.config.friction ?? 0.5, true);
+        view.setFloat32(12, this.config.drag ?? 0.01, true);
 
         // gravity at offset 16
         view.setFloat32(16, this.config.gravity[0], true);
@@ -441,6 +481,12 @@ export class GpuEngine {
                 shaderSource: TETHER_WGSL,
                 entryPoint: 'main',
                 bindGroupLayouts: [layouts.params, layouts.particles, layouts.tetherConstraints]
+            },
+            {
+                label: 'area',
+                shaderSource: AREA_WGSL,
+                entryPoint: 'main',
+                bindGroupLayouts: [layouts.params, layouts.particles, layouts.areaConstraints]
             }
         ];
 
@@ -462,7 +508,8 @@ export class GpuEngine {
             distance: results[1].pipeline,
             bending: results[2].pipeline,
             tether: results[3].pipeline,
-            collision: this.bodyCollider ? results[4].pipeline : undefined
+            area: results[4].pipeline,
+            collision: this.bodyCollider ? results[5].pipeline : undefined
         };
 
         console.log('[GpuEngine] All pipelines compiled');
@@ -525,7 +572,7 @@ export class GpuEngine {
             this.initialPositions,
             this.meshIndices,
             {
-                distanceCompliance: 0.0001
+                distanceCompliance: 0.0002
             }
         );
 
@@ -643,45 +690,99 @@ export class GpuEngine {
             if (tetherBatches.length > 0) {
                 console.log(`[GpuEngine] Processing ${tetherBatches.length} tether constraint batches (Distance+Horizontal)`);
 
-                for (let i = 0; i < tetherBatches.length; i++) {
-                    const batchConstraints = tetherBatches[i];
-                    if (batchConstraints.length === 0) continue;
+                /*
+                                for (let i = 0; i < tetherBatches.length; i++) {
+                                    const batchConstraints = tetherBatches[i];
+                                    if (batchConstraints.length === 0) continue;
 
-                    // Create GPU buffer
-                    const { buffer: constraintBuffer, count } = ConstraintGenerator.createTetherConstraintBuffer(
-                        this.device,
-                        batchConstraints,
-                        `tether_constraints_batch_${i}`
-                    );
-                    this.constraintBuffers.push(constraintBuffer);
+                                    // Create GPU buffer
+                                    const { buffer: constraintBuffer, count } = ConstraintGenerator.createTetherConstraintBuffer(
+                                        this.device,
+                                        batchConstraints,
+                                        `tether_constraints_batch_${i}`
+                                    );
+                                    this.constraintBuffers.push(constraintBuffer);
 
-                    // Create count buffer
-                    const countBuffer = ConstraintGenerator.createCountBuffer(
-                        this.device,
-                        count,
-                        `tether_count_batch_${i}`
-                    );
-                    this.constraintBuffers.push(countBuffer);
+                                    // Create count buffer
+                                    const countBuffer = ConstraintGenerator.createCountBuffer(
+                                        this.device,
+                                        count,
+                                        `tether_count_batch_${i}`
+                                    );
+                                    this.constraintBuffers.push(countBuffer);
 
-                    // Create bind group (Layout: tetherConstraints)
-                    const bindGroup = this.bindGroupManager.createConstraintBindGroup(
-                        'tether',
-                        constraintBuffer,
-                        countBuffer
-                    );
+                                    // Create bind group (Layout: tetherConstraints)
+                                    const bindGroup = this.bindGroupManager.createConstraintBindGroup(
+                                        'tether',
+                                        constraintBuffer,
+                                        countBuffer
+                                    );
 
-                    // Add to batches
-                    this.constraintBatches.tether.push({
-                        bindGroup,
-                        count
-                    });
-                }
-                console.log(`[GpuEngine] Uploaded ${tetherBatches.flat().length} total tether constraints`);
+                                    // Add to batches
+                                    this.constraintBatches.tether.push({
+                                        bindGroup,
+                                        count
+                                    });
+                                }
+                                console.log(`[GpuEngine] Uploaded ${tetherBatches.flat().length} total tether constraints`);
+                */
             } else {
                 console.log('[GpuEngine] No tether constraints generated (topology mismatch?)');
             }
         } else {
             console.warn('[GpuEngine] Missing normals for tether generation');
+        }
+
+
+        // Generate area constraints
+        // Area compliance 2.0e-4 (matches Rust)
+        const areaBatches = ConstraintGenerator.generateColoredAreaConstraints(
+            this.initialPositions,
+            this.meshIndices,
+            {
+                areaCompliance: 0.0002
+            }
+        );
+
+        if (areaBatches.length > 0) {
+            console.log(`[GpuEngine] Processing ${areaBatches.length} area constraint batches`);
+
+            for (let i = 0; i < areaBatches.length; i++) {
+                const batchConstraints = areaBatches[i];
+                if (batchConstraints.length === 0) continue;
+
+                // Create GPU buffer
+                const { buffer: constraintBuffer, count } = ConstraintGenerator.createAreaConstraintBuffer(
+                    this.device,
+                    batchConstraints,
+                    `area_constraints_batch_${i}`
+                );
+                this.constraintBuffers.push(constraintBuffer);
+
+                // Create count buffer
+                const countBuffer = ConstraintGenerator.createCountBuffer(
+                    this.device,
+                    count,
+                    `area_count_batch_${i}`
+                );
+                this.constraintBuffers.push(countBuffer);
+
+                // Create bind group (Layout: areaConstraints)
+                const bindGroup = this.bindGroupManager.createConstraintBindGroup(
+                    'area',
+                    constraintBuffer,
+                    countBuffer
+                );
+
+                // Add to batches
+                this.constraintBatches.area.push({
+                    bindGroup,
+                    count
+                });
+            }
+            console.log(`[GpuEngine] Uploaded ${areaBatches.flat().length} total area constraints`);
+        } else {
+            console.warn('[GpuEngine] No area constraints generated');
         }
     }
 }

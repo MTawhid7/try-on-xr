@@ -10,6 +10,7 @@ import { INTEGRATOR_WORKGROUP_SIZE } from '../shaders/integrator.wgsl';
 import { DISTANCE_WORKGROUP_SIZE } from '../shaders/distance.wgsl';
 import { BENDING_WORKGROUP_SIZE } from '../shaders/bending.wgsl';
 import { TETHER_WORKGROUP_SIZE } from '../shaders/tether.wgsl';
+import { AREA_WORKGROUP_SIZE } from '../shaders/area.wgsl';
 import { COLLISION_WORKGROUP_SIZE } from '../shaders/collision.wgsl';
 
 /**
@@ -35,7 +36,9 @@ export interface SimulationPipelines {
     readonly integrator: GPUComputePipeline;
     readonly distance: GPUComputePipeline;
     readonly bending: GPUComputePipeline;
+
     readonly tether: GPUComputePipeline;
+    readonly area: GPUComputePipeline;
     readonly collision?: GPUComputePipeline;
 }
 
@@ -53,7 +56,9 @@ export interface SimulationBindGroups {
 export interface ConstraintBatches {
     readonly distance: ConstraintBatchInfo[];
     readonly bending: ConstraintBatchInfo[];
+
     readonly tether: ConstraintBatchInfo[];
+    readonly area: ConstraintBatchInfo[];
 }
 
 /**
@@ -150,6 +155,19 @@ export class Scheduler {
                     );
                 }
 
+                // Area constraints (all batches)
+                /*
+                for (const batch of constraints.area) {
+                    this.encodeConstraintPass(
+                        encoder,
+                        pipelines.area,
+                        bindGroups,
+                        batch,
+                        AREA_WORKGROUP_SIZE
+                    );
+                }
+                */
+
                 // 3. Body collision response (Interleaved with constraints)
                 // Rust behavior: collisions are resolved INSIDE the solver loop
                 if (collision && pipelines.collision) {
@@ -161,6 +179,7 @@ export class Scheduler {
                         collisionDispatch
                     );
                 }
+
             }
         }
     }
