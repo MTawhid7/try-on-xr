@@ -7,6 +7,7 @@ use crate::systems::dynamics::{Solver, Integrator};
 use crate::systems::forces::Aerodynamics;
 use crate::systems::constraints::MouseConstraint;
 use crate::utils::normals;
+use crate::utils::profiler::{Profiler, ProfileCategory};
 
 /// The core physics simulation state and logic container.
 /// Holds all subsystems (solver, collider, aerodynamics, etc.) and orchestrates the time step.
@@ -87,44 +88,66 @@ impl Simulation {
 
     /// Advances the simulation by `dt` seconds.
     /// Uses fixed sub-stepping with SIMD-accelerated constraint solving.
+    ///
+    /// PROFILING: Each phase is instrumented for performance analysis.
     pub fn step(&mut self, dt: f32) {
+        Profiler::begin_frame();
+
         // Use fixed substeps from config (no adaptive)
         let sdt = dt / self.config.substeps as f32;
 
         // Broad-phase collision detection (once per frame)
+        Profiler::start(ProfileCategory::BroadPhase);
         self.resolver.broad_phase(&self.state, &mut self.collider);
+        Profiler::end(ProfileCategory::BroadPhase);
 
         for _ in 0..self.config.substeps {
             // External forces (aerodynamics)
+            Profiler::start(ProfileCategory::Aerodynamics);
             let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
+            Profiler::end(ProfileCategory::Aerodynamics);
 
             // Integration (updates positions based on velocity and forces)
+            Profiler::start(ProfileCategory::Integration);
             Integrator::integrate(&mut self.state, &self.config, forces, sdt);
+            Profiler::end(ProfileCategory::Integration);
 
             // Mouse interaction
+            Profiler::start(ProfileCategory::MouseConstraint);
             self.mouse.solve(&mut self.state, sdt);
+            Profiler::end(ProfileCategory::MouseConstraint);
 
             // Narrow-phase collision detection
+            Profiler::start(ProfileCategory::NarrowPhase);
             self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
+            Profiler::end(ProfileCategory::NarrowPhase);
 
             // SIMD-accelerated constraint solving
+            Profiler::start(ProfileCategory::Constraints);
             self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
+            Profiler::end(ProfileCategory::Constraints);
 
             // Self-collision at reduced frequency for performance
             if self.config.self_collision_enabled {
                 let freq = self.self_collision.config.frequency as u32;
                 if freq == 0 || self.substep_counter % freq == 0 {
+                    Profiler::start(ProfileCategory::SelfCollision);
                     self.self_collision.solve(&mut self.state);
+                    Profiler::end(ProfileCategory::SelfCollision);
                 }
             }
             self.substep_counter = self.substep_counter.wrapping_add(1);
         }
 
         // Compute vertex normals in WASM
+        Profiler::start(ProfileCategory::Normals);
         normals::compute_vertex_normals(
             &self.state.positions,
             &self.state.indices,
             &mut self.state.normals
         );
+        Profiler::end(ProfileCategory::Normals);
+
+        Profiler::end_frame();
     }
 }

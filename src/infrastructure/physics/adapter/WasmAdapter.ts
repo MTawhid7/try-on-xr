@@ -1,12 +1,28 @@
 // src/infrastructure/physics/adapter/WasmAdapter.ts
 
 import * as THREE from 'three';
-import { init, PhysicsEngine, type InitOutput } from '../wasm';
+import { init, PhysicsEngine, profiler_get_report, profiler_reset, profiler_set_enabled, type InitOutput } from '../wasm';
 import type { IPhysicsEngine } from '../../../core/interfaces/IPhysicsEngine';
 import {
     COLLIDER_INFLATION,
     COLLIDER_SMOOTHING_ITERATIONS
 } from '../../../core/constants/SimulationConstants';
+
+/**
+ * Profiling data structure returned by the physics engine.
+ */
+export interface ProfileReport {
+    frameCount: number;
+    categories: {
+        [key: string]: {
+            avg: number;
+            min: number;
+            max: number;
+            last: number;
+            count: number;
+        };
+    };
+}
 
 /**
  * Adapter class that helps React/TS communicate with the Rust/WASM physics engine.
@@ -173,5 +189,63 @@ export class WasmAdapter implements IPhysicsEngine {
 
     endInteraction(): void {
         this.engine?.end_interaction();
+    }
+
+    // --- Profiling Methods ---
+
+    /**
+     * Returns the profiling report as a JSON string.
+     * Contains timing data for all measured categories.
+     */
+    getProfileReportJson(): string {
+        return profiler_get_report();
+    }
+
+    /**
+     * Returns the profiling report as a parsed object.
+     */
+    getProfileData(): ProfileReport | null {
+        try {
+            const json = profiler_get_report();
+            return JSON.parse(json) as ProfileReport;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Resets all profiling statistics.
+     */
+    resetProfiler(): void {
+        profiler_reset();
+    }
+
+    /**
+     * Enables or disables profiling.
+     * When disabled, profiling calls have near-zero overhead.
+     */
+    setProfilerEnabled(enabled: boolean): void {
+        profiler_set_enabled(enabled);
+    }
+
+    /**
+     * Returns the particle count for diagnostic purposes.
+     */
+    getParticleCount(): number {
+        return this.engine?.get_particle_count() ?? 0;
+    }
+
+    /**
+     * Returns the number of substeps per frame.
+     */
+    getSubsteps(): number {
+        return this.engine?.get_substeps() ?? 0;
+    }
+
+    /**
+     * Returns the number of solver iterations per substep.
+     */
+    getSolverIterations(): number {
+        return this.engine?.get_solver_iterations() ?? 0;
     }
 }

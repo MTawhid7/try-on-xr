@@ -15,6 +15,7 @@ pub use config::SelfCollisionConfig;
 use config::CollisionPair;
 
 use crate::engine::state::PhysicsState;
+use crate::utils::profiler::{Profiler, ProfileCategory};
 use super::spatial::HierarchicalSpatialHash;
 use super::exclusion::TopologyExclusion;
 
@@ -60,10 +61,21 @@ impl SelfCollision {
     /// 1. Detect pairs (read-only broad-phase)
     /// 2. Color pairs for parallel-safe batching
     /// 3. Resolve in batches with SIMD acceleration
+    ///
+    /// PROFILING: Each phase is measured individually.
     pub fn solve(&mut self, state: &mut PhysicsState) {
-        if self.detect_pairs(state) {
+        Profiler::start(ProfileCategory::SelfCollisionDetect);
+        let has_pairs = self.detect_pairs(state);
+        Profiler::end(ProfileCategory::SelfCollisionDetect);
+
+        if has_pairs {
+            Profiler::start(ProfileCategory::SelfCollisionColor);
             self.color_pairs();
+            Profiler::end(ProfileCategory::SelfCollisionColor);
+
+            Profiler::start(ProfileCategory::SelfCollisionResolve);
             self.resolve_batched(state);
+            Profiler::end(ProfileCategory::SelfCollisionResolve);
         }
     }
 }

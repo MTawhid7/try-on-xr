@@ -2,6 +2,7 @@
 
 pub mod coloring;
 pub mod normals;
+pub mod profiler;
 pub mod simd;
 
 use wasm_bindgen::prelude::*;

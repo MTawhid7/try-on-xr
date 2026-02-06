@@ -9,6 +9,7 @@ use crate::systems::constraints::{
     TetherConstraint,
     AreaConstraint
 };
+use crate::utils::profiler::{Profiler, ProfileCategory};
 
 /// The XPBD (Extended Position Based Dynamics) Solver.
 /// Manages and solves all internal constraints of the cloth system.
@@ -45,6 +46,7 @@ impl Solver {
     /// - Resolves constraints and collisions in order.
     ///
     /// OPTIMIZATION: All constraints use SIMD vectorization for 4-wide parallel processing.
+    /// PROFILING: Each constraint type is measured individually.
     pub fn solve(
         &self,
         state: &mut PhysicsState,
@@ -65,13 +67,26 @@ impl Solver {
             }
 
             // Accelerate Internal Constraints (SIMD-vectorized)
+            Profiler::start(ProfileCategory::DistanceConstraint);
             self.distance_constraint.solve(state, omega, dt);
+            Profiler::end(ProfileCategory::DistanceConstraint);
+
+            Profiler::start(ProfileCategory::BendingConstraint);
             self.bending_constraint.solve(state, omega, dt);
+            Profiler::end(ProfileCategory::BendingConstraint);
+
+            Profiler::start(ProfileCategory::TetherConstraint);
             self.tether_constraint.solve(state, omega, dt);
+            Profiler::end(ProfileCategory::TetherConstraint);
+
+            Profiler::start(ProfileCategory::AreaConstraint);
             self.area_constraint.solve(state, config.area_compliance, omega, dt);
+            Profiler::end(ProfileCategory::AreaConstraint);
 
             // FIX: Do NOT accelerate Collisions
+            Profiler::start(ProfileCategory::CollisionResolve);
             resolver.resolve_contacts(state, config, dt);
+            Profiler::end(ProfileCategory::CollisionResolve);
         }
     }
 }

@@ -6,9 +6,14 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["profiling"]
+profiling = []
+
 [dependencies]
 wasm-bindgen = "0.2"
 js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Window", "Performance", "PerformanceMark", "PerformanceMeasure"] }
 console_error_panic_hook = "0.1"
 glam = { version = "0.24", features = ["scalar-math"] }
 rustc-hash = "2.0"

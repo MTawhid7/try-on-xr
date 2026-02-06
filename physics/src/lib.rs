@@ -6,6 +6,10 @@ pub mod utils;
 
 use wasm_bindgen::prelude::*;
 use engine::Simulation;
+use utils::profiler::Profiler;
+
+// Re-export profiler WASM functions for direct access
+pub use utils::profiler::{profiler_get_report, profiler_reset, profiler_set_enabled};
 
 /// The main WASM entry point for the physics engine.
 /// Wraps the internal Rust Simulation struct and exposes a JS-friendly API.
@@ -73,5 +77,39 @@ impl PhysicsEngine {
 
     pub fn end_interaction(&mut self) {
         self.sim.mouse.release();
+    }
+
+    // --- Profiling Methods ---
+
+    /// Returns the profiling report as a JSON string.
+    /// Contains timing data for all measured categories.
+    pub fn get_profile_report(&self) -> String {
+        Profiler::get_report_json()
+    }
+
+    /// Resets all profiling statistics.
+    pub fn reset_profiler(&self) {
+        Profiler::reset();
+    }
+
+    /// Enables or disables profiling.
+    /// When disabled, profiling calls have near-zero overhead.
+    pub fn set_profiler_enabled(&self, enabled: bool) {
+        Profiler::set_enabled(enabled);
+    }
+
+    /// Returns the particle count for diagnostic purposes.
+    pub fn get_particle_count(&self) -> usize {
+        self.sim.state.count
+    }
+
+    /// Returns the number of substeps per frame.
+    pub fn get_substeps(&self) -> usize {
+        self.sim.config.substeps
+    }
+
+    /// Returns the number of solver iterations per substep.
+    pub fn get_solver_iterations(&self) -> usize {
+        self.sim.config.solver_iterations
     }
 }
