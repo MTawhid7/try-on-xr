@@ -52,9 +52,20 @@ impl StaticSpatialHash {
 
     /// Fast AABB check to skip particles far outside the mesh
     pub fn contains(&self, p: Vec3) -> bool {
-        p.x >= self.min.x && p.x <= self.max.x &&
-        p.y >= self.min.y && p.y <= self.max.y &&
-        p.z >= self.min.z && p.z <= self.max.z
+        p.x >= self.min.x
+            && p.x <= self.max.x
+            && p.y >= self.min.y
+            && p.y <= self.max.y
+            && p.z >= self.min.z
+            && p.z <= self.max.z
+    }
+
+    /// Clears all cells in the spatial hash, preparing it for a new frame.
+    /// Keeps the allocated memory (capacity) for performance.
+    pub fn clear(&mut self) {
+        for cell in &mut self.cells {
+            cell.clear();
+        }
     }
 
     /// Inserts a triangle index into all cells that overlap its Axis-Aligned Bounding Box (AABB).

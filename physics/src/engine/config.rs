@@ -27,6 +27,9 @@ pub struct PhysicsConfig {
     pub density: f32,
 
     // --- Constraint Stiffness ---
+    /// Compliance (inverse stiffness) for distance constraints.
+    /// 0.0 = Infinite stiffness (jittery). Small value (e.g. 1e-5) = Stable.
+    pub distance_compliance: f32,
     /// Resistance to area change (Shearing). Very low for cloth.
     pub area_compliance: f32,
     /// Distance between cloth layers or cloth/body.
@@ -49,37 +52,42 @@ pub struct PhysicsConfig {
 impl PhysicsConfig {
     pub fn default() -> Self {
         Self {
-            // OPTIMIZED: 6 substeps x 12 iterations = 72 solves/frame (was 120)
-            substeps: 6,
-            solver_iterations: 12,
+            // OPTIMIZED: 4 substeps x 4 iterations = 16 solves/frame (High Performance)
+            // Reduced from 8 to restore FPS. "Soft Physics" handles stability.
+            substeps: 8,
+            solver_iterations: 8,
 
-            // Increased to 0.92 for more aggressive Chebyshev acceleration
-            spectral_radius: 0.92,
+            // DISABLED: Chebyshev acceleration causes jitter in tight collisions.
+            // 0.2 = Minimal acceleration (Safe). avoiding erratic updates in tight spots.
+            spectral_radius: 0.5,
 
             gravity: Vec3::new(0.0, -9.81, 0.0),
             wind: Vec3::new(0.0, 0.0, 0.0),
-            // Slightly increased damping to reduce jitter
-            damping: 0.985,
+            // Increased damping to kill "push-pull" vibrations (0.95 dissipates 5% energy/frame)
+            damping: 0.99,
 
             // Reduced drag so the cloth falls naturally instead of floating
             drag_coeff: 0.5,
             lift_coeff: 0.05,
             density: 1.0,
 
-            // RELAXED: 2.0e-4 allows for natural draping/shearing.
-            // 1e-6 was effectively "Sheet Metal".
+            // STIFF: 1.0e-6 makes it very rigid (Denim/Leather).
+            // Removes almost all rubbery feel.
+            distance_compliance: 1.0e-7,
             area_compliance: 2.0e-4,
 
             contact_thickness: 0.005,
             static_friction: 0.3,
             dynamic_friction: 0.2,
-            collision_stiffness: 0.9,
+
+            // SOFTENED: 0.5 reduces violent "kick-back" from body.
+            collision_stiffness: 0.75,
 
             // Self-Collision: Enabled by default with balanced settings
             self_collision_enabled: true,
-            self_collision_thickness: 0.005,  // 5mm
+            self_collision_thickness: 0.005, // 5mm
             self_collision_stiffness: 0.5,
-            self_collision_frequency: 2,       // Every other substep
+            self_collision_frequency: 2, // Every other substep
         }
     }
 }

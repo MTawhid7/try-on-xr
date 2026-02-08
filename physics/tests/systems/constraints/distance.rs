@@ -1,12 +1,9 @@
-use garment_physics::systems::constraints::distance::DistanceConstraint;
 use garment_physics::engine::state::PhysicsState;
+use garment_physics::systems::constraints::distance::DistanceConstraint;
 use glam::Vec4;
 
 fn make_state() -> PhysicsState {
-    let positions = vec![
-        0.0, 0.0, 0.0,
-        1.0, 0.0, 0.0,
-    ];
+    let positions = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
     let indices = vec![0, 1, 0]; // Degenerate
     let uvs = vec![0.0; 4];
     PhysicsState::new(&positions, &indices, &uvs)
@@ -15,7 +12,7 @@ fn make_state() -> PhysicsState {
 #[test]
 fn test_distance_constraint_creation() {
     let state = make_state();
-    let _constraints = DistanceConstraint::new(&state);
+    let _constraints = DistanceConstraint::new(&state, 0.0);
 
     // We expect 1 constraint between 0 and 1.
     // The implementation might generate constraints based on edges.
@@ -28,7 +25,7 @@ fn test_distance_constraint_creation() {
 #[test]
 fn test_distance_constraint_solve() {
     let mut state = make_state();
-    let constraint_system = DistanceConstraint::new(&state);
+    let constraint_system = DistanceConstraint::new(&state, 0.0);
 
     // Stretch the spring
     state.positions[1] = Vec4::new(2.0, 0.0, 0.0, 0.0); // Rest length is 1.0 (from 0 to 1). Now 2.0.

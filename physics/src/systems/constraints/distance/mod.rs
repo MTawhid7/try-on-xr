@@ -26,7 +26,7 @@ pub struct DistanceConstraint {
 
 impl DistanceConstraint {
     /// Builds distance constraints for every unique edge in the mesh.
-    pub fn new(state: &PhysicsState) -> Self {
+    pub fn new(state: &PhysicsState, compliance: f32) -> Self {
         let mut raw_constraints = Vec::new();
         let mut raw_rest_lengths = Vec::new();
         let mut raw_compliances = Vec::new();
@@ -39,9 +39,21 @@ impl DistanceConstraint {
             let idx1 = state.indices[i * 3 + 1] as usize;
             let idx2 = state.indices[i * 3 + 2] as usize;
 
-            let e1 = if idx0 < idx1 { (idx0, idx1) } else { (idx1, idx0) };
-            let e2 = if idx1 < idx2 { (idx1, idx2) } else { (idx2, idx1) };
-            let e3 = if idx2 < idx0 { (idx2, idx0) } else { (idx0, idx2) };
+            let e1 = if idx0 < idx1 {
+                (idx0, idx1)
+            } else {
+                (idx1, idx0)
+            };
+            let e2 = if idx1 < idx2 {
+                (idx1, idx2)
+            } else {
+                (idx2, idx1)
+            };
+            let e3 = if idx2 < idx0 {
+                (idx2, idx0)
+            } else {
+                (idx0, idx2)
+            };
 
             *edge_counts.entry(e1).or_insert(0) += 1;
             *edge_counts.entry(e2).or_insert(0) += 1;
@@ -55,10 +67,11 @@ impl DistanceConstraint {
 
             raw_constraints.push([i1, i2]);
             raw_rest_lengths.push(dist);
-            raw_compliances.push(0.0);
+            raw_compliances.push(compliance);
         }
 
-        let (sorted_indices, batch_offsets) = coloring::color_constraints(&raw_constraints, state.count);
+        let (sorted_indices, batch_offsets) =
+            coloring::color_constraints(&raw_constraints, state.count);
 
         let mut constraints = Vec::with_capacity(raw_constraints.len());
         let mut rest_lengths = Vec::with_capacity(raw_constraints.len());

@@ -23,6 +23,10 @@ export interface SimulationState {
     isInteracting: boolean;
     error: string | null;
     fps: number;
+
+    // --- Config (Read-only from Engine) ---
+    substeps: number;
+    solverIterations: number;
 }
 
 export interface SimulationActions {

@@ -24,6 +24,12 @@ export interface IPhysicsEngine {
     step(dt: number): void;
 
     /**
+     * Updates the collider mesh with new vertex positions (e.g. for animation).
+     * @param positions - The flat array of vertex positions.
+     */
+    updateCollider(positions: Float32Array): void;
+
+    /**
      * Returns a view into the memory buffer representing the current vertex positions.
      *
      * NOTE: The return type is flexible (any) to allow implementations to return
@@ -66,4 +72,14 @@ export interface IPhysicsEngine {
      * Ends the current user interaction, releasing the grabbed vertex.
      */
     endInteraction(): void;
+
+    /**
+     * Returns the configured number of substeps per frame.
+     */
+    getSubsteps(): number;
+
+    /**
+     * Returns the configured number of constraint solver iterations per substep.
+     */
+    getSolverIterations(): number;
 }

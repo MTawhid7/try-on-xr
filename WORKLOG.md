@@ -5,6 +5,35 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-08] - Decoupled Physics Loop & Debugging
+
+### 1. Current State (Decoupled Physics Loop)
+
+- [x] **Fixed Timestep:** Implemented a `timeAccumulator` in `WasmAdapter` to run physics at a fixed 30Hz regardless of render framerate.
+- [x] **State Interpolation:** Implemented linear interpolation between previous and current physics states to smooth out the rendering at 60Hz+.
+- [x] **WebWorker:** Moved the entire `PhysicsEngine` (Rust/Wasm) into a WebWorker (`PhysicsWorker.ts`) to unblock the main thread.
+- [x] **Zero-Copy Transfer:** Used `Transferable` objects (`ArrayBuffer`) to send position/normal data from Worker to Main thread without copying.
+- [x] **Backend Updates:** Implemented `update_collider` in Rust to support dynamic mesh updates (e.g. animation) in the future.
+
+### 2. Not Working / Issues (Persistent Crash/Lag)
+
+- [ ] **Invisible on Load:** The garment mesh is not visible initially. Frustum culling was disabled, so it's likely a data issue (NaNs or empty buffers).
+- [ ] **Lag on Start:** Severe lag occurs when the simulation starts. `dt` clamping (max 0.1s) was added but the issue persists.
+- [ ] **Engine Switch Off:** The simulation runs for a short while and then "stops" (loss of interaction). "Heartbeat" logs were added to `WasmAdapter` to trace this, but the root cause is likely a worker crash (Panic or OOM) or a message queue deadlock.
+
+### 3. Observations / Notes (Decoupled Physics Loop)
+
+- **Worker Overhead:** Spawning the worker and transferring data might have overhead issues on some devices. We clamped the thread pool to 4 to mitigate OOM.
+- **Concurrency:** The "Loss of Interaction" feels like a race condition where the Main thread sends events before the Worker is ready, or the Worker gets stuck in a loop.
+
+### 4. Next Steps / Plan (Debugging)
+
+- [ ] **Analyze Logs:** Check the new "Heartbeat" logs to see if the worker dies silently.
+- [ ] **Verify Render Loop:** Ensure `GarmentMesh` is actually updating the geometry attributes frame-by-frame.
+- [ ] **Simplify:** If worker issues persist, consider a temporary fallback to Main Thread execution to isolate whether the bug is in the *Physics Logic* or the *Threading Architecture*.
+
+---
+
 ## [2026-02-02] - UI/UX Refinement & Performance Monitoring
 
 ### 1. Current State (UI/UX Refinement)

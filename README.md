@@ -223,6 +223,14 @@ Modify `physics/src/engine/config.rs` to adjust behavior.
 
 ---
 
+## ⚠️ Known Issues (Debugging in Progress)
+
+- **Worker Crash:** On some environments, the Physics Worker may stop responding after a few seconds ("Engine Switch Off"). This is currently being investigated with "Heartbeat" logs.
+- **Invisible Mesh:** The garment may not render on the first frame due to a data synchronization issue between the Worker and Main Thread.
+- **Lag:** Initial simulation lag is being addressed via `dt` clamping and thread pool management.
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License.

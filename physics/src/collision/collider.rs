@@ -1,8 +1,8 @@
 // physics/src/collision/collider.rs
-use glam::Vec3;
 use super::geometry::Triangle;
-use super::spatial::StaticSpatialHash;
 use super::preprocessing;
+use super::spatial::StaticSpatialHash;
+use glam::Vec3;
 
 /// Represents a static collider mesh (e.g., the Mannequin).
 /// Uses a Spatial Hash for efficient broad-phase collision detection.
@@ -14,6 +14,9 @@ pub struct MeshCollider {
     pub indices: Vec<u32>,
     pub triangles: Vec<Triangle>,
     pub spatial_hash: StaticSpatialHash,
+    // Config for updates
+    pub smoothing_iterations: usize,
+    pub inflation_amount: f32,
 }
 
 impl MeshCollider {
@@ -22,7 +25,7 @@ impl MeshCollider {
         _raw_normals: Vec<f32>,
         indices: Vec<u32>,
         smoothing: usize,
-        inflation: f32
+        inflation: f32,
     ) -> Self {
         // Pass config to processor
         let processed = preprocessing::process_mesh(&raw_vertices, &indices, smoothing, inflation);
@@ -61,6 +64,45 @@ impl MeshCollider {
             indices,
             triangles,
             spatial_hash,
+            smoothing_iterations: smoothing,
+            inflation_amount: inflation,
+        }
+    }
+
+    /// Updates the collider mesh with new vertex positions (e.g. for animation).
+    /// Reprocesses the mesh (smoothing/inflation) and rebuilds the spatial hash.
+    pub fn update(&mut self, raw_vertices: &[f32]) {
+        // 1. Reprocess Mesh (this handles smoothing and inflation)
+        let processed = preprocessing::process_mesh(
+            raw_vertices,
+            &self.indices,
+            self.smoothing_iterations,
+            self.inflation_amount,
+        );
+
+        self.vertices = processed.vertices;
+        self.normals = processed.normals;
+
+        // 2. Clear Spatial Hash
+        self.spatial_hash.clear();
+
+        // 3. Update Triangles & Re-insert into Hash
+        let num_triangles = self.indices.len() / 3;
+        for i in 0..num_triangles {
+            let idx0 = self.indices[i * 3] as usize;
+            let idx1 = self.indices[i * 3 + 1] as usize;
+            let idx2 = self.indices[i * 3 + 2] as usize;
+
+            // Update Triangle Geometry
+            self.triangles[i].v0 = self.vertices[idx0];
+            self.triangles[i].v1 = self.vertices[idx1];
+            self.triangles[i].v2 = self.vertices[idx2];
+
+            // Recompute AABB
+            let (min, max) = self.triangles[i].aabb();
+
+            // Insert into Hash
+            self.spatial_hash.insert_aabb(i, min, max);
         }
     }
 }

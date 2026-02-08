@@ -15,7 +15,7 @@ import { useMediaQuery, useProfiler } from '../../hooks';
  * Manages pointer events to ensure clicks pass through to the canvas where appropriate.
  */
 export const Overlay: React.FC = () => {
-    const { error, isReady } = useSimulationStore();
+    const { error, isReady, substeps, solverIterations } = useSimulationStore();
     const isMobile = useMediaQuery('(max-width: 600px)');
     const [showProfiler, setShowProfiler] = useState(!isMobile);
 
@@ -132,8 +132,8 @@ export const Overlay: React.FC = () => {
                         getProfileData={getProfileData}
                         resetProfiler={resetProfiler}
                         particleCount={0}
-                        substeps={6}
-                        solverIterations={12}
+                        substeps={substeps}
+                        solverIterations={solverIterations}
                     />
                 </div>
             )}

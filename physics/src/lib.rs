@@ -1,15 +1,18 @@
 // physics/src/lib.rs
+pub mod collision;
 pub mod engine;
 pub mod systems;
-pub mod collision;
 pub mod utils;
 
-use wasm_bindgen::prelude::*;
 use engine::Simulation;
 use utils::profiler::Profiler;
+use wasm_bindgen::prelude::*;
 
 // Re-export profiler WASM functions for direct access
 pub use utils::profiler::{profiler_get_report, profiler_reset, profiler_set_enabled};
+
+#[cfg(feature = "parallel")]
+pub use wasm_bindgen_rayon::init_thread_pool;
 
 /// The main WASM entry point for the physics engine.
 /// Wraps the internal Rust Simulation struct and exposes a JS-friendly API.
@@ -30,7 +33,7 @@ impl PhysicsEngine {
         collider_indices: Vec<u32>,
         collider_smoothing: usize,
         collider_inflation: f32,
-        scale_factor: f32
+        scale_factor: f32,
     ) -> PhysicsEngine {
         utils::set_panic_hook();
 
@@ -44,13 +47,19 @@ impl PhysicsEngine {
                 collider_indices,
                 collider_smoothing,
                 collider_inflation,
-                scale_factor
+                scale_factor,
             ),
         }
     }
 
     pub fn step(&mut self, dt: f32) {
         self.sim.step(dt);
+    }
+
+    /// Updates the collider mesh with new vertex positions (e.g. for animation).
+    /// PROFILING: This involves re-processing the mesh (smoothing) and rebuilding the spatial hash.
+    pub fn update_collider(&mut self, positions: Vec<f32>) {
+        self.sim.update_collider(&positions);
     }
 
     /// Returns a pointer to the positions buffer.

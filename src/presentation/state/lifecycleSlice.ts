@@ -19,6 +19,8 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
     isLoading: false,
     isReady: false,
     error: null,
+    substeps: 0,
+    solverIterations: 0,
 
     loadAndInitialize: async () => {
         // Prevent double-loading
@@ -40,7 +42,9 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
                 assets: result.assets,
                 scaledVertices: result.scaledVertices,
                 isReady: true,
-                isLoading: false
+                isLoading: false,
+                substeps: result.engine.getSubsteps(),
+                solverIterations: result.engine.getSolverIterations()
             });
 
             console.log("[Store] Simulation Initialized Successfully.");
@@ -74,7 +78,9 @@ export const createLifecycleSlice: StateCreator<SimulationStore, [], [], Partial
                     engine: result.engine,
                     scaledVertices: result.scaledVertices,
                     isReady: true,
-                    isLoading: false
+                    isLoading: false,
+                    substeps: result.engine.getSubsteps(),
+                    solverIterations: result.engine.getSolverIterations()
                 });
 
             } catch (err) {

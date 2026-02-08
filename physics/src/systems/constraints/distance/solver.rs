@@ -2,9 +2,12 @@
 
 //! SIMD-accelerated distance constraint solver.
 
+use super::DistanceConstraint;
 use crate::engine::state::PhysicsState;
 use crate::utils::simd::{F32x4, Vec3x4};
-use super::DistanceConstraint;
+
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 impl DistanceConstraint {
     /// Solves distance constraints (Edge Springs) using SIMD vectorization.
@@ -15,23 +18,60 @@ impl DistanceConstraint {
     pub fn solve(&self, state: &mut PhysicsState, omega: f32, dt: f32) {
         let dt_sq_inv = 1.0 / (dt * dt);
 
-        for b in 0..(self.batch_offsets.len() - 1) {
-            let start = self.batch_offsets[b];
-            let end = self.batch_offsets[b + 1];
-            let count = end - start;
+        // Safety: Graph coloring guarantees that constraints in the same batch
+        // do not share particles. Thus, their position updates are disjoint.
+        // We use UnsafeCell/raw pointers to allow parallel mutable access.
 
-            // Process 4 constraints at a time with SIMD
-            let chunks = count / 4;
-            let remainder = count % 4;
+        #[cfg(feature = "parallel")]
+        {
+            struct StatePtr(pub usize);
+            unsafe impl Send for StatePtr {}
+            unsafe impl Sync for StatePtr {}
+            let state_ptr = StatePtr(state as *mut _ as usize);
 
-            for chunk in 0..chunks {
-                let base = start + chunk * 4;
-                self.solve_simd_4(state, base, dt_sq_inv, omega);
+            for b in 0..(self.batch_offsets.len() - 1) {
+                let start = self.batch_offsets[b];
+                let end = self.batch_offsets[b + 1];
+                let count = end - start;
+
+                // Process in parallel chunks of 4 (for SIMD)
+                let num_chunks = count / 4;
+
+                // Use Rayon to iterate over chunks in parallel
+                (0..num_chunks).into_par_iter().for_each(move |chunk_idx| {
+                    let base = start + chunk_idx * 4;
+                    // Re-borrow state unsafely for this thread
+                    let state_ref = unsafe { &mut *(state_ptr.0 as *mut PhysicsState) };
+                    self.solve_simd_4(state_ref, base, dt_sq_inv, omega);
+                });
+
+                // Handle remainder sequentially (negligible cost)
+                let remainder_start = start + num_chunks * 4;
+                let state_ref = unsafe { &mut *(state_ptr.0 as *mut PhysicsState) };
+                for k in remainder_start..end {
+                    self.solve_single(state_ref, k, dt_sq_inv, omega);
+                }
             }
+        }
 
-            // Handle remainder with scalar fallback
-            for k in (start + chunks * 4)..(start + chunks * 4 + remainder) {
-                self.solve_single(state, k, dt_sq_inv, omega);
+        #[cfg(not(feature = "parallel"))]
+        {
+            for b in 0..(self.batch_offsets.len() - 1) {
+                let start = self.batch_offsets[b];
+                let end = self.batch_offsets[b + 1];
+                let count = end - start;
+
+                let chunks = count / 4;
+                let remainder = count % 4;
+
+                for chunk in 0..chunks {
+                    let base = start + chunk * 4;
+                    self.solve_simd_4(state, base, dt_sq_inv, omega);
+                }
+
+                for k in (start + chunks * 4)..(start + chunks * 4 + remainder) {
+                    self.solve_single(state, k, dt_sq_inv, omega);
+                }
             }
         }
     }
@@ -159,13 +199,17 @@ impl DistanceConstraint {
         let w1 = state.inv_mass[i1];
         let w2 = state.inv_mass[i2];
         let w_sum = w1 + w2;
-        if w_sum == 0.0 { return; }
+        if w_sum == 0.0 {
+            return;
+        }
 
         let p1 = state.positions[i1];
         let p2 = state.positions[i2];
         let delta = p1 - p2;
         let len = delta.length();
-        if len < 1e-6 { return; }
+        if len < 1e-6 {
+            return;
+        }
 
         let c = len - self.rest_lengths[k];
         let alpha = self.compliances[k] * dt_sq_inv;

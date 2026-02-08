@@ -1,6 +1,6 @@
 // src/presentation/canvas/GarmentMesh.tsx
 
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSimulationStore } from '../state/useSimulationStore';
@@ -40,8 +40,17 @@ export const GarmentMesh: React.FC = () => {
             geo.setAttribute('tangent', new THREE.BufferAttribute(assets.garment.tangents, 4));
         }
 
+        console.log(`[GarmentMesh] Geometry Created. Verts: ${positionBuffer.length / 3}`);
         return geo;
     }, [assets, scaledVertices]);
+
+    useEffect(() => {
+        if (!geometry) {
+            console.warn("[GarmentMesh] Geometry is null!");
+        } else {
+            console.log("[GarmentMesh] Geometry Ready.", geometry.getAttribute('position').count);
+        }
+    }, [geometry]);
 
     // 2. Attach Interaction Logic
     useGarmentInteraction(meshRef);
@@ -52,7 +61,9 @@ export const GarmentMesh: React.FC = () => {
 
         // A. Step Physics
         if (isRunning) {
-            step(delta);
+            // Clamp delta to prevent "Spiral of Death" if tab was backgrounded
+            const safeDelta = Math.min(delta, 0.1);
+            step(safeDelta);
         }
 
         // B. Sync Physics -> Visuals (Zero-Copy)
@@ -91,7 +102,7 @@ export const GarmentMesh: React.FC = () => {
     if (!geometry) return null;
 
     return (
-        <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
+        <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow frustumCulled={false}>
             <FabricMaterial color="#3b82f6" />
         </mesh>
     );

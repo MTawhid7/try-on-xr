@@ -1,13 +1,13 @@
 // physics/src/engine/simulation.rs
 
-use crate::engine::{PhysicsState, PhysicsConfig};
-use crate::collision::{MeshCollider, CollisionResolver, SelfCollision};
 use crate::collision::self_collision::SelfCollisionConfig;
-use crate::systems::dynamics::{Solver, Integrator};
-use crate::systems::forces::Aerodynamics;
+use crate::collision::{CollisionResolver, MeshCollider, SelfCollision};
+use crate::engine::{PhysicsConfig, PhysicsState};
 use crate::systems::constraints::MouseConstraint;
+use crate::systems::dynamics::{Integrator, Solver};
+use crate::systems::forces::Aerodynamics;
 use crate::utils::normals;
-use crate::utils::profiler::{Profiler, ProfileCategory};
+use crate::utils::profiler::{ProfileCategory, Profiler};
 
 /// The core physics simulation state and logic container.
 /// Holds all subsystems (solver, collider, aerodynamics, etc.) and orchestrates the time step.
@@ -32,6 +32,8 @@ pub struct Simulation {
     pub self_collision: SelfCollision,
     /// Substep counter for reduced-frequency self-collision.
     substep_counter: u32,
+    /// Frame counter for lazy updates (e.g. normals).
+    frame_count: u32,
 }
 
 impl Simulation {
@@ -44,7 +46,7 @@ impl Simulation {
         collider_indices: Vec<u32>,
         collider_smoothing: usize,
         collider_inflation: f32,
-        scale_factor: f32
+        scale_factor: f32,
     ) -> Self {
         let state = PhysicsState::new(&garment_pos, &garment_indices, &garment_uvs);
         let particle_count = state.count;
@@ -56,13 +58,13 @@ impl Simulation {
             collider_normals,
             collider_indices,
             collider_smoothing,
-            collider_inflation
+            collider_inflation,
         );
 
         let resolver = CollisionResolver::new(particle_count);
         let aerodynamics = Aerodynamics::new(particle_count);
 
-        let solver = Solver::new(&state, scale_factor);
+        let solver = Solver::new(&state, scale_factor, config.distance_compliance);
         let mouse = MouseConstraint::new();
 
         let self_collision_config = SelfCollisionConfig {
@@ -83,6 +85,7 @@ impl Simulation {
             mouse,
             self_collision,
             substep_counter: 0,
+            frame_count: 0,
         }
     }
 
@@ -101,12 +104,18 @@ impl Simulation {
         self.resolver.broad_phase(&self.state, &mut self.collider);
         Profiler::end(ProfileCategory::BroadPhase);
 
-        for _ in 0..self.config.substeps {
-            // External forces (aerodynamics)
-            Profiler::start(ProfileCategory::Aerodynamics);
-            let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
-            Profiler::end(ProfileCategory::Aerodynamics);
+        // Narrow-phase collision detection (Once per frame)
+        Profiler::start(ProfileCategory::NarrowPhase);
+        self.resolver
+            .narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
+        Profiler::end(ProfileCategory::NarrowPhase);
 
+        // External forces (aerodynamics) - Decimated (Once per frame)
+        Profiler::start(ProfileCategory::Aerodynamics);
+        let forces = self.aerodynamics.apply(&self.state, &self.config, sdt);
+        Profiler::end(ProfileCategory::Aerodynamics);
+
+        for _ in 0..self.config.substeps {
             // Integration (updates positions based on velocity and forces)
             Profiler::start(ProfileCategory::Integration);
             Integrator::integrate(&mut self.state, &self.config, forces, sdt);
@@ -117,14 +126,10 @@ impl Simulation {
             self.mouse.solve(&mut self.state, sdt);
             Profiler::end(ProfileCategory::MouseConstraint);
 
-            // Narrow-phase collision detection
-            Profiler::start(ProfileCategory::NarrowPhase);
-            self.resolver.narrow_phase(&mut self.state, &self.collider, &self.config, sdt);
-            Profiler::end(ProfileCategory::NarrowPhase);
-
             // SIMD-accelerated constraint solving
             Profiler::start(ProfileCategory::Constraints);
-            self.solver.solve(&mut self.state, &self.resolver, &self.config, sdt);
+            self.solver
+                .solve(&mut self.state, &self.resolver, &self.config, sdt);
             Profiler::end(ProfileCategory::Constraints);
 
             // Self-collision at reduced frequency for performance
@@ -144,10 +149,16 @@ impl Simulation {
         normals::compute_vertex_normals(
             &self.state.positions,
             &self.state.indices,
-            &mut self.state.normals
+            &mut self.state.normals,
         );
         Profiler::end(ProfileCategory::Normals);
 
+        self.frame_count = self.frame_count.wrapping_add(1);
+
         Profiler::end_frame();
+    }
+
+    pub fn update_collider(&mut self, positions: &[f32]) {
+        self.collider.update(positions);
     }
 }

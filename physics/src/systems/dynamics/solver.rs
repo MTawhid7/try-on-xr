@@ -1,15 +1,12 @@
 // physics/src/systems/dynamics/solver.rs
 
-use crate::engine::state::PhysicsState;
-use crate::engine::config::PhysicsConfig;
 use crate::collision::CollisionResolver;
+use crate::engine::config::PhysicsConfig;
+use crate::engine::state::PhysicsState;
 use crate::systems::constraints::{
-    DistanceConstraint,
-    BendingConstraint,
-    TetherConstraint,
-    AreaConstraint
+    AreaConstraint, BendingConstraint, DistanceConstraint, TetherConstraint,
 };
-use crate::utils::profiler::{Profiler, ProfileCategory};
+use crate::utils::profiler::{ProfileCategory, Profiler};
 
 /// The XPBD (Extended Position Based Dynamics) Solver.
 /// Manages and solves all internal constraints of the cloth system.
@@ -23,8 +20,8 @@ pub struct Solver {
 }
 
 impl Solver {
-    pub fn new(state: &PhysicsState, scale_factor: f32) -> Self {
-        let distance_constraint = DistanceConstraint::new(state);
+    pub fn new(state: &PhysicsState, scale_factor: f32, distance_compliance: f32) -> Self {
+        let distance_constraint = DistanceConstraint::new(state, distance_compliance);
         let base_compliance = 1.0;
         let tuned_compliance = base_compliance * (scale_factor * scale_factor);
         let bending_constraint = BendingConstraint::new(state, tuned_compliance);
@@ -52,7 +49,7 @@ impl Solver {
         state: &mut PhysicsState,
         resolver: &CollisionResolver,
         config: &PhysicsConfig,
-        dt: f32
+        dt: f32,
     ) {
         let mut omega = 1.0;
         let rho = config.spectral_radius;
@@ -80,7 +77,8 @@ impl Solver {
             Profiler::end(ProfileCategory::TetherConstraint);
 
             Profiler::start(ProfileCategory::AreaConstraint);
-            self.area_constraint.solve(state, config.area_compliance, omega, dt);
+            self.area_constraint
+                .solve(state, config.area_compliance, omega, dt);
             Profiler::end(ProfileCategory::AreaConstraint);
 
             // FIX: Do NOT accelerate Collisions

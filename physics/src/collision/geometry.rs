@@ -23,6 +23,18 @@ impl Triangle {
         (min, max)
     }
 
+    /// Computes the squared distance from a point `p` to the triangle's AABB.
+    /// Returns 0.0 if the point is inside the AABB.
+    pub fn aabb_dist_sq(&self, p: Vec3) -> f32 {
+        let (min, max) = self.aabb();
+
+        // Compute the closest point on the AABB to p
+        let closest = p.max(min).min(max);
+
+        // Distance squared between p and closest point on box
+        closest.distance_squared(p)
+    }
+
     /// Finds the closest point on this triangle to a given point `p`.
     /// Returns the point and the barycentric coordinates (u, v, w).
     /// Uses Voronoi regions to determine feature (vertex, edge, face) proximity.
@@ -116,7 +128,11 @@ impl Triangle {
             let intersection_point = p1 + ray_vector * t;
             let normal = edge1.cross(edge2).normalize();
             // Ensure normal points against the ray
-            let final_normal = if normal.dot(ray_vector) < 0.0 { normal } else { -normal };
+            let final_normal = if normal.dot(ray_vector) < 0.0 {
+                normal
+            } else {
+                -normal
+            };
             return Some((intersection_point, final_normal, t));
         }
 

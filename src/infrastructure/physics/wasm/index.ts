@@ -1,14 +1,17 @@
+
 // src/infrastructure/physics/wasm/index.ts
 
-// FIX: Point to the actual output directory 'src/physics-pkg'
-// Relative path: Up 3 levels to 'src', then into 'physics-pkg'
+// Point to the generated JS/Wasm bindings in the same directory
 import init, {
     PhysicsEngine,
     profiler_get_report,
     profiler_reset,
     profiler_set_enabled,
+    initThreadPool,
     type InitOutput
-} from '../../../physics-pkg/garment_physics';
+} from './garment_physics';
 
-export { init, PhysicsEngine, profiler_get_report, profiler_reset, profiler_set_enabled };
+// Re-export as named and default for compatibility
+export default init;
+export { init, PhysicsEngine, profiler_get_report, profiler_reset, profiler_set_enabled, initThreadPool };
 export type { InitOutput };

@@ -1,9 +1,9 @@
 // physics/src/collision/resolver/narrow.rs
 
-use crate::engine::state::PhysicsState;
-use crate::engine::config::PhysicsConfig;
-use crate::collision::collider::MeshCollider;
 use super::{CollisionResolver, Contact};
+use crate::collision::collider::MeshCollider;
+use crate::engine::config::PhysicsConfig;
+use crate::engine::state::PhysicsState;
 use glam::{Vec3, Vec4};
 
 /// Executes the Narrow Phase of collision detection.
@@ -14,7 +14,7 @@ pub fn perform_narrow_phase(
     state: &mut PhysicsState,
     collider: &MeshCollider,
     config: &PhysicsConfig,
-    dt: f32
+    dt: f32,
 ) {
     resolver.contacts.clear();
 
@@ -24,7 +24,9 @@ pub fn perform_narrow_phase(
 
     for i in 0..state.count {
         let count = resolver.candidate_counts[i];
-        if count == 0 { continue; }
+        if count == 0 {
+            continue;
+        }
 
         let offset = resolver.candidate_offsets[i];
 
@@ -45,7 +47,11 @@ pub fn perform_narrow_phase(
             // 1. Continuous Check
             if let Some((hit_point, hit_normal, t)) = tri.intersect_segment(prev, pos) {
                 if t < min_metric {
-                    let normal = if hit_normal.dot(pos - prev) < 0.0 { hit_normal } else { -hit_normal };
+                    let normal = if hit_normal.dot(pos - prev) < 0.0 {
+                        hit_normal
+                    } else {
+                        -hit_normal
+                    };
                     best_contact = Some((hit_point, normal, t));
                     min_metric = t;
                     is_continuous = true;
@@ -54,23 +60,28 @@ pub fn perform_narrow_phase(
 
             // 2. Discrete Check
             if !is_continuous {
-                let (closest, _bary) = tri.closest_point(pos);
-                let dist_sq = closest.distance_squared(pos);
+                // OPTIMIZATION: AABB Pruning
+                // Skip expensive closest_point if particle is far from triangle AABB
+                if tri.aabb_dist_sq(pos) < discrete_radius * discrete_radius {
+                    let (closest, _bary) = tri.closest_point(pos);
+                    let dist_sq = closest.distance_squared(pos);
 
-                if dist_sq < discrete_radius * discrete_radius {
-                    if dist_sq < min_metric {
-                        let idx0 = collider.indices[tri_idx * 3] as usize;
-                        let idx1 = collider.indices[tri_idx * 3 + 1] as usize;
-                        let idx2 = collider.indices[tri_idx * 3 + 2] as usize;
-                        let n0 = collider.normals[idx0];
-                        let n1 = collider.normals[idx1];
-                        let n2 = collider.normals[idx2];
+                    if dist_sq < discrete_radius * discrete_radius {
+                        if dist_sq < min_metric {
+                            let idx0 = collider.indices[tri_idx * 3] as usize;
+                            let idx1 = collider.indices[tri_idx * 3 + 1] as usize;
+                            let idx2 = collider.indices[tri_idx * 3 + 2] as usize;
+                            let n0 = collider.normals[idx0];
+                            let n1 = collider.normals[idx1];
+                            let n2 = collider.normals[idx2];
 
-                        let (_, bary) = tri.closest_point(pos);
-                        let smooth_normal = (n0 * bary[0] + n1 * bary[1] + n2 * bary[2]).normalize();
+                            let (_, bary) = tri.closest_point(pos);
+                            let smooth_normal =
+                                (n0 * bary[0] + n1 * bary[1] + n2 * bary[2]).normalize();
 
-                        best_contact = Some((closest, smooth_normal, dist_sq));
-                        min_metric = dist_sq;
+                            best_contact = Some((closest, smooth_normal, dist_sq));
+                            min_metric = dist_sq;
+                        }
                     }
                 }
             }
