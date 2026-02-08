@@ -1,6 +1,6 @@
-use garment_physics::engine::state::PhysicsState;
-use garment_physics::systems::constraints::distance::DistanceConstraint;
 use glam::Vec4;
+use vestra_physics::engine::state::PhysicsState;
+use vestra_physics::systems::constraints::distance::DistanceConstraint;
 
 fn make_state() -> PhysicsState {
     let positions = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0];

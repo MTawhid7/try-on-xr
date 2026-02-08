@@ -1,6 +1,6 @@
-use garment_physics::systems::dynamics::Integrator;
-use garment_physics::engine::state::PhysicsState;
-use garment_physics::engine::config::PhysicsConfig;
+use vestra_physics::systems::dynamics::Integrator;
+use vestra_physics::engine::state::PhysicsState;
+use vestra_physics::engine::config::PhysicsConfig;
 use glam::Vec3;
 
 #[test]

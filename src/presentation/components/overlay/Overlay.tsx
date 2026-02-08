@@ -1,13 +1,13 @@
 // src/presentation/components/overlay/Overlay.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react'; // { useState, useEffect, useCallback } removed
 import { Panel } from '../common/Panel';
 import { StatusPanel } from './StatusPanel';
-import { ProfilerOverlay } from './ProfilerOverlay';
+// import { ProfilerOverlay } from './ProfilerOverlay';
 import { SimulationControls } from '../controls/SimulationControls';
 import { SizeSelector } from '../controls/SizeSelector';
 import { useSimulationStore } from '../../state/useSimulationStore';
-import { useMediaQuery, useProfiler } from '../../hooks';
+import { useMediaQuery } from '../../hooks'; // useProfiler removed
 
 /**
  * The main UI overlay layer.
@@ -15,15 +15,18 @@ import { useMediaQuery, useProfiler } from '../../hooks';
  * Manages pointer events to ensure clicks pass through to the canvas where appropriate.
  */
 export const Overlay: React.FC = () => {
-    const { error, isReady, substeps, solverIterations } = useSimulationStore();
+    const { error } = useSimulationStore(); // Removed isReady, substeps, solverIterations
     const isMobile = useMediaQuery('(max-width: 600px)');
-    const [showProfiler, setShowProfiler] = useState(!isMobile);
+    // const [showProfiler, setShowProfiler] = useState(!isMobile);
 
+    /*
     const {
         getProfileData,
         resetProfiler,
     } = useProfiler(500);
+    */
 
+    /*
     // Toggle profiler with keyboard shortcut (P key)
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'p' || e.key === 'P') {
@@ -35,6 +38,7 @@ export const Overlay: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleKeyDown]);
+    */
 
     return (
         <>
@@ -71,7 +75,7 @@ export const Overlay: React.FC = () => {
                         <SimulationControls />
                         <SizeSelector />
 
-                        {/* Profiler Toggle */}
+                        {/* Profiler Toggle - COMMENTED OUT FOR PERFORMANCE
                         <div style={{
                             marginTop: '10px',
                             paddingTop: '10px',
@@ -107,6 +111,7 @@ export const Overlay: React.FC = () => {
                                 </span>
                             </button>
                         </div>
+                        */}
                     </Panel>
                 </div>
 
@@ -125,7 +130,7 @@ export const Overlay: React.FC = () => {
                 )}
             </div>
 
-            {/* Profiler Overlay (Right Side) */}
+            {/* Profiler Overlay (Right Side) - COMMENTED OUT FOR PERFORMANCE
             {showProfiler && isReady && (
                 <div style={{ pointerEvents: 'auto' }}>
                     <ProfilerOverlay
@@ -137,6 +142,7 @@ export const Overlay: React.FC = () => {
                     />
                 </div>
             )}
+            */}
         </>
     );
 };

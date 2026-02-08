@@ -47,7 +47,7 @@ export const LoadingScreen: React.FC = () => {
                     100% { transform: rotate(360deg); }
                 }
             `}</style>
-            <h2>Initializing V5 Engine</h2>
+            <h2>Initializing Vestra Physics Engine</h2>
             <p style={{ color: '#666' }}>Loading Assets & Compiling WASM...</p>
         </div>
     );

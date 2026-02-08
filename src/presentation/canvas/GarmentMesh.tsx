@@ -55,11 +55,12 @@ export const GarmentMesh: React.FC = () => {
     // 2. Attach Interaction Logic
     useGarmentInteraction(meshRef);
 
-    // 3. The Render Loop
+    // 3. The Render Loop (Runs every frame, e.g., 60fps)
     useFrame((_, delta) => {
         if (!engine || !meshRef.current || !geometry) return;
 
         // A. Step Physics
+        // We accumulate time in the engine and step fixed time steps (e.g. 30Hz)
         if (isRunning) {
             // Clamp delta to prevent "Spiral of Death" if tab was backgrounded
             const safeDelta = Math.min(delta, 0.1);
@@ -68,6 +69,7 @@ export const GarmentMesh: React.FC = () => {
 
         // B. Sync Physics -> Visuals (Zero-Copy)
         // The engine returns a direct view into WASM memory (InterleavedBufferAttribute)
+        // This avoids copying data from WASM to JS to Three.js every frame.
         const physicsAttribute = engine.getPositions() as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
         const normalsAttribute = engine.getNormals() as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
@@ -83,6 +85,7 @@ export const GarmentMesh: React.FC = () => {
         }
 
         // Flag buffers for GPU upload
+        // This tells Three.js that the underlying data has changed and needs to be resent to the GPU.
         if (physicsAttribute instanceof THREE.InterleavedBufferAttribute) {
             physicsAttribute.data.needsUpdate = true;
         } else {

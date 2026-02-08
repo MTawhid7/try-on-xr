@@ -5,6 +5,32 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-08] - Multi-Core Stability & "Slow Motion" Architecture
+
+### 1. Current State (Multi-Core Stability)
+
+- [x] **Invisible Shirt Fixed:**
+  - **Root Cause:** The `WasmAdapter` was waiting for the *first* physics update to initialize its render buffers. Since the worker takes a few milliseconds to start, the `GarmentMesh` was receiving empty/null buffers at Frame 0.
+  - **Fix:** We now immediately initialize the `currPositions` and `prevPositions` buffers in `WasmAdapter.init()` using the initial `garmentVerts` payload. This guarantees valid render data from the very first frame.
+- [x] **Lag & Crash Fixed (Worker Throttling):**
+  - **Root Cause:** The main thread was flooding the worker with `STEP` messages (60+ per second) faster than the worker could process them. This created an infinite backlog ("Death Spiral"), eventually causing the browser to freeze or the worker to crash ("Engine switched off").
+  - **Fix:** Implemented a **"Busy Flag"** mechanism. The main thread now checks `isWorkerBusy` before sending a step. Result: If the worker is busy, the physics step is **skipped** (accumulator reset, visual state held). This effectively slows down the simulation to match the worker's processing speed ("Slow Motion") instead of crashing the browser.
+- [x] **Jitter Fixed (Interpolation Holding):**
+  - **Root Cause:** When a step was skipped due to throttling, the `accumulator` was reset but the "Previous Frame" reference remained stale. This caused the linear interpolation to snap back to the *past* frame, creating a visual stutter.
+  - **Fix:** When skipping a step, we now explicitly update `prevPositions = currPositions`. This "holds" the current pose visually until the physics engine catches up, creating a smooth "pause" instead of a jittery "rewind."
+
+### 2. Observations / Notes (Simulation Aesthetic)
+
+- **The "Slow Motion" Effect:**
+  - On the current high-fidelity mesh, the physics engine runs at roughly 20-30Hz while the renderer runs at 60Hz.
+  - Because we throttle the physics steps to match the worker's speed (instead of forcing real-time catch-up), the cloth moves in a stable, fluid **Slow Motion**.
+  - **Verdict:** This aesthetic is actually quite pleasing for a fashion showcase. It gives the fabric a sense of "weight" and "elegance" that high-speed real-time physics often lacks (twitchiness). We have decided to **embrace** this behavior rather than aggressively optimizing for real-time speed at the cost of stability.
+
+### 3. Next Steps / Plan (Stability)
+
+- [ ] **Performance:** We can still optimize the Rust solver (e.g., using `View` types instead of partial copies) to get closer to real-time if desired, but stability is now the priority.
+- [ ] **Visuals:** The current logic is robust enough to start working on advanced shaders (Anisotropy, Sheen) without fear of the simulation crashing underneath.
+
 ## [2026-02-08] - Decoupled Physics Loop & Debugging
 
 ### 1. Current State (Decoupled Physics Loop)

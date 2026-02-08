@@ -1,9 +1,8 @@
 # Vestra Physics Engine
 
-![Version](https://img.shields.io/badge/Version-2.0.0_(SIMD_&_Parallelism)-blue)
+![Version](https://img.shields.io/badge/Version-3.0.0-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
-![License](https://img.shields.io/badge/License-MIT-lightgrey)
-![Stack](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD128_%7C_React_Three_Fiber-orange)
+![Tech](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD128_%7C_React_Three_Fiber-orange)
 
 **Vestra** is a high-performance, real-time Virtual Try-On (VTO) engine built for the modern web.
 
@@ -19,7 +18,7 @@ Unlike traditional JavaScript-based physics engines, Vestra is designed specific
 - [Key Features](#-key-features)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
-- [Configuration and Tuning](#%EF%B8%8F-configuration-and-tuning)
+- [Configuration](#%EF%B8%8F-configuration)
 - [Development Workflow](#-development-workflow)
 - [Roadmap](#-roadmap)
 
@@ -27,47 +26,47 @@ Unlike traditional JavaScript-based physics engines, Vestra is designed specific
 
 ## 🏗 Architecture
 
-Vestra follows **Clean Architecture (Hexagonal Architecture)** principles to ensure separation of concerns, testability, and scalability.
+Vestra follows **Clean Architecture** principles to ensure separation of concerns, testability, and scalability.
 
 ### 1. The Core (Domain Layer)
 
 Located in `src/core`.
 
-- **Entities:** Pure data structures (`Garment`, `SimulationState`) that embody the business rules.
-- **Interfaces:** Contracts for external dependencies (e.g., `ISimulationEngine`).
-- **Logic:** Universal constants and sizing standards. Zero dependencies on React or Three.js.
+- **Entities:** Pure data logic (`Garment`, `SimulationState`).
+- **Interfaces:** Contracts for external dependencies.
+- **Logic:** Universal constants and sizing standards.
 
 ### 2. The Application (Use Cases Layer)
 
 Located in `src/application`.
 
-- **Pipelines:** Complex, multi-step workflows like `AssetPreparationPipeline` and `GradingPipeline`.
-- **Orchestration:** Coordinates the flow of data between the UI, the Physics Engine, and the Renderer.
-- **DTOs:** Data Transfer Objects for passing state between layers.
+- **Pipelines:** Orchestrates complex workflows (`AssetPreparation`).
+- **Orchestration:** Coordinates data flow between UI, Physics, and Renderer.
 
 ### 3. The Infrastructure (Adapter Layer)
 
 Located in `src/infrastructure`.
 
-- **WASM Adapter:** The bridge to the Rust backend. Handles memory marshalling and Zero-Copy buffer synchronization.
-- **Geometry Engine:** Implementation of complex algorithms like `MeshAnalyzer` (Slicing) and `ProxyGenerator` (Decimation).
-- **Rendering:** `TextureGenerator` strategies and Three.js setups.
+- **WASM Adapter:** Managing the Rust backend, memory marshalling, and thread safety.
+- **Worker Throttling:** Intelligent step regulation to prevent "Death Spiral" crashes on low-end devices.
+- **Geometry Engine:** Mesh analysis and processing.
 
 ### 4. The Presentation (UI Layer)
 
 Located in `src/presentation`.
 
-- **React Components:** Pure UI overlays (Status Panels, Controls).
-- **Zustand Stores:** State management for the simulation loop (`simulationStore`).
-- **Canvas:** The React Three Fiber scene graph.
+- **React Components:** Pure UI overlays.
+- **Zustand Stores:** State management for the simulation loop.
+- **Canvas:** React Three Fiber scene graph.
 
 ### 5. The Physics Backend (Rust)
 
 Located in `physics/`.
 
-- **Data-Oriented Design:** State is stored in **16-byte aligned** `Vec4` arrays (SoA) for SIMD efficiency.
-- **XPBD Solver:** Extended Position Based Dynamics with **Chebyshev Acceleration** and **Speculative Contacts**.
-- **Memory Management:** Uses pre-allocated buffers and CSR (Compressed Sparse Row) adjacency lists to ensure **Zero-Allocation** during the simulation loop.
+- **Data-Oriented Design:** SoA layout for SIMD efficiency.
+- **XPBD Solver:** Extended Position Based Dynamics with **Chebyshev Acceleration**.
+- **Parallelism:** Multithreaded collision resolution (Rayon).
+- **Zero-Allocation:** Pre-allocated buffers prevent GC spikes.
 
 ---
 
@@ -75,39 +74,26 @@ Located in `physics/`.
 
 ### 🧶 Physics & Simulation
 
-- **XPBD Solver:** Stable simulation of stiff constraints (non-stretchy fabrics) using compliance-based solving.
-- **Optimized Parallel Self-Collision:** A high-performance collision system that prevents the cloth from passing through itself.
-  - **Three-Phase Resolution:** Detects potential pairs via spatial hash, colors the collision graph for safety, and resolves batches in parallel.
-  - **SIMD Batching:** Utilizes 128-bit vector registers to resolve 4 collision pairs simultaneously.
-  - **Hierarchical Spatial Hash:** Uses Morton codes and a multi-level grid for cache-coherent O(1) lookups.
-  - **Topology-Aware Exclusion:** Precomputed bitmasks filter out connected vertices in O(1) time, preventing self-explosion.
-  - **Reduced frequency solving:** Configurable update frequency (e.g., every 2nd substep) to maintain high FPS.
-- **Anisotropic Bending:** Distinguishes between "warp/weft" (stiff) and "bias" (stretchy) directions based on UV coordinates for realistic fabric buckling.
-- **Coulomb Friction:** Physically based friction model distinguishing between static (sticking) and kinetic (sliding) friction.
-- **Aerodynamics:** Real-time lift and drag forces based on relative velocity and wind vectors.
-- **SIMD Vectorization:** Core constraints (Distance, Bending, Tether) and integrator patterns are implemented with manual WASM SIMD128 intrinsics, processing 4 operations per cycle.
-- **Chebyshev Acceleration:** Uses a dynamic relaxation factor ($\omega$) to converge to a stiff solution in fewer iterations, boosting convergence rate significantly.
-- **Speculative Contacts:** Predicts collisions before they happen to prevent "tunneling" (clipping) during fast motion.
-- **Area Conservation:** Resists shearing to prevent the "chainmail" effect, simulating continuous fabric surfaces.
-- **WASM Normal Computation:** Vertex normals are computed in Rust after every physics step, eliminating the O(N) JavaScript bottleneck on the main thread.
+- **XPBD Solver:** Stable simulation of stiff constraints.
+- **Parallel Self-Collision:** High-performance, graph-colored collision resolution using Rayon (multithreading).
+- **Anisotropic Bending:** Realistic fabric buckling (warp/weft differentiation).
+- **Aerodynamics:** Lift and drag forces based on wind vectors.
+- **WASM SIMD:** Manual 128-bit vector intrinsics for constraints and integration.
+- **Chebyshev Acceleration:** Faster convergence for stiff materials.
+- **Speculative Contacts:** Prevents tunneling during fast motion.
 
-### 📐 Asset Intelligence
+### ⚡ Performance & Stability
 
-- **Smart Welding:** Automatically merges vertices at UV seams (up to 1.5cm) while respecting normal direction to prevent merging front/back panels.
-- **Adaptive Body Measurement:** Uses cluster analysis to mathematically isolate the torso from the arms, ensuring accurate chest measurements even in A-Pose.
-- **Anatomical Anchoring:** Automatically detects the neck position and snaps the garment collar to fit.
-- **Voting-Based Orientation:** A robust heuristic algorithm (`OrientationOptimizer`) uses three independent "voters" to determine mesh orientation:
-  - **Chest Voter:** Checks for pectoral mass bias (Z-forward).
-  - **Feet Voter:** Checks for toe protrusion.
-  - **Head Voter:** Checks for face/nose offset.
-  - *Result:* Automatically corrects 99% of "Upside Down" or "Backward" avatars without user intervention.
-- **Procedural Material Generation:** Uses an in-memory `TextureGenerator` (Canvas API) to create high-frequency "Cotton Weave" normal maps on the fly, eliminating the need for large external texture assets.
+- **Zero-Copy Rendering:** Shared memory buffer between WASM and WebGL.
+- **Physics Worker:** Dedicated WebWorker decoupling physics (30Hz+) from rendering (60Hz).
+- **Adaptive Throttling:** Automatically skips physics steps if the worker is overloaded, preventing browser freezes.
+- **Interpolation Safety:** Prevents visual snapping when steps are skipped.
 
-### ⚡ Performance
+### 📐 Asset & Intelligence
 
-- **Zero-Copy Rendering:** Three.js reads directly from WASM memory. No data copying between CPU and GPU.
-- **Zero-Allocation Loop:** No garbage collection spikes during simulation.
-- **Static Spatial Hashing:** O(1) broad-phase collision detection for static mannequins.
+- **Smart Welding:** Merges UV seams while respecting normals.
+- **Auto-Orientation:** "Voter" algorithm corrects upside-down or backward mannequins.
+- **Anatomical Anchoring:** Snaps garments to body features (Neck/Shoulders).
 
 ---
 
@@ -115,27 +101,22 @@ Located in `physics/`.
 
 ```text
 root/
-├── physics/                    # Rust Source Code
+├── physics/                    # Rust Source Code (Crate)
 │   ├── src/
-│   │   ├── engine/             # State, Config, Simulation Loop
-│   │   ├── systems/            # Constraints (Distance, Area, Bending), Forces
-│   │   ├── collision/          # Spatial Hashing, Resolvers, Geometry, Exclusion
-│   │   └── utils/              # Graph Coloring, CSR Adjacency
-│   ├── tests/                  # Structured Integration Tests
-│   │   ├── engine/             # Simulation lifecycle and state tests
-│   │   ├── systems/            # Constraint solver and dynamics tests
-│   │   ├── collision/          # Spatial hash and resolution tests
-│   │   └── utils/              # Math and helper utility tests
+│   │   ├── engine/             # State, Config, Loop
+│   │   ├── systems/            # Constraints, Forces, Dynamics
+│   │   ├── collision/          # Spatial Hash, Narrow Phase, Collider
+│   │   └── utils/              # Math, Profiling (Disabled in Prod)
+│   ├── tests/                  # Integration Tests
 │   └── Cargo.toml
 │
 ├── src/                        # TypeScript Frontend
-│   ├── core/                   # Domain Entities & Interfaces
-│   ├── application/            # Use Cases & Pipelines
-│   ├── infrastructure/         # Adapters (WASM, Three.js)
-│   ├── presentation/           # React Components & State
-│   └── main.tsx                # Entry Point
+│   ├── core/                   # Domain Entities
+│   ├── application/            # Use Cases
+│   ├── infrastructure/         # Adapters (WASM, Worker)
+│   └── presentation/           # React UI & Scenes
 │
-└── public/                     # Static Assets (Models)
+└── public/                     # Static Assets
 ```
 
 ---
@@ -144,90 +125,79 @@ root/
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher)
-- **Rust** (Latest Stable)
+- **Node.js** (v18+)
+- **Rust** (Stable)
 - **wasm-pack** (`cargo install wasm-pack`)
 
 ### Installation
 
 1. **Clone the repository:**
 
-    ```bash
-    git clone https://github.com/MTawhid7/vestra-physics.git
-    cd vestra-physics
-    ```
+   ```bash
+   git clone https://github.com/MTawhid7/vestra-physics.git
+   cd vestra-physics
+   ```
 
-2. **Install JavaScript dependencies:**
+2. **Install JS dependencies:**
 
-    ```bash
-    npm install
-    ```
+   ```bash
+   npm install
+   ```
 
 3. **Compile the Physics Engine:**
-    **CRITICAL:** You must use the following flags to enable SIMD and pre-allocate memory.
+   *Recommended Build Command (enables parallel threads & SIMD):*
 
-    ```bash
-    cd physics && RUSTFLAGS='-C target-feature=+simd128 -C link-arg=--initial-memory=134217728' wasm-pack build --target web --out-dir ../src/physics-pkg && cd ..
-    ```
-
-    *Note: `134217728` allocates 128MB of RAM upfront to prevent resizing stutters.*
+   ```bash
+   npm run build:physics
+   ```
 
 4. **Run the Development Server:**
 
-    ```bash
-    npm run dev
-    ```
+   ```bash
+   npm run dev
+   ```
 
 ---
 
-## ⚙️ Configuration and Tuning
+## ⚙️ Configuration
 
-Modify `physics/src/engine/config.rs` to adjust behavior.
+Modify `physics/src/engine/config.rs` to tune the physics behavior.
 
-- `substeps`: (Default: 6) Higher = more accurate.
-- `solver_iterations`: (Default: 12) Controls constraint stiffness.
-- `spectral_radius`: (Default: 0.92) Aggressiveness of Chebyshev acceleration.
-- `self_collision_enabled`: (Default: true) Master toggle for cloth-on-cloth collision.
-- `self_collision_thickness`: (Default: 0.005) Minimum separation between cloth layers.
-- `self_collision_frequency`: (Default: 2) Update every N substeps.
-- `area_compliance`: (Default: 2.0e-4) Shear resistance.
+```rust
+pub struct PhysicsConfig {
+    pub substeps: usize,          // Default: 8 (Higher = More stable)
+    pub solver_iterations: usize, // Default: 8 (Higher = Stiffer)
+    pub gravity: Vec3,            // Default: 0, -9.81, 0
+    pub wind: Vec3,               // Vector for aerodynamics
+    pub distance_compliance: f32, // Stiffness (1e-7 = Rigid, 1e-4 = Stretchy)
+    // ...
+}
+```
 
 ---
 
 ## 🛠 Development Workflow
 
-1. **Frontend Changes:** Vite HMR updates the browser instantly.
-2. **Physics Changes:** Run the `wasm-pack` command above; Vite will reload the page automatically.
-3. **Running Tests:**
-    Integration tests are organized into semantic suites. To run all tests:
+1. **Frontend:** Edit React/TS files -> Vite HMR updates instantly.
+2. **Physics:** Edit Rust files -> Run `npm run build:physics` -> Refresh page.
+3. **Tests:**
 
-    ```bash
-    cd physics && cargo test
-    ```
-
-    To run a specific suite:
-
-    ```bash
-    cargo test --test systems
-    ```
+   ```bash
+   cd physics
+   cargo test              # Run all tests
+   cargo test --test systems # Run specific suite
+   ```
 
 ---
 
 ## 🔮 Roadmap
 
-- [x] **Parallel Batch Solving:** Implement graph-colored collision pairs for multi-threaded resolution.
-- [ ] **Temporal Coherence:** Incremental spatial hash updates via Morton code tracking.
-- [ ] **WebGPU:** Port the solver logic to WGSL Compute Shaders for massive particle counts (>50k).
-- [ ] **User Input:** UI for custom anatomical measurements to morph the mannequin.
-- [ ] **Multi-Layering:** Support for complex garment layering (e.g., blazer over hoodie).
-
----
-
-## ⚠️ Known Issues (Debugging in Progress)
-
-- **Worker Crash:** On some environments, the Physics Worker may stop responding after a few seconds ("Engine Switch Off"). This is currently being investigated with "Heartbeat" logs.
-- **Invisible Mesh:** The garment may not render on the first frame due to a data synchronization issue between the Worker and Main Thread.
-- **Lag:** Initial simulation lag is being addressed via `dt` clamping and thread pool management.
+- [x] **Parallel Batch Solving:** Multithreaded collision resolution.
+- [x] **Stability Fixes:** "Death Spiral" prevention and invisible mesh fix.
+- [x] **Rust Testing:** Comprehensive unit test suite.
+- [ ] **WebGPU Solver:** Port core constraints to Compute Shaders.
+- [ ] **Temporal Coherence:** Incremental spatial hashing.
+- [ ] **Layering Support:** Complex multi-garment interactions.
 
 ---
 

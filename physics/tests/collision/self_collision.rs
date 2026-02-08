@@ -1,5 +1,5 @@
-use garment_physics::collision::self_collision::{SelfCollision, SelfCollisionConfig};
-use garment_physics::engine::state::PhysicsState;
+use vestra_physics::collision::self_collision::{SelfCollision, SelfCollisionConfig};
+use vestra_physics::engine::state::PhysicsState;
 use glam::Vec4;
 
 fn make_test_state() -> PhysicsState {

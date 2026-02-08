@@ -1,4 +1,4 @@
-use garment_physics::collision::spatial::dynamic::{HierarchicalSpatialHash, morton_encode};
+use vestra_physics::collision::spatial::dynamic::{HierarchicalSpatialHash, morton_encode};
 use glam::Vec3;
 
 #[test]

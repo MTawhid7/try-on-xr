@@ -1,4 +1,4 @@
-use garment_physics::collision::preprocessing::process_mesh;
+use vestra_physics::collision::preprocessing::process_mesh;
 use glam::Vec3;
 
 #[test]

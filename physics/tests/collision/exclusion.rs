@@ -1,4 +1,4 @@
-use garment_physics::collision::exclusion::TopologyExclusion;
+use vestra_physics::collision::exclusion::TopologyExclusion;
 
 
 #[test]

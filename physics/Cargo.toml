@@ -1,7 +1,7 @@
 [package]
-name = "garment-physics"
-version = "0.1.0"
-edition = "2021"
+name = "vestra-physics"
+version = "3.0.0"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

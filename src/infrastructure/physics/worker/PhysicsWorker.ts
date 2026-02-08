@@ -1,5 +1,5 @@
 
-import init, { PhysicsEngine, initThreadPool, profiler_get_report } from '../wasm';
+import init, { PhysicsEngine, initThreadPool } from '../wasm'; // profiler_get_report removed
 // Constants must be hardcoded or imported. Importing is better if possible, but might add complexity to worker bundle.
 // Let's hardcode for simplicity and robustness in worker environment first, or use relative import if Vite supports it.
 // Given strict TS, relative import is best.
@@ -62,12 +62,14 @@ self.onmessage = async (e: MessageEvent<MainToWorkerMessage>) => {
             case 'UPDATE_COLLIDER':
                 engine?.update_collider(msg.positions);
                 break;
+            /*
             case 'GET_PROFILE':
                 if (engine) {
                     const report = profiler_get_report();
                     self.postMessage({ type: 'PROFILE', data: report } as WorkerToMainMessage);
                 }
                 break;
+            */
         }
     } catch (err) {
         console.error("[PhysicsWorker] Error handling message:", err);

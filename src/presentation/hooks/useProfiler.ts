@@ -1,7 +1,7 @@
 // src/presentation/hooks/useProfiler.ts
 
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { profiler_get_report, profiler_reset, profiler_set_enabled } from '../../infrastructure/physics/wasm';
+// import { profiler_get_report, profiler_reset, profiler_set_enabled } from '../../infrastructure/physics/wasm';
 import type { ProfileReport } from '../../infrastructure/physics/adapter/WasmAdapter';
 
 interface ProfilerHook {
@@ -15,12 +15,6 @@ interface ProfilerHook {
     setEnabled: (enabled: boolean) => void;
 }
 
-/**
- * Hook to access physics engine profiling data.
- * Updates profile data periodically and provides control functions.
- *
- * @param updateInterval - How often to update profile data (ms)
- */
 export function useProfiler(updateInterval = 500): ProfilerHook {
     const [profileData, setProfileData] = useState<ProfileReport | null>(null);
     const [isEnabled, setIsEnabled] = useState(true);
@@ -32,6 +26,8 @@ export function useProfiler(updateInterval = 500): ProfilerHook {
     const solverIterationsRef = useRef(12);
 
     const getProfileData = useCallback((): ProfileReport | null => {
+        return null;
+        /*
         try {
             const json = profiler_get_report();
             if (!json || json === '{}') return null;
@@ -39,15 +35,16 @@ export function useProfiler(updateInterval = 500): ProfilerHook {
         } catch {
             return null;
         }
+        */
     }, []);
 
     const resetProfiler = useCallback(() => {
-        profiler_reset();
+        // profiler_reset();
         setProfileData(null);
     }, []);
 
     const setEnabled = useCallback((enabled: boolean) => {
-        profiler_set_enabled(enabled);
+        // profiler_set_enabled(enabled);
         setIsEnabled(enabled);
     }, []);
 

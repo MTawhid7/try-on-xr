@@ -9,7 +9,7 @@ use utils::profiler::Profiler;
 use wasm_bindgen::prelude::*;
 
 // Re-export profiler WASM functions for direct access
-pub use utils::profiler::{profiler_get_report, profiler_reset, profiler_set_enabled};
+// pub use utils::profiler::{profiler_get_report, profiler_reset, profiler_set_enabled};
 
 #[cfg(feature = "parallel")]
 pub use wasm_bindgen_rayon::init_thread_pool;

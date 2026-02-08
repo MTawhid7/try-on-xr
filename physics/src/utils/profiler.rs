@@ -1,38 +1,13 @@
-// physics/src/utils/profiler.rs
-
 //! High-resolution performance profiling for the physics engine.
-//! Uses the Web Performance API to measure timing with microsecond precision.
-//!
-//! # Usage
-//! ```rust
-//! use crate::utils::profiler::{Profiler, profile_scope};
-//!
-//! // Method 1: Scoped profiling with automatic timing
-//! {
-//!     let _timer = profile_scope!("Solver::DistanceConstraint");
-//!     // ... code to profile ...
-//! } // Timer automatically records on drop
-//!
-//! // Method 2: Manual profiling
-//! Profiler::start("Phase::Integration");
-//! // ... code ...
-//! Profiler::end("Phase::Integration");
-//!
-//! // Get results as JSON
-//! let json = Profiler::get_report_json();
-//! ```
+//! Use the Web Performance API to measure timing with microsecond precision.
 
-use std::cell::RefCell;
-use wasm_bindgen::prelude::*;
-
-#[cfg(feature = "profiling")]
-use web_sys::Performance;
+// use wasm_bindgen::prelude::*;
 
 // Thread-local profiler state (only compiled with profiling feature)
-#[cfg(feature = "profiling")]
-thread_local! {
-    static PROFILER: RefCell<ProfilerState> = RefCell::new(ProfilerState::new());
-}
+// #[cfg(feature = "profiling")]
+// thread_local! {
+//     static PROFILER: RefCell<ProfilerState> = RefCell::new(ProfilerState::new());
+// }
 
 /// Profiling categories for organized reporting
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -132,167 +107,50 @@ impl TimingStats {
     }
 }
 
-/// Internal profiler state
-#[cfg(feature = "profiling")]
-struct ProfilerState {
-    performance: Option<Performance>,
-    stats: [TimingStats; ProfileCategory::count()],
-    start_times: [f64; ProfileCategory::count()],
-    frame_count: u32,
-    enabled: bool,
-}
-
-#[cfg(feature = "profiling")]
-impl ProfilerState {
-    fn new() -> Self {
-        let performance = web_sys::window().and_then(|w| w.performance());
-
-        Self {
-            performance,
-            stats: std::array::from_fn(|_| TimingStats::new()),
-            start_times: [0.0; ProfileCategory::count()],
-            frame_count: 0,
-            enabled: true,
-        }
-    }
-
-    fn now(&self) -> f64 {
-        self.performance.as_ref().map_or(0.0, |p| p.now())
-    }
-
-    fn start(&mut self, category: ProfileCategory) {
-        if self.enabled {
-            self.start_times[category as usize] = self.now();
-        }
-    }
-
-    fn end(&mut self, category: ProfileCategory) {
-        if self.enabled {
-            let start = self.start_times[category as usize];
-            let end = self.now();
-            let duration = end - start;
-            self.stats[category as usize].record(duration);
-        }
-    }
-}
-
 /// Public profiler interface
 pub struct Profiler;
 
 impl Profiler {
     /// Start timing a category
     #[inline]
-    pub fn start(category: ProfileCategory) {
-        #[cfg(feature = "profiling")]
-        PROFILER.with(|p| p.borrow_mut().start(category));
+    pub fn start(_category: ProfileCategory) {
+        // No-op
     }
 
     /// End timing a category
     #[inline]
-    pub fn end(category: ProfileCategory) {
-        #[cfg(feature = "profiling")]
-        PROFILER.with(|p| p.borrow_mut().end(category));
+    pub fn end(_category: ProfileCategory) {
+        // No-op
     }
 
     /// Mark the start of a new frame
     #[inline]
     pub fn begin_frame() {
-        #[cfg(feature = "profiling")]
-        PROFILER.with(|p| {
-            let mut profiler = p.borrow_mut();
-            profiler.frame_count += 1;
-            profiler.start(ProfileCategory::Frame);
-        });
+        // No-op
     }
 
     /// Mark the end of a frame
     #[inline]
     pub fn end_frame() {
-        #[cfg(feature = "profiling")]
-        PROFILER.with(|p| p.borrow_mut().end(ProfileCategory::Frame));
+        // No-op
     }
 
     /// Enable or disable profiling
-    pub fn set_enabled(enabled: bool) {
-        #[cfg(feature = "profiling")]
-        PROFILER.with(|p| p.borrow_mut().enabled = enabled);
-        #[cfg(not(feature = "profiling"))]
-        let _ = enabled;
+    pub fn set_enabled(_enabled: bool) {
+        // No-op
     }
 
     /// Reset all statistics
     pub fn reset() {
-        #[cfg(feature = "profiling")]
-        PROFILER.with(|p| {
-            let mut profiler = p.borrow_mut();
-            for stat in &mut profiler.stats {
-                stat.reset();
-            }
-            profiler.frame_count = 0;
-        });
+        // No-op
     }
 
     /// Get profiling report as JSON string
-    #[cfg(feature = "profiling")]
-    pub fn get_report_json() -> String {
-        PROFILER.with(|p| {
-            let profiler = p.borrow();
-            let mut json = String::from("{");
-
-            json.push_str(&format!("\"frameCount\":{},", profiler.frame_count));
-            json.push_str("\"categories\":{");
-
-            for (i, cat) in [
-                ProfileCategory::Frame,
-                ProfileCategory::Integration,
-                ProfileCategory::BroadPhase,
-                ProfileCategory::NarrowPhase,
-                ProfileCategory::Constraints,
-                ProfileCategory::DistanceConstraint,
-                ProfileCategory::BendingConstraint,
-                ProfileCategory::TetherConstraint,
-                ProfileCategory::AreaConstraint,
-                ProfileCategory::CollisionResolve,
-                ProfileCategory::SelfCollision,
-                ProfileCategory::SelfCollisionDetect,
-                ProfileCategory::SelfCollisionColor,
-                ProfileCategory::SelfCollisionResolve,
-                ProfileCategory::Normals,
-                ProfileCategory::Aerodynamics,
-                ProfileCategory::MouseConstraint,
-            ].iter().enumerate() {
-                let stats = &profiler.stats[*cat as usize];
-                if i > 0 {
-                    json.push(',');
-                }
-                json.push_str(&format!(
-                    "\"{}\":{{\"avg\":{:.4},\"min\":{:.4},\"max\":{:.4},\"last\":{:.4},\"count\":{}}}",
-                    cat.name(),
-                    stats.avg_ms,
-                    if stats.min_ms == f64::MAX { 0.0 } else { stats.min_ms },
-                    stats.max_ms,
-                    stats.last_ms,
-                    stats.count
-                ));
-            }
-
-            json.push_str("}}");
-            json
-        })
-    }
-
-    #[cfg(not(feature = "profiling"))]
     pub fn get_report_json() -> String {
         "{}".to_string()
     }
 
     /// Get timing for a specific category
-    #[cfg(feature = "profiling")]
-    pub fn get_timing(category: ProfileCategory) -> TimingStats {
-        PROFILER.with(|p| p.borrow().stats[category as usize].clone())
-    }
-
-    #[cfg(not(feature = "profiling"))]
     pub fn get_timing(_category: ProfileCategory) -> TimingStats {
         TimingStats::new()
     }
@@ -337,7 +195,8 @@ macro_rules! profile_block {
     }};
 }
 
-// WASM-exposed functions for JavaScript access
+// WASM-exposed functions for JavaScript access (COMMENTED OUT)
+/*
 #[wasm_bindgen]
 pub fn profiler_get_report() -> String {
     Profiler::get_report_json()
@@ -352,6 +211,7 @@ pub fn profiler_reset() {
 pub fn profiler_set_enabled(enabled: bool) {
     Profiler::set_enabled(enabled);
 }
+*/
 
 #[cfg(test)]
 mod tests {

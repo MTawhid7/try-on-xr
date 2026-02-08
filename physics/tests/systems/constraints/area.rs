@@ -1,5 +1,5 @@
-use garment_physics::systems::constraints::area::AreaConstraint;
-use garment_physics::engine::state::PhysicsState;
+use vestra_physics::systems::constraints::area::AreaConstraint;
+use vestra_physics::engine::state::PhysicsState;
 use glam::Vec4;
 
 #[test]

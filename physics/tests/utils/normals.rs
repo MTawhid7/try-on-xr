@@ -1,4 +1,4 @@
-use garment_physics::utils::normals::compute_vertex_normals;
+use vestra_physics::utils::normals::compute_vertex_normals;
 use glam::Vec4;
 
 #[test]

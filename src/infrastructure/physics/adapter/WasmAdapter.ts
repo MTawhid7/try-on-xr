@@ -74,10 +74,12 @@ export class WasmAdapter implements IPhysicsEngine {
                 this.currPositions = msg.positions;
                 this.currNormals = msg.normals;
                 break;
+            /*
             case 'PROFILE':
                 // Store or log profile data if needed
                 console.log("Profile Data:", msg.data);
                 break;
+            */
         }
     }
 
@@ -166,14 +168,15 @@ export class WasmAdapter implements IPhysicsEngine {
         this.accumulator += safeDt;
 
         if (this.accumulator >= this.FIXED_TIME_STEP) {
-            // Throttling: Only send step if worker is free
+            // Throttling: Only send step if worker is free.
+            // This prevents "Death Spiral" where the main thread floods the worker with more tasks than it can handle.
             if (!this.isWorkerBusy) {
                 this.accumulator -= this.FIXED_TIME_STEP;
                 this.isWorkerBusy = true;
                 this.postMessage({ type: 'STEP', dt: this.FIXED_TIME_STEP });
                 // console.debug("[WasmAdapter] Step Sent.");
             } else {
-                // Worker is busy. To prevent "Death Spiral", we skip this simulation step (Slow Motion).
+                // Worker is busy. To prevent browser freeze, we skip this simulation step (Slow Motion).
                 // CRITICAL: To prevent visual jitter (snapping back to prev frame), we must
                 // advance our "previous" state to the "current" state, effectively "holding" the pose.
                 // This makes interpolation alpha=0 yield 'curr' instead of 'prev'.

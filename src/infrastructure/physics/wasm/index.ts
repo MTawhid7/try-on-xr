@@ -4,14 +4,11 @@
 // Point to the generated JS/Wasm bindings in the same directory
 import init, {
     PhysicsEngine,
-    profiler_get_report,
-    profiler_reset,
-    profiler_set_enabled,
     initThreadPool,
     type InitOutput
-} from './garment_physics';
+} from './vestra_physics';
 
 // Re-export as named and default for compatibility
 export default init;
-export { init, PhysicsEngine, profiler_get_report, profiler_reset, profiler_set_enabled, initThreadPool };
+export { init, PhysicsEngine, initThreadPool };
 export type { InitOutput };

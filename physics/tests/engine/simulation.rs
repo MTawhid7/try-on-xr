@@ -1,4 +1,4 @@
-use garment_physics::engine::simulation::Simulation;
+use vestra_physics::engine::simulation::Simulation;
 // use glam::Vec4;
 
 #[test]
