@@ -6,7 +6,7 @@ import init, {
     PhysicsEngine,
     initThreadPool,
     type InitOutput
-} from './vestra_physics';
+} from './vestra_physics.js';
 
 // Re-export as named and default for compatibility
 export default init;
