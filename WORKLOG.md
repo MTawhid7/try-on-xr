@@ -5,6 +5,42 @@ Use it to track what works, what doesn’t, and what to do next.
 
 ---
 
+## [2026-02-09] - Parallel Physics & Mobile Optimization
+
+### 1. Current State (Performance & Parallelization)
+
+- [x] **Parallel Collision Resolver:**
+  - **Full Pipeline Parallelization:** Parallelized the Broad Phase (Scan/Scatter), Narrow Phase (Parallel Map), and Self-Collision Detection (Parallel Map/Flatten) using Rayon.
+  - **Verification:** Confirmed runtime execution using browser console logging across all parallel blocks.
+- [x] **WASM SIMD & Compiler Optimizations:**
+  - **SIMD Enabled:** Enabled WebAssembly SIMD (`+simd128`) and removed `scalar-math` requirement from `glam` to leverage 128-bit vector instructions for 2x-4x speedup in core math.
+  - **Build Profile:** Optimized `Cargo.toml` with `lto = true`, `opt-level = 3`, `codegen-units = 1`, and `strip = "debuginfo"` to produce the smallest and fastest possible WASM binary.
+- [x] **Dynamic Mobile Scaling:**
+  - **Heuristic Detection:** Implemented device detection in `PhysicsWorker.ts` based on `userAgent` and `hardwareConcurrency`.
+  - **Fidelity Fallback:** Automatically lowers `substeps` and `solver_iterations` on mobile to preserve interactive frame rates.
+  - **User-Tuned Defaults:** Currently set to **6 substeps** and **8 iterations** for mobile to maintain a balance between performance and fabric "weight."
+
+### 2. Observations & Issues (Mobile Performance)
+
+- **Fabric Realism vs. Performance:**
+  - **The "Rubber Band" Effect:** Reducing substeps/iterations too low (e.g., 4x4) causes fabric to lose its "Cotton/Denim" stiffness, making it feel like jelly or rubber.
+  - **Thermal Throttling:** Mobile performance remains a challenge despite massive algorithmic parallelization. The bottleneck may be shifting toward memory bandwidth (transferring large Float32Arrays between worker and main thread) or thermal limits of the SOC.
+- **Camera Decoupling:**
+  - Even when the physics engine is struggling on mobile, the **UI and Camera remain smooth at 60 FPS**. This confirms the success of our decoupled architecture (Worker + Interpolation Buffer).
+
+### 3. Future Plans (Mobile Optimization Phase 2)
+
+- [ ] **Algorithmic Pruning (Sleep System):**
+  - Implement a "dormant" state for particles that haven't moved significantly. This would skip constraint solving for large portions of the garment (e.g., the back of a shirt) when the character is static.
+- [ ] **Memory Bandwidth Optimization:**
+  - Investigate if we can avoid JS-side array copies entirely or use a more aggressive "Transferable" strategy for position/normal updates.
+- [ ] **Broad-Phase Culling:**
+  - Implement more aggressive AABB culling or multi-level grids to reduce the self-collision query workload on mobile cores.
+- [ ] **WebGPU Port:**
+  - Re-evaluate the roadmap for a WebGPU compute shader port, which would move the $O(N)$ workload to the GPU, leaving the CPU free for worker orchestration.
+
+---
+
 ## [2026-02-08] - Multi-Core Stability & "Slow Motion" Architecture
 
 ### 1. Current State (Multi-Core Stability)

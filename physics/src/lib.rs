@@ -121,4 +121,18 @@ impl PhysicsEngine {
     pub fn get_solver_iterations(&self) -> usize {
         self.sim.config.solver_iterations
     }
+
+    // --- Tuning Methods ---
+
+    pub fn set_substeps(&mut self, substeps: usize) {
+        self.sim.config.substeps = substeps;
+    }
+
+    pub fn set_solver_iterations(&mut self, iterations: usize) {
+        self.sim.config.solver_iterations = iterations;
+    }
+
+    pub fn set_self_collision_enabled(&mut self, enabled: bool) {
+        self.sim.config.self_collision_enabled = enabled;
+    }
 }

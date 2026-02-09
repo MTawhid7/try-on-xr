@@ -113,6 +113,20 @@ async function initialize(payload: InitPayload) {
     );
 
     console.log("[PhysicsWorker] Engine initialized.");
+
+    // Dynamic Quality Adjustment
+    // Simple heuristic: If concurrency <= 4 or User Agent smells like mobile, lower settings.
+    const isMobile = navigator.userAgent.match(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i) || (navigator.hardwareConcurrency || 4) <= 4;
+
+    if (isMobile) {
+        console.log("[PhysicsWorker] Mobile device detected. Lowering simulation fidelity.");
+        engine.set_substeps(6);
+        engine.set_solver_iterations(8);
+        // engine.set_self_collision_enabled(false); // Optional: Disable completely if totally broken
+    } else {
+        console.log("[PhysicsWorker] Desktop/High-End device detected. Using full fidelity (8x8).");
+    }
+
     self.postMessage({ type: 'INIT_SUCCESS' } as WorkerToMainMessage);
 }
 

@@ -2,7 +2,7 @@
 
 ![Version](https://img.shields.io/badge/Version-3.0.0-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
-![Tech](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD128_%7C_React_Three_Fiber-orange)
+![Tech](https://img.shields.io/badge/Tech-Rust_%7C_WASM_%7C_SIMD128_%7C_Rayon_%7C_React_Three_Fiber-orange)
 
 **Vestra** is a high-performance, real-time Virtual Try-On (VTO) engine built for the modern web.
 
@@ -65,7 +65,8 @@ Located in `physics/`.
 
 - **Data-Oriented Design:** SoA layout for SIMD efficiency.
 - **XPBD Solver:** Extended Position Based Dynamics with **Chebyshev Acceleration**.
-- **Parallelism:** Multithreaded collision resolution (Rayon).
+- **Parallelism:** Multithreaded collision resolution (Rayon) and Broad/Narrow phase partitioning.
+- **WASM SIMD:** 128-bit vector instructions for math-heavy code.
 - **Zero-Allocation:** Pre-allocated buffers prevent GC spikes.
 
 ---
@@ -195,8 +196,10 @@ pub struct PhysicsConfig {
 - [x] **Parallel Batch Solving:** Multithreaded collision resolution.
 - [x] **Stability Fixes:** "Death Spiral" prevention and invisible mesh fix.
 - [x] **Rust Testing:** Comprehensive unit test suite.
+- [x] **Manual SIMD Optimization:** +simd128 and glam-simd enabled.
 - [ ] **WebGPU Solver:** Port core constraints to Compute Shaders.
 - [ ] **Temporal Coherence:** Incremental spatial hashing.
+- [ ] **Mobile Algorithmic Pruning:** Sleep system for dormant particles.
 - [ ] **Layering Support:** Complex multi-garment interactions.
 
 ---
