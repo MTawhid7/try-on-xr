@@ -1,5 +1,6 @@
-use vestra_physics::collision::spatial::dynamic::{HierarchicalSpatialHash, morton_encode};
 use glam::Vec3;
+use rustc_hash::FxHashSet;
+use vestra_physics::collision::spatial::dynamic::{HierarchicalSpatialHash, morton_encode};
 
 #[test]
 fn test_morton_code_uniqueness() {
@@ -22,10 +23,11 @@ fn test_fine_grid_query() {
     // Insert particles close together
     hash.insert_point(0, Vec3::new(0.0, 0.0, 0.0));
     hash.insert_point(1, Vec3::new(0.005, 0.0, 0.0)); // 5mm away
-    hash.insert_point(2, Vec3::new(0.5, 0.0, 0.0));   // 50cm away (far)
+    hash.insert_point(2, Vec3::new(0.5, 0.0, 0.0)); // 50cm away (far)
 
     let mut buffer = Vec::new();
-    hash.query(Vec3::ZERO, 0.01, &mut buffer);
+    let mut dedup_set = FxHashSet::default();
+    hash.query(Vec3::ZERO, 0.01, &mut buffer, &mut dedup_set);
 
     // Should find particles 0 and 1, not 2
     assert!(buffer.contains(&0));
@@ -51,7 +53,8 @@ fn test_clear_preserves_capacity() {
     // Insert again should work
     hash.insert_point(999, Vec3::ZERO);
     let mut buffer = Vec::new();
-    hash.query(Vec3::ZERO, 0.01, &mut buffer);
+    let mut dedup_set = FxHashSet::default();
+    hash.query(Vec3::ZERO, 0.01, &mut buffer, &mut dedup_set);
     assert_eq!(buffer.len(), 1);
     assert!(buffer.contains(&999));
 }
@@ -64,8 +67,9 @@ fn test_boundary_conditions() {
     hash.insert_point(2, Vec3::new(0.1, 0.1, 0.1));
 
     let mut buffer = Vec::new();
+    let mut dedup_set = FxHashSet::default();
     // Query at 0,0,0 with radius 0.2 covering both
-    hash.query(Vec3::ZERO, 0.2, &mut buffer);
+    hash.query(Vec3::ZERO, 0.2, &mut buffer, &mut dedup_set);
 
     assert!(buffer.contains(&1));
     assert!(buffer.contains(&2));

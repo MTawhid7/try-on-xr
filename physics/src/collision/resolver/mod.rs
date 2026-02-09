@@ -2,10 +2,10 @@
 mod broad;
 mod narrow;
 
-use glam::{Vec3, Vec4};
-use crate::engine::state::PhysicsState;
-use crate::engine::config::PhysicsConfig;
 use super::collider::MeshCollider;
+use crate::engine::config::PhysicsConfig;
+use crate::engine::state::PhysicsState;
+use glam::{Vec3, Vec4};
 
 /// Represents a single point of contact between a particle and a collider.
 #[derive(Clone, Copy)]
@@ -21,6 +21,7 @@ pub struct CollisionResolver {
     pub(crate) contacts: Vec<Contact>,
 
     // Spatial Hashing Buffers
+    #[allow(dead_code)]
     pub(crate) query_buffer: Vec<usize>,
     pub(crate) candidate_indices: Vec<usize>,
     pub(crate) candidate_offsets: Vec<usize>,
@@ -43,7 +44,13 @@ impl CollisionResolver {
         broad::perform_broad_phase(self, state, collider);
     }
 
-    pub fn narrow_phase(&mut self, state: &mut PhysicsState, collider: &MeshCollider, config: &PhysicsConfig, dt: f32) {
+    pub fn narrow_phase(
+        &mut self,
+        state: &mut PhysicsState,
+        collider: &MeshCollider,
+        config: &PhysicsConfig,
+        dt: f32,
+    ) {
         narrow::perform_narrow_phase(self, state, collider, config, dt);
     }
 
@@ -61,7 +68,11 @@ impl CollisionResolver {
 
             if projection < config.contact_thickness {
                 let penetration = config.contact_thickness - projection;
-                let stiffness = if projection < 0.0 { 1.0 } else { config.collision_stiffness };
+                let stiffness = if projection < 0.0 {
+                    1.0
+                } else {
+                    config.collision_stiffness
+                };
 
                 // FIX: No omega multiplication here.
                 let correction = normal * (penetration * stiffness);
@@ -84,7 +95,9 @@ impl CollisionResolver {
                     } else {
                         let max_slide = penetration * config.dynamic_friction;
                         friction_factor = max_slide / vt_len;
-                        if friction_factor > 1.0 { friction_factor = 1.0; }
+                        if friction_factor > 1.0 {
+                            friction_factor = 1.0;
+                        }
                     }
                 }
 

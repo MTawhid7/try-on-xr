@@ -34,8 +34,6 @@ pub struct HierarchicalSpatialHash {
     coarse_cell_size: f32,
     fine_grid: FxHashMap<u64, SmallVec<[u32; 8]>>,
     coarse_grid: FxHashMap<u64, SmallVec<[u32; 16]>>,
-    /// Reusable set for deduplication in query (avoids allocation in hot path)
-    dedup_set: rustc_hash::FxHashSet<u32>,
 }
 
 impl HierarchicalSpatialHash {
@@ -48,7 +46,6 @@ impl HierarchicalSpatialHash {
             coarse_cell_size,
             fine_grid: FxHashMap::default(),
             coarse_grid: FxHashMap::default(),
-            dedup_set: rustc_hash::FxHashSet::default(),
         }
     }
 
@@ -94,9 +91,19 @@ impl HierarchicalSpatialHash {
     /// Queries particles within radius using hierarchical refinement.
     /// 1. Check coarse grid for early exit
     /// 2. Refine to fine grid for actual candidates
-    pub fn query(&mut self, p: Vec3, radius: f32, buffer: &mut Vec<u32>) {
+    /// Queries particles within radius using hierarchical refinement.
+    /// 1. Check coarse grid for early exit
+    /// 2. Refine to fine grid for actual candidates
+    /// Thread-safe version: accepts external buffers.
+    pub fn query(
+        &self,
+        p: Vec3,
+        radius: f32,
+        buffer: &mut Vec<u32>,
+        dedup_set: &mut rustc_hash::FxHashSet<u32>,
+    ) {
         buffer.clear();
-        self.dedup_set.clear();
+        dedup_set.clear();
 
         // Early exit: check coarse grid first
         let coarse_cell = self.get_coarse_cell(p);
@@ -117,11 +124,17 @@ impl HierarchicalSpatialHash {
                             break;
                         }
                     }
-                    if has_neighbors { break; }
+                    if has_neighbors {
+                        break;
+                    }
                 }
-                if has_neighbors { break; }
+                if has_neighbors {
+                    break;
+                }
             }
-            if !has_neighbors { return; }
+            if !has_neighbors {
+                return;
+            }
         }
 
         // Fine grid query
@@ -137,7 +150,7 @@ impl HierarchicalSpatialHash {
                     let key = morton_encode(x, y, z);
                     if let Some(cell) = self.fine_grid.get(&key) {
                         for &id in cell.iter() {
-                            if self.dedup_set.insert(id) {
+                            if dedup_set.insert(id) {
                                 buffer.push(id);
                             }
                         }

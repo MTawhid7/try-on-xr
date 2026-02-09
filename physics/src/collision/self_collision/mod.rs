@@ -6,18 +6,18 @@
 //!
 //! OPTIMIZATION: Two-phase approach with graph coloring for batched parallel resolution.
 
+mod coloring;
 mod config;
 mod detection;
-mod coloring;
 mod resolution;
 
-pub use config::SelfCollisionConfig;
 use config::CollisionPair;
+pub use config::SelfCollisionConfig;
 
-use crate::engine::state::PhysicsState;
-use crate::utils::profiler::{Profiler, ProfileCategory};
-use super::spatial::HierarchicalSpatialHash;
 use super::exclusion::TopologyExclusion;
+use super::spatial::HierarchicalSpatialHash;
+use crate::engine::state::PhysicsState;
+use crate::utils::profiler::{ProfileCategory, Profiler};
 
 /// Handles cloth-on-cloth collision detection and resolution.
 /// Uses hierarchical spatial hashing with Morton codes for efficient broad-phase,
@@ -28,7 +28,6 @@ pub struct SelfCollision {
     pub(crate) hash: HierarchicalSpatialHash,
     pub(crate) exclusion: TopologyExclusion,
     pub config: SelfCollisionConfig,
-    pub(crate) query_buffer: Vec<u32>,
     /// Detected collision pairs (phase 1 output)
     pub(crate) collision_pairs: Vec<CollisionPair>,
     /// Batch offsets for graph-colored pairs
@@ -50,7 +49,6 @@ impl SelfCollision {
             hash,
             exclusion,
             config,
-            query_buffer: Vec::with_capacity(64),
             collision_pairs: Vec::with_capacity(1000),
             batch_offsets: Vec::new(),
             particle_count: state.count,

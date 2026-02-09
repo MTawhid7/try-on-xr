@@ -14,9 +14,6 @@ pub struct StaticSpatialHash {
     height: usize,
     depth: usize,
     cells: Vec<Vec<usize>>,
-    /// Reusable hash set for deduplication (avoids allocation in hot path)
-    /// Using FxHashSet from rustc-hash for maximum performance in O(1) operations.
-    dedup_set: FxHashSet<usize>,
 }
 
 impl StaticSpatialHash {
@@ -46,7 +43,6 @@ impl StaticSpatialHash {
             height: safe_height,
             depth: safe_depth,
             cells: vec![Vec::new(); total_cells],
-            dedup_set: FxHashSet::with_capacity_and_hasher(256, Default::default()),
         }
     }
 
@@ -96,9 +92,18 @@ impl StaticSpatialHash {
     /// Used during Broad Phase Collision Detection.
     /// OPTIMIZATION: Uses FxHashSet for O(N) deduplication instead of O(N log N) sort.
     /// This is critical because broad phase is called for every active particle.
-    pub fn query(&mut self, p: Vec3, radius: f32, buffer: &mut Vec<usize>) {
+    /// Retrieves all triangles in cells overlapping the query radius.
+    /// Used during Broad Phase Collision Detection.
+    /// Thread-safe version: requires external buffers to avoid internal mutation.
+    pub fn query(
+        &self,
+        p: Vec3,
+        radius: f32,
+        buffer: &mut Vec<usize>,
+        dedup_set: &mut FxHashSet<usize>,
+    ) {
         buffer.clear();
-        self.dedup_set.clear();
+        dedup_set.clear();
 
         let min = p - Vec3::splat(radius);
         let max = p + Vec3::splat(radius);
@@ -122,8 +127,9 @@ impl StaticSpatialHash {
             for y in min_y..=max_y {
                 for x in min_x..=max_x {
                     let idx = x + y * self.width + z * self.width * self.height;
+                    // Safe immutable access to cells
                     for &triangle_id in &self.cells[idx] {
-                        if self.dedup_set.insert(triangle_id) {
+                        if dedup_set.insert(triangle_id) {
                             buffer.push(triangle_id);
                         }
                     }
